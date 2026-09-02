@@ -1,0 +1,24 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '@layouts/BaseLayout.astro';
+import Section from '@components/Section.astro';
+import Timeline from '@components/Timeline.astro';
+
+const allExperience = await getCollection('experience', ({ data }) => !data.draft);
+const experience = allExperience.sort(
+  (a, b) => b.data.startDate.valueOf() - a.data.startDate.valueOf(),
+);
+---
+
+<BaseLayout title="Work" description="[Placeholder description — experience overview pending.]">
+  <Section kicker="Experience" heading="Work history." reveal>
+    {experience.length > 0 ? (
+      <Timeline items={experience} />
+    ) : (
+      <p class="text-ink-700">
+        [PLACEHOLDER] No published experience entries yet. Add markdown files to
+        <code>src/content/experience/</code> and set <code>draft: false</code>.
+      </p>
+    )}
+  </Section>
+</BaseLayout>

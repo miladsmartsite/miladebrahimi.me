@@ -1,0 +1,28 @@
+---
+/**
+ * Condensed, organization-level career timeline for the homepage. The full
+ * role-by-role detail (sub-roles, exact dates) lives on /work via the
+ * `experience` collection — this is deliberately the short version.
+ */
+import Section from '@components/Section.astro';
+import Button from '@components/Button.astro';
+import { CAREER, HOME } from '@lib/site';
+---
+
+<Section kicker={HOME.career.kicker} heading={HOME.career.heading} tone="paper" reveal>
+  <ol class="border-t border-ink-100">
+    {CAREER.map((stop, i) => (
+      <li class="flex flex-col gap-1 border-b border-ink-100 py-6 sm:flex-row sm:items-baseline sm:gap-8">
+        <span class="font-sans text-sm text-ink-500 sm:w-32 sm:shrink-0">{stop.period}</span>
+        <div class="flex-1">
+          <h3 class="font-display text-xl text-ink-950 sm:text-2xl">{stop.organization}</h3>
+          <p class="mt-1 text-sm text-ink-700">{stop.roleSummary}</p>
+        </div>
+        <span class="text-xs text-ink-500 sm:shrink-0">{stop.location}</span>
+      </li>
+    ))}
+  </ol>
+  <div class="mt-8">
+    <Button href="/work" variant="ghost" arrow class="-ml-5">Full career history</Button>
+  </div>
+</Section>

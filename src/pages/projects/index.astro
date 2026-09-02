@@ -1,0 +1,27 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '@layouts/BaseLayout.astro';
+import Section from '@components/Section.astro';
+import SystemCard from '@components/SystemCard.astro';
+
+const allProjects = await getCollection('projects', ({ data }) => !data.draft);
+const systems = allProjects.sort((a, b) => a.data.order - b.data.order);
+---
+
+<BaseLayout
+  title="Work"
+  description="Systems built to solve real operational problems — operations, process, marketing, and reporting."
+>
+  <Section kicker="Systems I've built" heading="Work." reveal>
+    {systems.length > 0 ? (
+      <div>
+        {systems.map((project, index) => <SystemCard project={project} index={index} />)}
+      </div>
+    ) : (
+      <p class="text-ink-700">
+        [PLACEHOLDER] No published work yet. Add markdown files to
+        <code>src/content/projects/</code> and set <code>draft: false</code>.
+      </p>
+    )}
+  </Section>
+</BaseLayout>

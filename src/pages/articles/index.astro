@@ -1,0 +1,24 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '@layouts/BaseLayout.astro';
+import Section from '@components/Section.astro';
+import ArticleCard from '@components/ArticleCard.astro';
+
+const allArticles = await getCollection('articles', ({ data }) => !data.draft);
+const articles = allArticles.sort((a, b) => b.data.publishDate.valueOf() - a.data.publishDate.valueOf());
+---
+
+<BaseLayout title="Ideas" description="Notes on operations, systems, and where AI actually helps.">
+  <Section kicker="Ideas" heading="Writing." reveal>
+    {articles.length > 0 ? (
+      <div class="max-w-(--container-prose)">
+        {articles.map((article) => <ArticleCard article={article} />)}
+      </div>
+    ) : (
+      <p class="text-ink-700">
+        [PLACEHOLDER] No published articles yet. Add markdown files to
+        <code>src/content/articles/</code> and set <code>draft: false</code>.
+      </p>
+    )}
+  </Section>
+</BaseLayout>

@@ -1,0 +1,57 @@
+---
+import BaseLayout from '@layouts/BaseLayout.astro';
+import Section from '@components/Section.astro';
+import Career from '@components/home/Career.astro';
+import Button from '@components/Button.astro';
+---
+
+<BaseLayout
+  title="About"
+  description="From education, into marketing, into operations — the background behind the systems work."
+>
+  <Section kicker="About" heading="A working practice, not a highlight reel." reveal>
+    <div class="max-w-(--container-prose) space-y-6 text-ink-700">
+      <p>
+        The path here didn't start with operations. It started with running an independent
+        education practice for six years — the kind of work where you're responsible for
+        everything at once, because there's no one else to hand it to.
+      </p>
+      <p>
+        From there, the work moved into marketing: first as a specialist executing campaigns,
+        then managing digital marketing, then leading marketing communications end to end. Three
+        roles, three companies, each one a step up in scope — content, lead generation, brand
+        visuals, campaign strategy.
+      </p>
+      <p>
+        The shift into operations happened at Perla Engineering — starting in marketing, then
+        moving into an operations role once it became clear that the more valuable work was
+        further upstream: not just producing content or campaigns, but building the systems that
+        let a business actually run — daily reporting, material requests, a defined operating
+        rhythm for the role itself.
+      </p>
+      <p>
+        That practice is now continuing at Tathmeer Properties, consolidating reporting across a
+        larger project portfolio. Alongside it, three books have been written over the past
+        decade — on time, on balance, and on self-coaching — a separate but related thread about
+        how people (not just businesses) actually get better at their work.
+      </p>
+      <p>
+        The throughline across all of it: understand how something actually works, find where
+        it's breaking, and build the smallest system that fixes it. Not a title, not a pitch —
+        just the way the work has consistently gone.
+      </p>
+    </div>
+  </Section>
+
+  <Career />
+
+  <Section tone="dim" reveal>
+    <div class="flex flex-col items-start gap-6 sm:flex-row sm:items-center sm:justify-between">
+      <p class="max-w-md text-ink-700">
+        A fuller professional profile — experience, results, skills, education — is on the CV
+        page.
+      </p>
+      <Button href="/cv" variant="secondary" arrow>View the CV</Button>
+    </div>
+  </Section>
+</BaseLayout>

@@ -1,0 +1,27 @@
+---
+/**
+ * Editorial intro/positioning section: an asymmetric two-column layout —
+ * a large statement set in the display face, a shorter supporting
+ * paragraph offset beside it. No cards, no icons — typography carries it.
+ */
+import Section from '@components/Section.astro';
+
+interface Props {
+  kicker: string;
+  statement: string;
+  body: string;
+}
+
+const { kicker, statement, body } = Astro.props;
+---
+
+<Section kicker={kicker} tone="paper" reveal>
+  <div class="grid gap-8 lg:grid-cols-12 lg:gap-8">
+    <p class="font-display text-3xl leading-[1.2] font-medium text-ink-950 text-balance sm:text-4xl lg:col-span-8 lg:text-[2.75rem]">
+      {statement}
+    </p>
+    <p class="text-base leading-relaxed text-ink-700 lg:col-span-4 lg:col-start-9 lg:self-end">
+      {body}
+    </p>
+  </div>
+</Section>

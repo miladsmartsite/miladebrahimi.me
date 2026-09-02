@@ -1,0 +1,17 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '@layouts/BaseLayout.astro';
+import SpeakingTopics from '@components/home/SpeakingTopics.astro';
+import SpeakingList from '@components/home/SpeakingList.astro';
+
+const allTalks = await getCollection('speaking', ({ data }) => !data.draft);
+const talks = allTalks.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+---
+
+<BaseLayout
+  title="Speaking"
+  description="Topics I can speak and write about — no past engagements claimed, just the subjects open for conversation."
+>
+  <SpeakingTopics />
+  {talks.length > 0 && <SpeakingList talks={talks} />}
+</BaseLayout>

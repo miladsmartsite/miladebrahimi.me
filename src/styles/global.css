@@ -1,0 +1,170 @@
+@import "tailwindcss";
+
+/*
+ * Self-hosted variable fonts (no runtime Google Fonts request — better
+ * performance and no third-party call for an "international" audience).
+ * Fraunces and Inter both ship as single variable-weight woff2 files, so
+ * one @font-face per style covers the whole weight range.
+ */
+@font-face {
+  font-family: "Fraunces";
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url("/fonts/fraunces/fraunces-variable.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Fraunces";
+  font-style: italic;
+  font-weight: 400 500;
+  font-display: swap;
+  src: url("/fonts/fraunces/fraunces-italic-variable.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url("/fonts/inter/inter-variable.woff2") format("woff2");
+}
+
+/*
+ * Design tokens (Tailwind v4 CSS-first theme).
+ *
+ * Palette: a warm "paper and ink" neutral foundation (not cool digital
+ * gray) with a single terracotta accent — deliberately not tech-blue.
+ * Change the values here; components reference token names (bg-paper,
+ * text-ink-700, bg-accent, font-display, …) so the whole site can be
+ * re-themed from this one block.
+ */
+@theme {
+  /* Warm neutrals, paper (lightest) to ink (darkest). */
+  --color-paper: #faf8f1;
+  --color-paper-dim: #f1ece1;
+  --color-ink-950: #17140f;
+  --color-ink-900: #211d17;
+  --color-ink-700: #4a453d;
+  --color-ink-500: #8b8478;
+  --color-ink-300: #c9c2b0;
+  --color-ink-100: #e7e1d0;
+  --color-ink-0: var(--color-paper);
+
+  /* Single accent — a grounded rust/terracotta rather than tech blue. */
+  --color-accent: #b5502e;
+  --color-accent-ink: #8a3d22;
+  --color-accent-soft: #f2e1d3;
+
+  --font-display: "Fraunces", "Iowan Old Style", "Times New Roman", serif;
+  --font-sans: "Inter", -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+  /* Editorial content widths. */
+  --container-content: 72rem;
+  --container-wide: 90rem;
+  --container-prose: 42rem;
+
+  /* Hero entrance animations (Tailwind v4 generates animate-hero-in /
+     animate-hero-rule utilities from these). */
+  --animate-hero-in: hero-in 0.9s var(--ease-premium) both;
+  --animate-hero-rule: hero-rule 0.9s var(--ease-premium) 0.1s both;
+}
+
+@keyframes hero-in {
+  from {
+    transform: translateY(110%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes hero-rule {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* Motion tokens — not part of @theme since they back custom transitions/
+   animations rather than generated utilities. Kept in one place so pacing
+   can be tuned globally. */
+:root {
+  --ease-premium: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast: 200ms;
+  --duration-base: 500ms;
+  --duration-slow: 900ms;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    color-scheme: light;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink-950);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "ss01" 1;
+  }
+
+  ::selection {
+    background-color: var(--color-accent);
+    color: var(--color-paper);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 3px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/*
+ * Scroll-reveal utility. Elements start hidden/offset and are promoted to
+ * their resting state by BaseLayout's IntersectionObserver, which adds
+ * `.is-revealed`. Falls back to fully visible if JS never runs.
+ */
+@layer components {
+  [data-reveal] {
+    opacity: 0;
+    transform: translateY(1.25rem);
+    transition:
+      opacity var(--duration-slow) var(--ease-premium),
+      transform var(--duration-slow) var(--ease-premium);
+  }
+
+  [data-reveal].is-revealed {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  [data-reveal-group] > * {
+    transition-delay: calc(var(--reveal-index, 0) * 90ms);
+  }
+}

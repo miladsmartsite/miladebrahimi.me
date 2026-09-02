@@ -1,0 +1,22 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '@layouts/BaseLayout.astro';
+import Section from '@components/Section.astro';
+import BooksShowcase from '@components/home/BooksShowcase.astro';
+
+const allBooks = await getCollection('books', ({ data }) => !data.draft);
+const books = allBooks.sort((a, b) => a.data.order - b.data.order);
+---
+
+<BaseLayout title="Books" description="Books that shape the work — reading and writing.">
+  {books.length > 0 ? (
+    <BooksShowcase books={books} />
+  ) : (
+    <Section kicker="Books" heading="Books.">
+      <p class="text-ink-700">
+        [PLACEHOLDER] No published books yet. Add markdown files to
+        <code>src/content/books/</code> and set <code>draft: false</code>.
+      </p>
+    </Section>
+  )}
+</BaseLayout>

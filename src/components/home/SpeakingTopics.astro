@@ -1,0 +1,22 @@
+---
+/**
+ * Speaking, led with honest "topics I can speak about" rather than
+ * fabricated past engagements — see content-status.md. Real engagements
+ * (once any exist) render separately via the `speaking` collection and
+ * SpeakingList.astro.
+ */
+import Section from '@components/Section.astro';
+import { SPEAKING_TOPICS, HOME } from '@lib/site';
+---
+
+<Section kicker={HOME.speaking.kicker} heading={HOME.speaking.heading} tone="dim" reveal>
+  <p class="mb-8 max-w-2xl text-sm text-ink-500 italic">{HOME.speaking.note}</p>
+  <ul class="grid gap-x-8 gap-y-6 sm:grid-cols-2">
+    {SPEAKING_TOPICS.map((topic) => (
+      <li class="border-t border-ink-300 pt-4">
+        <h3 class="font-display text-lg text-ink-950">{topic.title}</h3>
+        <p class="mt-1.5 text-sm text-ink-700">{topic.description}</p>
+      </li>
+    ))}
+  </ul>
+</Section>

@@ -1,0 +1,36 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import Section from '@components/Section.astro';
+import PlaceholderTag from '@components/PlaceholderTag.astro';
+import { HOME } from '@lib/site';
+
+interface Props {
+  talks: CollectionEntry<'speaking'>[];
+}
+
+const { talks } = Astro.props;
+---
+
+<Section kicker={HOME.speaking.kicker} heading={HOME.speaking.heading} tone="dim" reveal>
+  <ol class="border-t border-ink-300">
+    {talks.map((talk) => (
+      <li class="group flex flex-col gap-2 border-b border-ink-300 py-6 sm:flex-row sm:items-baseline sm:gap-8">
+        <span class="text-sm text-ink-500 sm:w-32 sm:shrink-0">
+          {talk.data.date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}
+        </span>
+        <div class="flex-1">
+          <div class="flex flex-wrap items-center gap-3">
+            <h3 class="font-display text-xl text-ink-950 transition-colors group-hover:text-accent-ink sm:text-2xl">
+              {talk.data.title}
+            </h3>
+            {talk.data.placeholder && <PlaceholderTag />}
+          </div>
+          <p class="mt-1 text-sm text-ink-700">
+            {talk.data.event}
+            {talk.data.location && <span class="text-ink-500"> · {talk.data.location}</span>}
+          </p>
+        </div>
+      </li>
+    ))}
+  </ol>
+</Section>

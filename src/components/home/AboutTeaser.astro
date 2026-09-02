@@ -1,0 +1,26 @@
+---
+import Section from '@components/Section.astro';
+import Button from '@components/Button.astro';
+import { HOME } from '@lib/site';
+---
+
+<Section tone="paper" reveal>
+  <div class="grid gap-8 lg:grid-cols-12 lg:items-center lg:gap-12">
+    <div class="lg:col-span-3">
+      <p class="font-sans text-xs font-semibold tracking-[0.14em] text-accent uppercase">
+        {HOME.about.kicker}
+      </p>
+      <p class="mt-4 font-display text-5xl text-ink-950">M.E.</p>
+    </div>
+    <div class="lg:col-span-9 lg:border-l lg:border-ink-100 lg:pl-12">
+      <p class="max-w-2xl font-display text-2xl leading-snug text-ink-950 text-balance sm:text-3xl">
+        {HOME.about.body}
+      </p>
+      <div class="mt-6">
+        <Button href="/about" variant="ghost" arrow class="-ml-5">
+          {HOME.about.cta.replace(' →', '')}
+        </Button>
+      </div>
+    </div>
+  </div>
+</Section>

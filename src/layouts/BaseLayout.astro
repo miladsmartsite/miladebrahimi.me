@@ -1,0 +1,88 @@
+---
+import '@styles/global.css';
+import SEO from '@components/SEO.astro';
+import Nav from '@components/Nav.astro';
+import Footer from '@components/Footer.astro';
+import { SITE, SOCIAL_LINKS } from '@lib/site';
+
+interface Props {
+  title: string;
+  description?: string;
+  image?: string;
+  type?: 'website' | 'article';
+  noindex?: boolean;
+}
+
+const { title, description, image, type, noindex } = Astro.props;
+
+// Minimal Person schema — structural fields only. No claimed achievements,
+// job titles, or credentials are asserted here; sameAs is populated once
+// real social profile URLs exist in src/lib/site.ts.
+const personSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Person',
+  name: SITE.name,
+  url: SITE.url,
+  ...(SOCIAL_LINKS.length > 0 ? { sameAs: SOCIAL_LINKS.map((link) => link.href) } : {}),
+};
+---
+
+<!doctype html>
+<html lang={SITE.locale}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="generator" content={Astro.generator} />
+    <SEO title={title} description={description} image={image} type={type} noindex={noindex} />
+    <script type="application/ld+json" is:inline set:html={JSON.stringify(personSchema)} />
+
+    <!-- Preload the two fonts used above the fold on every page. -->
+    <link rel="preload" as="font" type="font/woff2" href="/fonts/fraunces/fraunces-variable.woff2" crossorigin />
+    <link rel="preload" as="font" type="font/woff2" href="/fonts/inter/inter-variable.woff2" crossorigin />
+
+    <noscript>
+      <style>
+        [data-reveal] {
+          opacity: 1 !important;
+          transform: none !important;
+        }
+      </style>
+    </noscript>
+  </head>
+  <body class="flex min-h-screen flex-col">
+    <a
+      href="#main-content"
+      class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:bg-ink-0 focus:px-4 focus:py-2 focus:text-ink-950"
+    >
+      Skip to content
+    </a>
+    <Nav />
+    <main id="main-content" class="flex-1">
+      <slot />
+    </main>
+    <Footer />
+
+    <script>
+      // Scroll-reveal: promote [data-reveal] elements to their resting
+      // state once they enter the viewport. If IntersectionObserver is
+      // unavailable, reveal everything immediately rather than hide content.
+      if ('IntersectionObserver' in window) {
+        const observer = new IntersectionObserver(
+          (entries) => {
+            for (const entry of entries) {
+              if (entry.isIntersecting) {
+                entry.target.classList.add('is-revealed');
+                observer.unobserve(entry.target);
+              }
+            }
+          },
+          { threshold: 0.1, rootMargin: '0px 0px -8% 0px' },
+        );
+        document.querySelectorAll('[data-reveal]').forEach((el) => observer.observe(el));
+      } else {
+        document.querySelectorAll('[data-reveal]').forEach((el) => el.classList.add('is-revealed'));
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,101 @@
+---
+/**
+ * The site's one distinctive visual system: five practice areas connected
+ * to a single center, standing in for "systems, connections, process" —
+ * built specifically for this brand as inline SVG (no stock/AI imagery,
+ * no external asset). Lines draw in and the center pulses gently on load;
+ * fully static under prefers-reduced-motion.
+ */
+const nodes = [
+  { label: 'OPERATIONS', x: 200, y: 50 },
+  { label: 'SYSTEMS', x: 342.6, y: 153.6 },
+  { label: 'MARKETING', x: 288.2, y: 321.4 },
+  { label: 'PROCESS', x: 111.8, y: 321.4 },
+  { label: 'AI', x: 57.4, y: 153.6 },
+];
+const center = { x: 200, y: 200 };
+---
+
+<svg
+  viewBox="0 0 400 400"
+  class="system-diagram h-auto w-full max-w-md"
+  role="img"
+  aria-label="Diagram showing Operations, Systems, Marketing, Process, and AI connected to one central practice"
+>
+  {nodes.map((node, i) => (
+    <line
+      x1={center.x}
+      y1={center.y}
+      x2={node.x}
+      y2={node.y}
+      class="sd-line"
+      style={`--sd-delay:${i * 140}ms`}
+      stroke="var(--color-ink-300)"
+      stroke-width="1"
+    />
+  ))}
+
+  {nodes.map((node, i) => (
+    <g class="sd-node" style={`--sd-delay:${300 + i * 140}ms`}>
+      <circle cx={node.x} cy={node.y} r="5" fill="var(--color-paper)" stroke="var(--color-ink-500)" stroke-width="1.5" />
+      <text
+        x={node.x}
+        y={node.y > center.y ? node.y + 20 : node.y - 12}
+        text-anchor="middle"
+        class="font-sans"
+        style="font-size:10px; letter-spacing:0.06em; fill: var(--color-ink-500);"
+      >
+        {node.label}
+      </text>
+    </g>
+  ))}
+
+  <circle cx={center.x} cy={center.y} r="10" fill="var(--color-accent)" class="sd-center" />
+</svg>
+
+<style>
+  .sd-line {
+    stroke-dasharray: 220;
+    stroke-dashoffset: 220;
+    animation: sd-draw 0.9s var(--ease-premium) forwards;
+    animation-delay: var(--sd-delay, 0ms);
+  }
+
+  .sd-node {
+    opacity: 0;
+    animation: sd-fade 0.6s var(--ease-premium) forwards;
+    animation-delay: var(--sd-delay, 0ms);
+  }
+
+  .sd-center {
+    transform-origin: 200px 200px;
+  }
+
+  @keyframes sd-draw {
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+
+  @keyframes sd-fade {
+    to {
+      opacity: 1;
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .sd-center {
+      animation: sd-pulse 3.2s ease-in-out 1.4s infinite;
+    }
+  }
+
+  @keyframes sd-pulse {
+    0%,
+    100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.15);
+    }
+  }
+</style>

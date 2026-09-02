@@ -1,0 +1,28 @@
+---
+import { SOCIAL_LINKS } from '@lib/site';
+
+interface Props {
+  class?: string;
+}
+
+const { class: className = '' } = Astro.props;
+---
+
+{
+  SOCIAL_LINKS.length > 0 && (
+    <ul class={`flex items-center gap-4 ${className}`}>
+      {SOCIAL_LINKS.map((link) => (
+        <li>
+          <a
+            href={link.href}
+            class="text-sm text-ink-500 transition-colors hover:text-accent-ink"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {link.label}
+          </a>
+        </li>
+      ))}
+    </ul>
+  )
+}

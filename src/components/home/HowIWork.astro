@@ -1,0 +1,31 @@
+---
+/**
+ * The five-step working method, presented as a connected process rather
+ * than a generic numbered list — a dark section for rhythm contrast
+ * against the surrounding light sections.
+ */
+import Section from '@components/Section.astro';
+import { HOW_I_WORK, HOME } from '@lib/site';
+---
+
+<Section kicker={HOME.process.kicker} heading={HOME.process.heading} tone="ink" reveal>
+  <ol class="grid gap-8 sm:grid-cols-5 sm:gap-4">
+    {HOW_I_WORK.map((item, i) => (
+      <li class="relative">
+        <div class="flex items-center gap-3 sm:block">
+          <span class="font-display text-3xl text-accent sm:text-4xl">
+            {String(i + 1).padStart(2, '0')}
+          </span>
+          <h3 class="font-display text-xl text-paper sm:mt-3">{item.step}</h3>
+        </div>
+        <p class="mt-2 text-sm text-ink-300 sm:mt-3">{item.description}</p>
+        {i < HOW_I_WORK.length - 1 && (
+          <span
+            aria-hidden="true"
+            class="mt-6 hidden h-px w-full bg-ink-700 sm:block"
+          ></span>
+        )}
+      </li>
+    ))}
+  </ol>
+</Section>

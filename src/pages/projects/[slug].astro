@@ -1,0 +1,118 @@
+---
+import { getCollection, render } from 'astro:content';
+import BaseLayout from '@layouts/BaseLayout.astro';
+import Section from '@components/Section.astro';
+import PlaceholderTag from '@components/PlaceholderTag.astro';
+
+export async function getStaticPaths() {
+  const projects = await getCollection('projects', ({ data }) => !data.draft);
+  return projects.map((project) => ({
+    params: { slug: project.id },
+    props: { project },
+  }));
+}
+
+const { project } = Astro.props;
+const { Content } = await render(project);
+const {
+  title,
+  summary,
+  year,
+  client,
+  placeholder,
+  redacted,
+  context,
+  problem,
+  role: myRole,
+  approach,
+  system,
+  howItWorks,
+  tools,
+  implementation,
+  outcome,
+  evidenceNote,
+  lessons,
+} = project.data;
+
+const outcomeLabel = outcome ? '09 — Outcome' : '09 — Current Evidence';
+const outcomeValue = outcome ?? evidenceNote;
+
+// A single ordered list (rather than separate render blocks) so the 01–10
+// numbering can never drift out of sequence when a field is missing.
+type Row =
+  | { kind: 'text'; label: string; value: string | undefined }
+  | { kind: 'tags'; label: string; values: string[] };
+
+const rows: Row[] = [
+  { kind: 'text', label: '01 — Context', value: context },
+  { kind: 'text', label: '02 — The Problem', value: problem },
+  {
+    kind: 'text',
+    label: '03 — My Role',
+    value: myRole ? `${myRole}${client ? ` at ${client}` : ''}` : undefined,
+  },
+  { kind: 'text', label: '04 — The Approach', value: approach },
+  { kind: 'text', label: '05 — The System', value: system },
+  { kind: 'text', label: '06 — How It Works', value: howItWorks },
+  { kind: 'tags', label: '07 — Tools', values: tools },
+  { kind: 'text', label: '08 — Implementation', value: implementation },
+  { kind: 'text', label: outcomeLabel, value: outcomeValue },
+  { kind: 'text', label: '10 — What I Learned', value: lessons },
+];
+---
+
+<BaseLayout title={title} description={summary}>
+  <Section>
+    <div class="flex flex-wrap items-center gap-3">
+      <p class="text-xs text-ink-500 uppercase tracking-wide">
+        {client}
+        {year && <span> · {year}</span>}
+      </p>
+      {placeholder && <PlaceholderTag />}
+    </div>
+    <h1 class="mt-2 max-w-3xl font-display text-3xl text-ink-950 sm:text-4xl">{title}</h1>
+    <p class="mt-4 max-w-2xl text-lg text-ink-700">{summary}</p>
+
+    {redacted && (
+      <div class="mt-6 max-w-2xl border border-accent/30 bg-accent-soft px-4 py-3 text-sm text-accent-ink">
+        This write-up uses a recreated, redacted description rather than the real internal
+        documents — some details are withheld to protect confidential company information.
+      </div>
+    )}
+
+    <div class="mt-12 space-y-10 border-t border-ink-100 pt-10">
+      {rows.map((row) => {
+        if (row.kind === 'tags') {
+          if (row.values.length === 0) return null;
+          return (
+            <div class="grid gap-2 sm:grid-cols-12 sm:gap-8">
+              <h2 class="text-xs font-semibold tracking-[0.14em] text-accent uppercase sm:col-span-3">
+                {row.label}
+              </h2>
+              <ul class="flex flex-wrap gap-2 sm:col-span-9">
+                {row.values.map((tool) => (
+                  <li class="border border-ink-300 px-3 py-1 text-xs tracking-wide text-ink-700 uppercase">
+                    {tool}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        }
+        if (!row.value) return null;
+        return (
+          <div class="grid gap-2 sm:grid-cols-12 sm:gap-8">
+            <h2 class="text-xs font-semibold tracking-[0.14em] text-accent uppercase sm:col-span-3">
+              {row.label}
+            </h2>
+            <p class="max-w-2xl text-ink-700 sm:col-span-9">{row.value}</p>
+          </div>
+        );
+      })}
+    </div>
+
+    <div class="prose mt-12 max-w-(--container-prose) border-t border-ink-100 pt-8 text-sm text-ink-500">
+      <Content />
+    </div>
+  </Section>
+</BaseLayout>

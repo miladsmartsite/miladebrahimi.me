@@ -1,0 +1,32 @@
+---
+import type { CollectionEntry } from 'astro:content';
+
+interface Props {
+  items: CollectionEntry<'experience'>[];
+}
+
+const { items } = Astro.props;
+
+function formatRange(start: Date, end?: Date) {
+  const opts: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short' };
+  const startLabel = start.toLocaleDateString('en-US', opts);
+  const endLabel = end ? end.toLocaleDateString('en-US', opts) : 'Present';
+  return `${startLabel} — ${endLabel}`;
+}
+---
+
+<ol class="flex flex-col divide-y divide-ink-100 border-t border-ink-100">
+  {items.map((item) => (
+    <li class="grid gap-1 py-6 sm:grid-cols-[12rem_1fr] sm:gap-6">
+      <p class="text-xs text-ink-500">{formatRange(item.data.startDate, item.data.endDate)}</p>
+      <div>
+        <h3 class="font-display text-lg text-ink-950">{item.data.role}</h3>
+        <p class="text-sm text-ink-700">
+          {item.data.organization}
+          {item.data.location && <span class="text-ink-500"> · {item.data.location}</span>}
+        </p>
+        <p class="mt-2 text-sm text-ink-700">{item.data.summary}</p>
+      </div>
+    </li>
+  ))}
+</ol>
