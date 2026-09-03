@@ -1,39 +1,71 @@
 ---
 /**
- * Books, presented as typographic "plates" rather than fake cover images —
- * deliberately avoiding stock/AI-generated imagery when no real covers
- * exist yet.
+ * Books, presented as an author's shelf — one featured title (large cover
+ * plate + fuller description) and the rest as a smaller shelf beneath.
+ * Cover art uses BookCover.astro's graceful placeholder until real cover
+ * photography is added (see public/images/README.md).
  */
 import type { CollectionEntry } from 'astro:content';
 import Section from '@components/Section.astro';
 import PlaceholderTag from '@components/PlaceholderTag.astro';
+import BookCover from '@components/BookCover.astro';
 import { HOME } from '@lib/site';
 
 interface Props {
   books: CollectionEntry<'books'>[];
+  /** Set false when the page already has its own PageHero with equivalent copy. */
+  showHeading?: boolean;
 }
 
-const { books } = Astro.props;
+const { books, showHeading = true } = Astro.props;
+const featured = books.find((book) => book.id === 'self-coaching-blueprint') ?? books[0];
+const rest = books.filter((book) => book.id !== featured?.id);
 ---
 
-<Section kicker={HOME.books.kicker} heading={HOME.books.heading} tone="paper" reveal>
-  <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-    {books.map((book) => (
-      <div class="group relative flex min-h-64 flex-col justify-between border border-ink-300 p-7 transition-colors hover:border-accent">
-        <span class="absolute inset-y-0 left-0 w-1.5 bg-ink-300 transition-colors group-hover:bg-accent" aria-hidden="true"></span>
-        <div>
-          <div class="flex flex-wrap items-center gap-2">
-            {book.data.year && <span class="text-xs text-ink-500">{book.data.year}</span>}
-            {book.data.language && (
-              <span class="text-xs tracking-wide text-ink-500 uppercase">· {book.data.language}</span>
-            )}
-            {book.data.placeholder && <PlaceholderTag />}
-          </div>
-          <h3 class="mt-3 font-display text-2xl text-ink-950">{book.data.title}</h3>
-          {book.data.subtitle && <p class="mt-1 text-sm text-ink-500 italic">{book.data.subtitle}</p>}
-        </div>
-        <p class="mt-4 text-sm text-ink-700">{book.data.description}</p>
+<Section
+  kicker={showHeading ? HOME.books.kicker : undefined}
+  heading={showHeading ? HOME.books.heading : undefined}
+  tone="dim"
+  width="wide"
+  reveal
+>
+  {featured && (
+    <div class="grid gap-8 border-b border-line pb-12 sm:grid-cols-12 sm:gap-10">
+      <div class="sm:col-span-4 lg:col-span-3">
+        <BookCover src={featured.data.coverImage} title={featured.data.title} featured />
       </div>
-    ))}
-  </div>
+      <div class="flex flex-col justify-center sm:col-span-8 lg:col-span-9">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="font-mono text-[11px] font-bold tracking-[0.16em] text-accent-ink uppercase">Featured</span>
+          {featured.data.year && <span class="font-mono text-[11px] text-meta">· {featured.data.year}</span>}
+          {featured.data.language && <span class="font-mono text-[11px] text-meta uppercase">· {featured.data.language}</span>}
+          {featured.data.placeholder && <PlaceholderTag />}
+        </div>
+        <h3 class="mt-3 font-display text-3xl font-bold tracking-[-0.02em] text-ink sm:text-4xl">{featured.data.title}</h3>
+        {featured.data.subtitle && <p class="mt-2 font-body text-base text-meta italic">{featured.data.subtitle}</p>}
+        <p class="mt-4 max-w-xl font-body text-lg text-body">{featured.data.description}</p>
+      </div>
+    </div>
+  )}
+
+  {rest.length > 0 && (
+    <div class="mt-12 grid gap-6 sm:grid-cols-2">
+      {rest.map((book) => (
+        <div class="flex gap-5">
+          <div class="w-20 shrink-0 sm:w-24">
+            <BookCover src={book.data.coverImage} title={book.data.title} />
+          </div>
+          <div>
+            <div class="flex flex-wrap items-center gap-2">
+              {book.data.year && <span class="font-mono text-[11px] text-meta">{book.data.year}</span>}
+              {book.data.language && <span class="font-mono text-[11px] text-meta uppercase">· {book.data.language}</span>}
+              {book.data.placeholder && <PlaceholderTag />}
+            </div>
+            <h4 class="mt-2 font-display text-xl font-bold tracking-[-0.02em] text-ink">{book.data.title}</h4>
+            <p class="mt-2 font-body text-base text-body">{book.data.description}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  )}
 </Section>

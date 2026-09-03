@@ -1,0 +1,54 @@
+---
+/**
+ * Portrait frame with a graceful, intentional placeholder when the real
+ * photo hasn't been added yet — never a stock photo, never a generated
+ * likeness. Checked at build time via the filesystem, so the site never
+ * needs a code change once a real portrait is dropped in: see
+ * public/images/README.md for the exact path/spec expected.
+ */
+import fs from 'node:fs';
+import path from 'node:path';
+
+interface Props {
+  src?: string;
+  alt?: string;
+  aspect?: '4:5' | '3:4' | '1:1';
+  /** CSS object-position value, for photos that need a specific crop anchor. */
+  focus?: string;
+  class?: string;
+}
+
+const {
+  src = '/images/profile/milad-portrait.jpg',
+  alt = 'Portrait of Milad Ebrahimi',
+  aspect = '4:5',
+  focus = 'center 15%',
+  class: className = '',
+} = Astro.props;
+
+const exists = fs.existsSync(path.join(process.cwd(), 'public', src));
+
+const aspectClass = { '4:5': 'aspect-[4/5]', '3:4': 'aspect-[3/4]', '1:1': 'aspect-square' }[aspect];
+---
+
+<div class={`relative overflow-hidden bg-navy-950 ${aspectClass} ${className}`}>
+  {exists ? (
+    <img
+      src={src}
+      alt={alt}
+      width="1200"
+      height="1500"
+      loading="lazy"
+      decoding="async"
+      class="h-full w-full object-cover"
+      style={`object-position:${focus}`}
+    />
+  ) : (
+    <div class="flex h-full w-full flex-col items-center justify-center gap-4 border border-accent/40 p-8 text-center">
+      <span class="font-display text-5xl font-extrabold text-accent">M.E.</span>
+      <p class="max-w-[15rem] font-mono text-[11px] text-line">
+        Portrait pending — add a photo at <code class="text-accent">public{src}</code>
+      </p>
+    </div>
+  )}
+</div>

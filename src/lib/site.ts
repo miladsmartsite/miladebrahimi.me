@@ -15,6 +15,11 @@ export const SITE = {
   // CONFIRMED BY MILAD — the public contact address. Do not use any other
   // email address found in the CV or project files.
   contactEmail: 'miladsmartsite@gmail.com',
+  // CONFIRMED BY MILAD — current CV destination. External (Google Drive)
+  // for now; every "Download CV" button reads from this one constant, so
+  // swapping to a local PDF later (e.g. "/cv/milad-ebrahimi-cv.pdf") never
+  // requires touching a component.
+  cvUrl: 'https://drive.google.com/file/d/1Y1vseED44YG041s-mfOT-2QBprFe92nq/view?usp=drive_link',
   // Used as the fallback SEO description when a page doesn't define its own.
   defaultDescription:
     'Milad Ebrahimi — an operator who builds the systems behind how businesses run: operations, process, marketing, and applied AI, working together rather than as separate services.',
@@ -116,6 +121,41 @@ export const PRACTICE_AREAS: PracticeArea[] = [
     description:
       'Operational systems built inside a real construction/property portfolio — reporting, material requests, and site-level process.',
   },
+];
+
+export type SystemMapNode = {
+  key: string;
+  label: string;
+  caption: string;
+};
+
+/**
+ * The "Milad System Map" — the site's one recurring interactive brand
+ * element (hero + conceptually echoed elsewhere). Labels and captions are
+ * PROVISIONAL positioning language, consistent with existing copy
+ * elsewhere on the site — not new factual claims.
+ */
+export const SYSTEM_MAP_NODES: SystemMapNode[] = [
+  { key: 'operations', label: 'Operations', caption: 'Keeping the day-to-day running.' },
+  { key: 'systems', label: 'Systems', caption: 'Turning process into infrastructure.' },
+  { key: 'strategy', label: 'Strategy', caption: 'Deciding what’s worth building.' },
+  { key: 'ai', label: 'AI', caption: 'Applied where it changes an outcome.' },
+  { key: 'marketing', label: 'Marketing', caption: 'Connecting work to the people who need it.' },
+  { key: 'writing', label: 'Writing / Ideas', caption: 'Thinking in public, in writing.' },
+];
+
+/**
+ * Short domain codes used for the "technical annotation" tick-row motif on
+ * Selected Systems — derived directly from the `tags` already present on
+ * each project entry, not invented. Order is fixed so the tick row reads
+ * consistently across every system.
+ */
+export const DOMAIN_CODES: { tag: string; code: string }[] = [
+  { tag: 'business-operations', code: 'OPS' },
+  { tag: 'systems', code: 'SYS' },
+  { tag: 'process-improvement', code: 'PROC' },
+  { tag: 'marketing', code: 'MKT' },
+  { tag: 'construction-real-estate', code: 'C/RE' },
 ];
 
 export type CareerStop = {
@@ -292,16 +332,23 @@ export const CV = {
  */
 export const HOME = {
   hero: {
-    eyebrow: 'Operations · Systems · Marketing · AI',
+    eyebrow: 'Business Operations · Systems · Strategy',
     headline: 'I build the systems that make businesses work.',
     subhead:
-      'Milad Ebrahimi is an operator working at the intersection of operations, business systems, process improvement, marketing, and applied AI — not as separate services, but as one continuous practice.',
+      'An operator working at the intersection of operations, business systems, process improvement, marketing, and applied AI — not as separate services, but as one continuous practice.',
     note: 'A working practice, documented as it happens — not an agency, not a portfolio site.',
+    primaryCta: 'Explore My Work',
+    secondaryCta: 'Download CV',
   },
   idea: {
     kicker: 'The idea',
     heading: 'Every business is made of systems.',
     body: 'People, processes, information, decisions, tools — that’s what a business actually runs on. When those systems are unclear, work slows down and fragments: the same question gets asked twice, the same delay repeats, nobody quite owns the fix. The work here starts with understanding how a business actually runs, then rebuilding the specific parts that create friction.',
+  },
+  systemMap: {
+    kicker: 'The map',
+    heading: 'One practice, six disciplines.',
+    body: 'Not six separate services — six lenses on the same underlying work, applied together depending on what a given system actually needs.',
   },
   systems: {
     kicker: 'Systems I’ve built',
@@ -316,6 +363,10 @@ export const HOME = {
     kicker: 'Areas of practice',
     heading: 'Seven lenses on the same underlying problem.',
   },
+  // PROVISIONAL — a positioning statement in the site's own voice, not a
+  // quote from any source. Used as a QuoteBlock visual break on the
+  // homepage between Career and Results.
+  manifesto: 'Systems don’t need to be complicated to work. They need to be used.',
   career: {
     kicker: 'Career',
     heading: 'From education, into marketing, into operations.',

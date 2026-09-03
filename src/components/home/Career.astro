@@ -1,28 +1,61 @@
 ---
 /**
- * Condensed, organization-level career timeline for the homepage. The full
- * role-by-role detail (sub-roles, exact dates) lives on /work via the
- * `experience` collection — this is deliberately the short version.
+ * Career as a vertical timeline rather than plain rows — a connecting
+ * line with a marker per stop (the current role marked in accent) and a
+ * large ghost year running alongside each entry for visual weight. The
+ * full role-by-role detail (sub-roles, exact dates) lives on /work via the
+ * `experience` collection — this is deliberately the condensed version.
+ * Closes on a QuoteBlock — a visual "breath" before Results, in the same
+ * paper tone so it doesn't disturb the section-alternation rhythm.
  */
 import Section from '@components/Section.astro';
 import Button from '@components/Button.astro';
+import QuoteBlock from '@components/QuoteBlock.astro';
 import { CAREER, HOME } from '@lib/site';
+
+// Presentational only — pulls the first four-digit year out of the
+// existing `period` string (e.g. "2023 – 2024" → "2023") for the large
+// running numeral. No new date claim, just a different display of what's
+// already in CAREER.
+const startYear = (period: string) => period.match(/\d{4}/)?.[0] ?? '';
 ---
 
 <Section kicker={HOME.career.kicker} heading={HOME.career.heading} tone="paper" reveal>
-  <ol class="border-t border-ink-100">
-    {CAREER.map((stop, i) => (
-      <li class="flex flex-col gap-1 border-b border-ink-100 py-6 sm:flex-row sm:items-baseline sm:gap-8">
-        <span class="font-sans text-sm text-ink-500 sm:w-32 sm:shrink-0">{stop.period}</span>
-        <div class="flex-1">
-          <h3 class="font-display text-xl text-ink-950 sm:text-2xl">{stop.organization}</h3>
-          <p class="mt-1 text-sm text-ink-700">{stop.roleSummary}</p>
-        </div>
-        <span class="text-xs text-ink-500 sm:shrink-0">{stop.location}</span>
-      </li>
-    ))}
+  <ol class="relative max-w-3xl border-l border-line pl-8 sm:pl-10">
+    {CAREER.map((stop, i) => {
+      const isCurrent = i === CAREER.length - 1;
+      return (
+        <li class="relative grid grid-cols-[3.5rem_1fr] items-start gap-4 pb-10 last:pb-0 sm:grid-cols-[4.5rem_1fr] sm:gap-6">
+          <span
+            class:list={[
+              'absolute top-1.5 -left-[2.28rem] size-3 rounded-full border-2 sm:-left-[2.78rem]',
+              isCurrent ? 'border-accent bg-accent' : 'border-line bg-paper',
+            ]}
+            aria-hidden="true"
+          ></span>
+          <span class="font-display text-3xl leading-none font-extrabold text-line sm:text-4xl" aria-hidden="true">
+            {startYear(stop.period)}
+          </span>
+          <div>
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="font-mono text-[11px] text-meta uppercase tracking-wide">{stop.period}</span>
+              {isCurrent && (
+                <span class="border border-accent px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-wide text-accent-ink uppercase">
+                  Current
+                </span>
+              )}
+            </div>
+            <h3 class="mt-1 font-display text-xl font-bold tracking-[-0.02em] text-ink sm:text-2xl">{stop.organization}</h3>
+            <p class="mt-1 font-body text-base text-body">{stop.roleSummary}</p>
+            <p class="mt-1 font-mono text-[11px] text-meta">{stop.location}</p>
+          </div>
+        </li>
+      );
+    })}
   </ol>
-  <div class="mt-8">
+  <div class="mt-4 ml-8 sm:ml-10">
     <Button href="/work" variant="ghost" arrow class="-ml-5">Full career history</Button>
   </div>
+
+  <QuoteBlock class="mt-20 ml-8 sm:mt-24 sm:ml-10">{HOME.manifesto}</QuoteBlock>
 </Section>

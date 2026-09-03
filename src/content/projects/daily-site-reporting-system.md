@@ -6,6 +6,7 @@ role: "Operations"
 client: "Perla Engineering"
 year: "2026"
 featured: true
+previewType: "reporting"
 order: 3
 context: >
   Engineers across several active project sites were reporting daily progress informally, with no

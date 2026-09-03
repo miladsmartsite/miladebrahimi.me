@@ -1,0 +1,55 @@
+---
+/**
+ * Book cover with a graceful, intentional placeholder when no real cover
+ * photo exists yet — a typographic plate built to read as a physical
+ * object (spine + page-edge), not a stock/generated cover. Checked at
+ * build time via the filesystem (same pattern as Portrait.astro) so
+ * adding a real cover later never requires a code change.
+ */
+import fs from 'node:fs';
+import path from 'node:path';
+
+interface Props {
+  src?: string;
+  title: string;
+  featured?: boolean;
+  class?: string;
+}
+
+const { src, title, featured = false, class: className = '' } = Astro.props;
+const exists = src ? fs.existsSync(path.join(process.cwd(), 'public', src)) : false;
+---
+
+<div class={`relative aspect-[2/3] overflow-hidden bg-ink ${className}`}>
+  {exists && src ? (
+    <img
+      src={src}
+      alt={`Cover of ${title}`}
+      width="800"
+      height="1200"
+      loading="lazy"
+      decoding="async"
+      class="h-full w-full object-cover"
+    />
+  ) : (
+    <div class="relative flex h-full w-full flex-col items-center justify-center gap-3 border border-accent/30 p-4 text-center">
+      {/* Page-edge: a stack of thin lines along the right edge, suggesting
+          the fore-edge of a closed book. */}
+      <div class="absolute inset-y-2 right-1.5 flex w-1.5 flex-col justify-between opacity-40" aria-hidden="true">
+        {Array.from({ length: 10 }).map(() => <span class="h-px w-full bg-line"></span>)}
+      </div>
+      {/* Spine: a brass rule down the left edge. */}
+      <span class="absolute inset-y-0 left-0 w-[3px] bg-accent" aria-hidden="true"></span>
+
+      <span class:list={['font-display font-extrabold text-accent', featured ? 'text-3xl' : 'text-xl']}>M.E.</span>
+      <span class:list={['max-w-[9rem] font-body leading-snug text-paper', featured ? 'text-sm' : 'text-xs']}>
+        {title}
+      </span>
+      {featured && (
+        <p class="absolute bottom-3 max-w-[8rem] font-mono text-[9px] text-on-dark-muted">
+          Cover pending — add {src ?? '/images/books/…jpg'}
+        </p>
+      )}
+    </div>
+  )}
+</div>

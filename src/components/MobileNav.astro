@@ -1,5 +1,13 @@
 ---
-import { NAV_ITEMS } from '@lib/site';
+/**
+ * Full-screen mobile navigation — a premium navy/gold overlay rather than
+ * a collapsed desktop menu. Covers: a real 44×44px touch target, animated
+ * icon morph, body scroll lock, Escape-to-close, click-link-to-close,
+ * aria-expanded, and a focus trap while open (Tab/Shift+Tab cycle inside
+ * the panel; focus returns to the toggle button on close).
+ */
+import { NAV_ITEMS, SITE } from '@lib/site';
+import Wordmark from '@components/Wordmark.astro';
 ---
 
 <div class="md:hidden">
@@ -8,38 +16,55 @@ import { NAV_ITEMS } from '@lib/site';
     type="button"
     aria-expanded="false"
     aria-controls="mobile-nav-panel"
-    class="relative z-50 p-2 text-ink-950"
+    class="relative z-50 flex size-11 items-center justify-center text-ink"
   >
     <span class="sr-only">Toggle menu</span>
-    <svg id="icon-open" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="size-6">
-      <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" />
-    </svg>
-    <svg id="icon-close" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="hidden size-6">
-      <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
-    </svg>
+    <span class="relative size-6" aria-hidden="true">
+      <svg id="icon-open" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="absolute inset-0 size-6 transition-all duration-(--duration-fast)">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" />
+      </svg>
+      <svg id="icon-close" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="absolute inset-0 size-6 scale-50 opacity-0 transition-all duration-(--duration-fast)">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+      </svg>
+    </span>
   </button>
 
   <nav
     id="mobile-nav-panel"
     hidden
     aria-label="Mobile"
-    class="fixed inset-0 z-40 flex flex-col justify-between bg-paper px-6 pt-24 pb-10 opacity-0 transition-opacity duration-(--duration-base)"
+    class="fixed inset-0 z-40 flex flex-col bg-ink px-6 pt-8 pb-10 opacity-0 transition-opacity duration-(--duration-base)"
   >
-    <ul class="flex flex-col gap-1">
-      {NAV_ITEMS.map((item, index) => (
-        <li
-          class="mobile-nav-item translate-y-3 opacity-0 transition-all duration-(--duration-base)"
-          style={`transition-delay: ${index * 60}ms`}
-        >
-          <a href={item.href} class="block border-b border-ink-100 py-4 font-display text-4xl text-ink-950">
-            {item.label}
-          </a>
-        </li>
-      ))}
-    </ul>
-    <a href="/contact" class="text-sm text-ink-500">
-      Prefer email? <span class="text-accent-ink underline">Get in touch →</span>
+    <a href="/" aria-label="Home" class="shrink-0">
+      <Wordmark size="small" reversed />
     </a>
+    <div class="flex flex-1 flex-col justify-between pt-10">
+      <ul class="flex flex-col gap-1">
+        {NAV_ITEMS.map((item, index) => (
+          <li
+            class="mobile-nav-item translate-y-3 opacity-0 transition-all duration-(--duration-base)"
+            style={`transition-delay: ${index * 60}ms`}
+          >
+            <a href={item.href} class="block border-b border-on-dark-line py-4 font-display text-4xl font-semibold text-paper transition-colors hover:text-accent">
+              {item.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+      <div class="flex flex-col gap-4">
+        <a
+          href={SITE.cvUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex w-fit items-center gap-2 border border-accent px-4 py-2 font-mono text-[13px] font-medium text-accent transition-colors hover:bg-accent hover:text-ink"
+        >
+          Download CV
+        </a>
+        <a href="/contact" class="font-body text-base text-on-dark-muted">
+          Prefer email? <span class="text-accent underline">Get in touch →</span>
+        </a>
+      </div>
+    </div>
   </nav>
 </div>
 
@@ -51,12 +76,37 @@ import { NAV_ITEMS } from '@lib/site';
   const items = document.querySelectorAll<HTMLElement>('.mobile-nav-item');
   let closeTimer: number | undefined;
 
+  function getFocusable(): HTMLElement[] {
+    if (!panel) return [];
+    return Array.from(
+      panel.querySelectorAll<HTMLElement>('a[href], button:not([disabled])'),
+    );
+  }
+
+  function trapFocus(event: KeyboardEvent) {
+    if (event.key !== 'Tab') return;
+    const focusable = getFocusable();
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
   function setOpen(isOpen: boolean) {
     if (!toggle || !panel || !iconOpen || !iconClose) return;
     window.clearTimeout(closeTimer);
     toggle.setAttribute('aria-expanded', String(isOpen));
-    iconOpen.classList.toggle('hidden', isOpen);
-    iconClose.classList.toggle('hidden', !isOpen);
+    iconOpen.classList.toggle('opacity-0', isOpen);
+    iconOpen.classList.toggle('scale-50', isOpen);
+    iconClose.classList.toggle('opacity-0', !isOpen);
+    iconClose.classList.toggle('scale-50', !isOpen);
 
     if (isOpen) {
       panel.hidden = false;
@@ -72,6 +122,11 @@ import { NAV_ITEMS } from '@lib/site';
         item.classList.remove('opacity-0', 'translate-y-3');
         item.classList.add('opacity-100', 'translate-y-0');
       });
+      document.addEventListener('keydown', trapFocus);
+      // Focus the first nav link, not the wordmark above it — the logo is
+      // still reachable via Shift+Tab, but the nav items are the point of
+      // opening this panel.
+      (panel.querySelector<HTMLElement>('.mobile-nav-item a') ?? getFocusable()[0])?.focus();
     } else {
       panel.classList.remove('opacity-100');
       panel.classList.add('opacity-0');
@@ -80,9 +135,11 @@ import { NAV_ITEMS } from '@lib/site';
         item.classList.remove('opacity-100', 'translate-y-0');
       });
       document.body.style.overflow = '';
+      document.removeEventListener('keydown', trapFocus);
       closeTimer = window.setTimeout(() => {
         panel.hidden = true;
       }, 300);
+      toggle.focus();
     }
   }
 
@@ -96,6 +153,8 @@ import { NAV_ITEMS } from '@lib/site';
   });
 
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') setOpen(false);
+    if (event.key === 'Escape' && toggle?.getAttribute('aria-expanded') === 'true') {
+      setOpen(false);
+    }
   });
 </script>

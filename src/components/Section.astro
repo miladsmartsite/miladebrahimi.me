@@ -3,16 +3,19 @@
  * Consistent content-width wrapper + vertical rhythm for page sections.
  * Supports an editorial "kicker" label above the heading and a `tone` to
  * alternate section backgrounds for visual rhythm without resorting to
- * card borders everywhere.
+ * card borders everywhere. `navy` is the immersive dark surface — use it
+ * for roughly 20–30% of a page's sections, not more (see design-system.md).
  */
 interface Props {
   as?: 'section' | 'div' | 'header' | 'footer';
   kicker?: string;
   heading?: string;
-  tone?: 'paper' | 'dim' | 'ink';
+  tone?: 'paper' | 'dim' | 'navy';
   width?: 'content' | 'wide';
   class?: string;
   reveal?: boolean;
+  /** Adds the subtle full-bleed grid texture — navy tone only. */
+  field?: boolean;
 }
 
 const {
@@ -23,30 +26,34 @@ const {
   width = 'content',
   class: className = '',
   reveal = false,
+  field = false,
 } = Astro.props;
 
 const toneClasses: Record<string, string> = {
-  paper: 'bg-paper text-ink-950',
-  dim: 'bg-paper-dim text-ink-950',
-  ink: 'bg-ink-950 text-paper',
+  paper: 'bg-paper text-ink',
+  dim: 'bg-paper-dim text-ink',
+  navy: 'relative overflow-hidden bg-ink text-paper',
 };
 
 // Both full class strings must appear literally (not interpolated) so
 // Tailwind's static scanner picks them up.
 const widthClass = width === 'wide' ? 'max-w-(--container-wide)' : 'max-w-(--container-content)';
+const kickerClass =
+  tone === 'navy'
+    ? 'mb-3 font-mono text-[11px] font-bold tracking-[0.16em] text-accent uppercase'
+    : 'mb-3 font-mono text-[11px] font-bold tracking-[0.16em] text-accent-ink uppercase';
 ---
 
 <Tag class={toneClasses[tone]} {...reveal ? { 'data-reveal': '' } : {}}>
-  <div class={`mx-auto ${widthClass} px-6 py-20 sm:px-8 lg:py-28 ${className}`}>
+  {field && tone === 'navy' && (
+    <div class="field-grid pointer-events-none absolute inset-0" aria-hidden="true"></div>
+  )}
+  <div class={`relative mx-auto ${widthClass} px-6 py-20 sm:px-8 lg:py-28 ${className}`}>
     {(kicker || heading) && (
       <div class="mb-10 lg:mb-14">
-        {kicker && (
-          <p class="mb-3 font-sans text-xs font-semibold tracking-[0.14em] text-accent uppercase">
-            {kicker}
-          </p>
-        )}
+        {kicker && <p class={kickerClass}>{kicker}</p>}
         {heading && (
-          <h2 class="max-w-(--container-prose) font-display text-3xl leading-[1.15] font-medium text-balance sm:text-4xl">
+          <h2 class="max-w-(--container-prose) font-display text-3xl leading-[1.06] font-bold tracking-[-0.03em] text-balance sm:text-4xl lg:text-[2.75rem]">
             {heading}
           </h2>
         )}

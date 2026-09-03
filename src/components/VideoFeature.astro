@@ -1,0 +1,55 @@
+---
+/**
+ * Reusable video feature slot — poster/title/duration/category/URL. No
+ * fake videos: when `url` is omitted this renders a tasteful "coming
+ * soon" plate instead of a broken/empty player, so the component is safe
+ * to place anywhere before real video content exists. Never autoplays,
+ * never embeds a third-party player inline — it's a static poster that
+ * links out, so it costs nothing on pages that don't need a video yet.
+ */
+import fs from 'node:fs';
+import path from 'node:path';
+
+interface Props {
+  title: string;
+  category?: string;
+  duration?: string;
+  poster?: string;
+  url?: string;
+  class?: string;
+}
+
+const { title, category, duration, poster, url, class: className = '' } = Astro.props;
+const posterExists = poster ? fs.existsSync(path.join(process.cwd(), 'public', poster)) : false;
+---
+
+<div class={`group/video relative aspect-video overflow-hidden border border-line bg-ink ${className}`}>
+  {posterExists && poster ? (
+    <img src={poster} alt={title} loading="lazy" decoding="async" class="h-full w-full object-cover opacity-70" />
+  ) : (
+    <div class="field-grid absolute inset-0" aria-hidden="true"></div>
+  )}
+
+  <div class="absolute inset-0 flex flex-col justify-between p-5 sm:p-6">
+    <div class="flex items-center justify-between font-mono text-[10px] tracking-[0.14em] text-on-dark-muted uppercase">
+      {category && <span>{category}</span>}
+      {duration && <span>{duration}</span>}
+    </div>
+
+    <div>
+      {url ? (
+        <a href={url} target="_blank" rel="noopener noreferrer" class="group/link inline-flex items-center gap-3">
+          <span class="flex size-11 shrink-0 items-center justify-center border border-accent text-accent transition-colors group-hover/link:bg-accent-tint group-hover/link:text-ink" aria-hidden="true">
+            ▶
+          </span>
+          <span class="font-display text-lg font-bold tracking-[-0.01em] text-paper sm:text-xl">{title}</span>
+        </a>
+      ) : (
+        <div>
+          <p class="font-display text-lg font-bold tracking-[-0.01em] text-paper sm:text-xl">{title}</p>
+          <p class="mt-1 font-mono text-[10px] tracking-[0.14em] text-on-dark-muted uppercase">Video coming soon</p>
+        </div>
+      )}
+    </div>
+  </div>
+</div>

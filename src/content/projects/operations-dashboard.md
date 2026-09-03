@@ -6,6 +6,7 @@ role: "Operations"
 client: "Tathmeer Properties"
 year: "2026"
 featured: true
+previewType: "dashboard"
 order: 1
 context: >
   Tathmeer runs a large portfolio of active construction projects, each tracked separately

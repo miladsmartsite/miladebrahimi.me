@@ -1,8 +1,17 @@
 ---
+/**
+ * Speaking = a topic platform, honestly framed — no fabricated
+ * engagements. Real events (once any exist) render via SpeakingList,
+ * driven entirely by the `speaking` content collection.
+ */
 import { getCollection } from 'astro:content';
 import BaseLayout from '@layouts/BaseLayout.astro';
+import PageHero from '@components/PageHero.astro';
+import Section from '@components/Section.astro';
+import Button from '@components/Button.astro';
 import SpeakingTopics from '@components/home/SpeakingTopics.astro';
 import SpeakingList from '@components/home/SpeakingList.astro';
+import VideoFeature from '@components/VideoFeature.astro';
 
 const allTalks = await getCollection('speaking', ({ data }) => !data.draft);
 const talks = allTalks.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
@@ -12,6 +21,28 @@ const talks = allTalks.sort((a, b) => b.data.date.valueOf() - a.data.date.valueO
   title="Speaking"
   description="Topics I can speak and write about — no past engagements claimed, just the subjects open for conversation."
 >
-  <SpeakingTopics />
+  <PageHero
+    kicker="Speaking"
+    title="Topics, perspectives, possible engagements."
+    subtitle="No past speaking history is claimed here — this is what's actually open for conversation."
+  />
+
+  <SpeakingTopics showHeading={false} />
+
   {talks.length > 0 && <SpeakingList talks={talks} />}
+
+  <Section kicker="On video" heading="Talks and walkthroughs, recorded." tone="navy" field reveal>
+    <VideoFeature title="First recorded talk" category="Systems" class="max-w-2xl" />
+  </Section>
+
+  <Section kicker="Why I speak" heading="Systems only matter if they're understood." reveal>
+    <p class="max-w-2xl font-body text-lg text-body">
+      Most of the work here is invisible by design — a good system is one nobody has to think
+      about. Speaking and writing are the counterweight: a chance to make the thinking behind the
+      systems explicit, for teams and audiences dealing with the same fragmentation.
+    </p>
+    <div class="mt-8">
+      <Button href="/contact" variant="accent" arrow>Let's talk</Button>
+    </div>
+  </Section>
 </BaseLayout>

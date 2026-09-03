@@ -1,70 +1,193 @@
 ---
 /**
- * The site's one distinctive visual system: five practice areas connected
- * to a single center, standing in for "systems, connections, process" —
- * built specifically for this brand as inline SVG (no stock/AI imagery,
- * no external asset). Lines draw in and the center pulses gently on load;
- * fully static under prefers-reduced-motion.
+ * The "Milad System Map" — the site's signature interactive element.
+ * Six practice nodes around a center, connected by lines; hovering a node
+ * (desktop, mouse) brightens its line and dims the rest via pure CSS
+ * `:has()` — no JS. A static legend beneath discloses every node's label
+ * and caption unconditionally, so the diagram itself is decorative
+ * enhancement, not a requirement for touch/keyboard/AT users.
+ *
+ * `dark` re-themes the diagram for use on a navy surface (the hero's
+ * portrait/visual composition). `compact` omits the full legend grid,
+ * keeping just the diagram and the single-line caption readout — used
+ * where vertical space is tight (the hero).
  */
-const nodes = [
-  { label: 'OPERATIONS', x: 200, y: 50 },
-  { label: 'SYSTEMS', x: 342.6, y: 153.6 },
-  { label: 'MARKETING', x: 288.2, y: 321.4 },
-  { label: 'PROCESS', x: 111.8, y: 321.4 },
-  { label: 'AI', x: 57.4, y: 153.6 },
-];
+import { SYSTEM_MAP_NODES } from '@lib/site';
+
+interface Props {
+  dark?: boolean;
+  compact?: boolean;
+}
+
+const { dark = false, compact = false } = Astro.props;
+
 const center = { x: 200, y: 200 };
+const radius = 150;
+
+// Six nodes, 60° apart, starting at the top — a hexagon rather than an
+// arbitrary star, so the map reads as deliberate structure.
+const nodes = SYSTEM_MAP_NODES.map((node, i) => {
+  const angle = (-90 + i * 60) * (Math.PI / 180);
+  return {
+    ...node,
+    x: Math.round((center.x + radius * Math.cos(angle)) * 10) / 10,
+    y: Math.round((center.y + radius * Math.sin(angle)) * 10) / 10,
+  };
+});
+
+// Per-node hover rules: brighten this node's line/label, dim the others.
+// Generated once at build time — six nodes, not worth a client-side loop.
+const hoverCss = nodes
+  .map(
+    (node) => `
+    .system-diagram:has(.sd-hit[data-node="${node.key}"]:hover) .sd-line:not([data-node="${node.key}"]) { opacity: 0.25; }
+    .system-diagram:has(.sd-hit[data-node="${node.key}"]:hover) .sd-line[data-node="${node.key}"] { stroke: var(--color-accent); stroke-width: 1.5; opacity: 1; }
+    .system-diagram:has(.sd-hit[data-node="${node.key}"]:hover) .sd-dot[data-node="${node.key}"] { fill: var(--color-accent); stroke: var(--color-accent); }
+    .system-diagram:has(.sd-hit[data-node="${node.key}"]:hover) .sd-label[data-node="${node.key}"] { fill: var(--color-accent); }
+    .system-diagram:has(.sd-hit[data-node="${node.key}"]:hover) .sd-caption[data-node="${node.key}"] { opacity: 1; }
+    .system-diagram:has(.sd-hit[data-node="${node.key}"]:hover) .sd-caption[data-node="default"] { opacity: 0; }
+  `,
+  )
+  .join('\n');
 ---
 
-<svg
-  viewBox="0 0 400 400"
-  class="system-diagram h-auto w-full max-w-md"
-  role="img"
-  aria-label="Diagram showing Operations, Systems, Marketing, Process, and AI connected to one central practice"
->
-  {nodes.map((node, i) => (
-    <line
-      x1={center.x}
-      y1={center.y}
-      x2={node.x}
-      y2={node.y}
-      class="sd-line"
-      style={`--sd-delay:${i * 140}ms`}
-      stroke="var(--color-ink-300)"
-      stroke-width="1"
-    />
-  ))}
+<div class:list={['system-diagram w-full max-w-md', { 'sd-dark': dark }]}>
+  <svg
+    viewBox="0 0 400 400"
+    class="h-auto w-full"
+    role="img"
+    aria-label="Diagram: Operations, Systems, Strategy, AI, Marketing, and Writing connected to one central practice"
+  >
+    {nodes.map((node, i) => (
+      <line
+        x1={center.x}
+        y1={center.y}
+        x2={node.x}
+        y2={node.y}
+        class="sd-line"
+        data-node={node.key}
+        style={`--sd-delay:${i * 120}ms`}
+        stroke="var(--sd-line-color)"
+        stroke-width="1"
+      />
+    ))}
 
-  {nodes.map((node, i) => (
-    <g class="sd-node" style={`--sd-delay:${300 + i * 140}ms`}>
-      <circle cx={node.x} cy={node.y} r="5" fill="var(--color-paper)" stroke="var(--color-ink-500)" stroke-width="1.5" />
-      <text
-        x={node.x}
-        y={node.y > center.y ? node.y + 20 : node.y - 12}
-        text-anchor="middle"
-        class="font-sans"
-        style="font-size:10px; letter-spacing:0.06em; fill: var(--color-ink-500);"
+    {nodes.map((node, i) => (
+      <g class="sd-node" style={`--sd-delay:${300 + i * 120}ms`}>
+        <circle
+          cx={node.x}
+          cy={node.y}
+          r="5"
+          class="sd-dot"
+          data-node={node.key}
+          fill="var(--sd-dot-fill)"
+          stroke="var(--sd-line-color)"
+          stroke-width="1.5"
+        />
+        <text
+          x={node.x}
+          y={node.y > center.y ? node.y + 22 : node.y - 14}
+          text-anchor="middle"
+          class="sd-label font-mono"
+          data-node={node.key}
+          style="font-size:10px; letter-spacing:0.06em; fill: var(--sd-label-color);"
+        >
+          {node.label.toUpperCase()}
+        </text>
+        {/* Larger invisible hit area — the small dot alone is too small to hover reliably. */}
+        <circle cx={node.x} cy={node.y} r="26" fill="transparent" class="sd-hit" data-node={node.key} />
+      </g>
+    ))}
+
+    <circle cx={center.x} cy={center.y} r="10" fill="var(--color-accent)" class="sd-center" />
+  </svg>
+
+  <div class="relative mt-2 h-4 text-center">
+    <p class="sd-caption absolute inset-x-0 text-xs italic transition-opacity duration-(--duration-fast)" style="color: var(--sd-caption-color);" data-node="default">
+      Six disciplines, one practice.
+    </p>
+    {SYSTEM_MAP_NODES.map((node) => (
+      <p
+        class="sd-caption absolute inset-x-0 text-xs text-accent opacity-0 transition-opacity duration-(--duration-fast)"
+        data-node={node.key}
       >
-        {node.label}
-      </text>
-    </g>
-  ))}
+        {node.caption}
+      </p>
+    ))}
+  </div>
 
-  <circle cx={center.x} cy={center.y} r="10" fill="var(--color-accent)" class="sd-center" />
-</svg>
+  {!compact && (
+    <ul class="sd-legend mt-6 grid grid-cols-2 gap-x-6 gap-y-2 border-t pt-4 text-xs sm:grid-cols-3">
+      {SYSTEM_MAP_NODES.map((node) => (
+        <li>
+          <span class="sd-legend-label font-medium">{node.label}</span>
+          <span class="sd-legend-desc block">{node.caption}</span>
+        </li>
+      ))}
+    </ul>
+  )}
+</div>
+
+<style set:html={hoverCss}></style>
 
 <style>
+  .system-diagram {
+    --sd-line-color: var(--color-ink-300);
+    --sd-dot-fill: var(--color-paper);
+    --sd-label-color: var(--color-ink-500);
+    --sd-caption-color: var(--color-ink-500);
+    --sd-legend-border: var(--color-ink-100);
+    --sd-legend-label-color: var(--color-ink-950);
+    --sd-legend-desc-color: var(--color-ink-500);
+  }
+
+  .system-diagram.sd-dark {
+    --sd-line-color: var(--color-ink-300);
+    --sd-dot-fill: var(--color-navy-950);
+    --sd-label-color: var(--color-ink-300);
+    --sd-caption-color: var(--color-ink-300);
+    --sd-legend-border: var(--color-navy-line);
+    --sd-legend-label-color: var(--color-paper);
+    --sd-legend-desc-color: var(--color-ink-300);
+  }
+
+  .sd-legend {
+    border-color: var(--sd-legend-border);
+  }
+
+  .sd-legend-label {
+    color: var(--sd-legend-label-color);
+  }
+
+  .sd-legend-desc {
+    color: var(--sd-legend-desc-color);
+  }
+
   .sd-line {
     stroke-dasharray: 220;
     stroke-dashoffset: 220;
     animation: sd-draw 0.9s var(--ease-premium) forwards;
     animation-delay: var(--sd-delay, 0ms);
+    transition:
+      opacity var(--duration-fast) var(--ease-premium),
+      stroke var(--duration-fast) var(--ease-premium);
   }
 
   .sd-node {
     opacity: 0;
     animation: sd-fade 0.6s var(--ease-premium) forwards;
     animation-delay: var(--sd-delay, 0ms);
+  }
+
+  .sd-dot,
+  .sd-label {
+    transition:
+      fill var(--duration-fast) var(--ease-premium),
+      stroke var(--duration-fast) var(--ease-premium);
+  }
+
+  .sd-hit {
+    cursor: default;
   }
 
   .sd-center {
@@ -80,22 +203,6 @@ const center = { x: 200, y: 200 };
   @keyframes sd-fade {
     to {
       opacity: 1;
-    }
-  }
-
-  @media (prefers-reduced-motion: no-preference) {
-    .sd-center {
-      animation: sd-pulse 3.2s ease-in-out 1.4s infinite;
-    }
-  }
-
-  @keyframes sd-pulse {
-    0%,
-    100% {
-      transform: scale(1);
-    }
-    50% {
-      transform: scale(1.15);
     }
   }
 </style>

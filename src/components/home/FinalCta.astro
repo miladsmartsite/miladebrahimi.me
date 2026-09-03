@@ -4,13 +4,13 @@ import Button from '@components/Button.astro';
 import { HOME } from '@lib/site';
 ---
 
-<Section tone="ink" reveal class="!py-24 lg:!py-32">
+<Section tone="navy" field reveal class="!py-24 lg:!py-32">
   <div class="flex flex-col items-start gap-8 sm:flex-row sm:items-end sm:justify-between">
-    <h2 class="max-w-xl font-display text-4xl leading-tight font-medium text-paper text-balance sm:text-5xl">
+    <h2 class="max-w-xl font-display text-4xl leading-[1.06] font-bold tracking-[-0.03em] text-paper text-balance sm:text-5xl">
       {HOME.finalCta.heading}
     </h2>
     <div class="flex flex-col items-start gap-4">
-      <p class="text-ink-300">{HOME.finalCta.body}</p>
+      <p class="font-body text-lg text-on-dark-muted">{HOME.finalCta.body}</p>
       <Button href="/contact" variant="accent" arrow>Get in touch</Button>
     </div>
   </div>

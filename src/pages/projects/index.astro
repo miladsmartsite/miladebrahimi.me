@@ -1,27 +1,84 @@
 ---
+/**
+ * /projects = the "Work" nav item: a systems archive, not a project-card
+ * grid. Reuses SystemCard (the same component the homepage uses) so this
+ * page and the homepage's Selected Systems section never drift apart.
+ * The filter is pure CSS (radio inputs + [data-tags~=] attribute
+ * matching) — no JavaScript — and only appears once there's enough
+ * inventory for it to matter.
+ */
 import { getCollection } from 'astro:content';
 import BaseLayout from '@layouts/BaseLayout.astro';
+import PageHero from '@components/PageHero.astro';
 import Section from '@components/Section.astro';
 import SystemCard from '@components/SystemCard.astro';
+import { DOMAIN_CODES } from '@lib/site';
 
 const allProjects = await getCollection('projects', ({ data }) => !data.draft);
 const systems = allProjects.sort((a, b) => a.data.order - b.data.order);
+
+// Only offer domains that at least one real system actually uses.
+const activeDomains = DOMAIN_CODES.filter((d) => systems.some((s) => s.data.tags.includes(d.tag)));
+const showFilter = systems.length > 3 && activeDomains.length > 1;
+
+const filterCss = activeDomains
+  .map(
+    (d) => `
+    .systems-filter:has(#filter-${d.code.replace('/', '')}:checked) .system-entry:not([data-tags~="${d.tag}"]) {
+      display: none;
+    }
+  `,
+  )
+  .join('\n');
 ---
 
 <BaseLayout
   title="Work"
-  description="Systems built to solve real operational problems — operations, process, marketing, and reporting."
+  description="A systems archive — real operational systems built to solve real problems, with tools, roles, and evidence for each."
 >
-  <Section kicker="Systems I've built" heading="Work." reveal>
+  <PageHero
+    kicker="Work"
+    title="Systems, not slides."
+    subtitle="Every entry below is a real system, built to solve a specific operational problem — not a portfolio piece."
+  />
+
+  <Section reveal>
     {systems.length > 0 ? (
-      <div>
-        {systems.map((project, index) => <SystemCard project={project} index={index} />)}
+      <div class="systems-filter">
+        {showFilter && (
+          <fieldset class="mb-10 flex flex-wrap gap-2 border-b border-line pb-8">
+            <legend class="sr-only">Filter systems by domain</legend>
+            <input type="radio" name="filter" id="filter-all" class="peer/all sr-only" checked />
+            <label
+              for="filter-all"
+              class="cursor-pointer border border-line px-3 py-1.5 font-mono text-[11px] font-medium tracking-wide text-body uppercase transition-colors peer-checked/all:border-ink peer-checked/all:bg-ink peer-checked/all:text-paper"
+            >
+              All
+            </label>
+            {activeDomains.map((d) => (
+              <span class="contents">
+                <input type="radio" name="filter" id={`filter-${d.code.replace('/', '')}`} class="peer sr-only" />
+                <label
+                  for={`filter-${d.code.replace('/', '')}`}
+                  class="cursor-pointer border border-line px-3 py-1.5 font-mono text-[11px] font-medium tracking-wide text-body uppercase transition-colors peer-checked:border-accent peer-checked:bg-accent-tint peer-checked:text-ink"
+                >
+                  {d.code}
+                </label>
+              </span>
+            ))}
+          </fieldset>
+        )}
+        <div>
+          {systems.map((project, index) => <SystemCard project={project} index={index} />)}
+        </div>
       </div>
     ) : (
-      <p class="text-ink-700">
+      <p class="font-body text-lg text-body">
         [PLACEHOLDER] No published work yet. Add markdown files to
         <code>src/content/projects/</code> and set <code>draft: false</code>.
       </p>
     )}
   </Section>
 </BaseLayout>
+
+{showFilter && <style set:html={filterCss}></style>}

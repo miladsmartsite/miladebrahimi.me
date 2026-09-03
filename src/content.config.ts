@@ -15,8 +15,13 @@ const publishState = {
   order: z.number().default(0),
 };
 
+// Excludes README.md — a per-collection workflow doc (see
+// src/content/articles/README.md), not real content, so it must never be
+// scanned as an entry or it'd fail schema validation at build time.
+const contentPattern = ['**/*.md', '!README.md'];
+
 const projects = defineCollection({
-  loader: glob({ pattern: '**/*.md', base: './src/content/projects' }),
+  loader: glob({ pattern: contentPattern, base: './src/content/projects' }),
   schema: z.object({
     title: z.string(),
     summary: z.string(),
@@ -30,6 +35,10 @@ const projects = defineCollection({
     coverImage: z.string().optional(),
     externalUrl: z.string().url().optional(),
     featured: z.boolean().default(false),
+    // Which conceptual SystemPreview visualization represents this system —
+    // always a recreated/abstract diagram, never a real screenshot (several
+    // real systems involve confidential company data).
+    previewType: z.enum(['dashboard', 'workflow', 'reporting', 'operations', 'marketing']).optional(),
     // Structured case-study fields for the project detail page — mirrors the
     // ten-part case-study structure (context/problem/role/approach/system/
     // how it works/tools/implementation/outcome/lessons). All optional: a
@@ -58,7 +67,7 @@ const projects = defineCollection({
 });
 
 const articles = defineCollection({
-  loader: glob({ pattern: '**/*.md', base: './src/content/articles' }),
+  loader: glob({ pattern: contentPattern, base: './src/content/articles' }),
   schema: z.object({
     title: z.string(),
     description: z.string(),
@@ -66,6 +75,12 @@ const articles = defineCollection({
     updatedDate: z.coerce.date().optional(),
     tags: z.array(z.string()).default([]),
     coverImage: z.string().optional(),
+    // A short pull-quote rendered as a large editorial statement partway
+    // through the piece — optional, purely presentational, never required.
+    quote: z.string().optional(),
+    // An embeddable video URL (YouTube/Vimeo/LinkedIn) shown via
+    // VideoFeature.astro instead of/alongside the written piece.
+    videoUrl: z.string().url().optional(),
     // Set when the piece lives on an external platform (LinkedIn, Medium)
     // rather than being authored as a page on this site.
     externalUrl: z.string().url().optional(),
@@ -74,7 +89,7 @@ const articles = defineCollection({
 });
 
 const books = defineCollection({
-  loader: glob({ pattern: '**/*.md', base: './src/content/books' }),
+  loader: glob({ pattern: contentPattern, base: './src/content/books' }),
   schema: z.object({
     title: z.string(),
     subtitle: z.string().optional(),
@@ -89,7 +104,7 @@ const books = defineCollection({
 });
 
 const speaking = defineCollection({
-  loader: glob({ pattern: '**/*.md', base: './src/content/speaking' }),
+  loader: glob({ pattern: contentPattern, base: './src/content/speaking' }),
   schema: z.object({
     title: z.string(),
     event: z.string(),
@@ -103,18 +118,18 @@ const speaking = defineCollection({
 });
 
 const resources = defineCollection({
-  loader: glob({ pattern: '**/*.md', base: './src/content/resources' }),
+  loader: glob({ pattern: contentPattern, base: './src/content/resources' }),
   schema: z.object({
     title: z.string(),
     description: z.string(),
-    type: z.enum(['template', 'guide', 'tool', 'download', 'link']),
+    type: z.enum(['template', 'guide', 'framework', 'tool', 'download', 'link']),
     url: z.string().url().optional(),
     ...publishState,
   }),
 });
 
 const experience = defineCollection({
-  loader: glob({ pattern: '**/*.md', base: './src/content/experience' }),
+  loader: glob({ pattern: contentPattern, base: './src/content/experience' }),
   schema: z.object({
     organization: z.string(),
     role: z.string(),

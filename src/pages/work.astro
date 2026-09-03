@@ -1,6 +1,12 @@
 ---
+/**
+ * The full role-by-role experience timeline — not in the primary nav
+ * (the "Work" nav label points at /projects, the systems archive). Linked
+ * from About and CV for anyone who wants the complete career detail.
+ */
 import { getCollection } from 'astro:content';
 import BaseLayout from '@layouts/BaseLayout.astro';
+import PageHero from '@components/PageHero.astro';
 import Section from '@components/Section.astro';
 import Timeline from '@components/Timeline.astro';
 
@@ -10,12 +16,13 @@ const experience = allExperience.sort(
 );
 ---
 
-<BaseLayout title="Work" description="[Placeholder description — experience overview pending.]">
-  <Section kicker="Experience" heading="Work history." reveal>
+<BaseLayout title="Experience" description="Full career history, role by role — the detailed version behind the About page's condensed timeline.">
+  <PageHero kicker="Experience" title="The full career history." />
+  <Section reveal>
     {experience.length > 0 ? (
       <Timeline items={experience} />
     ) : (
-      <p class="text-ink-700">
+      <p class="font-body text-lg text-body">
         [PLACEHOLDER] No published experience entries yet. Add markdown files to
         <code>src/content/experience/</code> and set <code>draft: false</code>.
       </p>

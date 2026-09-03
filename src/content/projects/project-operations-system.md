@@ -6,6 +6,7 @@ role: "Operations"
 client: "Perla Engineering"
 year: "2026"
 featured: true
+previewType: "operations"
 order: 4
 context: >
   The operations function touched site execution, materials, finance, and cross-department

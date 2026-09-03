@@ -1,0 +1,33 @@
+---
+/**
+ * Page-level intro block — smaller than the homepage cinematic Hero, but
+ * bigger and more deliberate than a mid-page Section kicker+heading. Used
+ * at the top of every non-homepage page so each has a consistent "arrival"
+ * moment while still allowing tone/copy to differ per page identity (see
+ * design-system.md §16, "one brand system, different page experiences").
+ */
+interface Props {
+  kicker: string;
+  title: string;
+  subtitle?: string;
+  tone?: 'paper' | 'navy';
+}
+
+const { kicker, title, subtitle, tone = 'paper' } = Astro.props;
+const isNavy = tone === 'navy';
+---
+
+<div class:list={['relative overflow-hidden', isNavy ? 'bg-ink text-paper' : 'bg-paper text-ink']}>
+  {isNavy && <div class="field-grid pointer-events-none absolute inset-0" aria-hidden="true"></div>}
+  <div class="relative mx-auto max-w-(--container-wide) px-6 pt-14 pb-14 sm:px-8 sm:pt-16 lg:pt-20">
+    <p class:list={['mb-4 font-mono text-[11px] font-bold tracking-[0.16em] uppercase', isNavy ? 'text-accent' : 'text-accent-ink']}>
+      {kicker}
+    </p>
+    <h1 class="max-w-3xl font-display text-4xl leading-[1.05] font-bold tracking-[-0.03em] text-balance sm:text-5xl lg:text-[3.5rem]">
+      {title}
+    </h1>
+    {subtitle && (
+      <p class:list={['mt-5 max-w-xl font-body text-lg', isNavy ? 'text-on-dark-muted' : 'text-body']}>{subtitle}</p>
+    )}
+  </div>
+</div>

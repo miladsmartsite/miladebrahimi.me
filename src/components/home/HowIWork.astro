@@ -1,29 +1,29 @@
 ---
 /**
- * The five-step working method, presented as a connected process rather
- * than a generic numbered list — a dark section for rhythm contrast
- * against the surrounding light sections.
+ * The five-step working method, presented as a connected process — a
+ * navy section for rhythm contrast, with a small gold node marking each
+ * step on the connecting line, echoing the System Map's node language.
  */
 import Section from '@components/Section.astro';
 import { HOW_I_WORK, HOME } from '@lib/site';
 ---
 
-<Section kicker={HOME.process.kicker} heading={HOME.process.heading} tone="ink" reveal>
-  <ol class="grid gap-8 sm:grid-cols-5 sm:gap-4">
+<Section kicker={HOME.process.kicker} heading={HOME.process.heading} tone="navy" reveal>
+  <ol class="grid gap-10 sm:grid-cols-5 sm:gap-4">
     {HOW_I_WORK.map((item, i) => (
       <li class="relative">
         <div class="flex items-center gap-3 sm:block">
-          <span class="font-display text-3xl text-accent sm:text-4xl">
+          <span class="font-display text-3xl font-bold text-accent sm:text-4xl">
             {String(i + 1).padStart(2, '0')}
           </span>
-          <h3 class="font-display text-xl text-paper sm:mt-3">{item.step}</h3>
+          <h3 class="font-display text-xl font-bold tracking-[-0.02em] text-paper sm:mt-3">{item.step}</h3>
         </div>
-        <p class="mt-2 text-sm text-ink-300 sm:mt-3">{item.description}</p>
+        <p class="mt-2 font-body text-base text-on-dark-muted sm:mt-3">{item.description}</p>
         {i < HOW_I_WORK.length - 1 && (
-          <span
-            aria-hidden="true"
-            class="mt-6 hidden h-px w-full bg-ink-700 sm:block"
-          ></span>
+          <span class="mt-6 hidden h-px w-full items-center sm:flex" aria-hidden="true">
+            <span class="h-px w-full bg-on-dark-line"></span>
+            <span class="size-1.5 shrink-0 rounded-full bg-accent"></span>
+          </span>
         )}
       </li>
     ))}

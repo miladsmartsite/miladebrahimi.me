@@ -1,19 +1,54 @@
 ---
+/**
+ * Books = author archive ("author × thinker × practitioner"), not a
+ * product grid — reuses the homepage's BooksShowcase (featured + shelf)
+ * so this page and the homepage teaser never drift apart.
+ */
 import { getCollection } from 'astro:content';
 import BaseLayout from '@layouts/BaseLayout.astro';
+import PageHero from '@components/PageHero.astro';
 import Section from '@components/Section.astro';
 import BooksShowcase from '@components/home/BooksShowcase.astro';
+import { SITE } from '@lib/site';
 
 const allBooks = await getCollection('books', ({ data }) => !data.draft);
 const books = allBooks.sort((a, b) => a.data.order - b.data.order);
+
+// Book schema only for fields we actually have — no invented ISBNs,
+// publishers, or page counts.
+const booksSchema =
+  books.length > 0
+    ? {
+        '@context': 'https://schema.org',
+        '@graph': books.map((book) => ({
+          '@type': 'Book',
+          name: book.data.title,
+          ...(book.data.subtitle ? { alternateName: book.data.subtitle } : {}),
+          author: { '@type': 'Person', name: SITE.name, url: SITE.url },
+          description: book.data.description,
+          ...(book.data.year ? { datePublished: book.data.year } : {}),
+          ...(book.data.language ? { inLanguage: book.data.language } : {}),
+        })),
+      }
+    : undefined;
 ---
 
-<BaseLayout title="Books" description="Books that shape the work — reading and writing.">
+<BaseLayout
+  title="Books"
+  description="Books that shape the work — an author's shelf, not a product grid."
+  structuredData={booksSchema}
+>
+  <PageHero
+    kicker="Books"
+    title="Author, thinker, practitioner."
+    subtitle="Three books, across a decade, on time, balance, and self-coaching — written alongside the operations work, not apart from it."
+  />
+
   {books.length > 0 ? (
-    <BooksShowcase books={books} />
+    <BooksShowcase books={books} showHeading={false} />
   ) : (
     <Section kicker="Books" heading="Books.">
-      <p class="text-ink-700">
+      <p class="font-body text-lg text-body">
         [PLACEHOLDER] No published books yet. Add markdown files to
         <code>src/content/books/</code> and set <code>draft: false</code>.
       </p>

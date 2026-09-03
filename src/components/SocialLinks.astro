@@ -3,9 +3,14 @@ import { SOCIAL_LINKS } from '@lib/site';
 
 interface Props {
   class?: string;
+  /** For use on a navy surface (e.g. the footer) — swaps to light-on-dark colors. */
+  dark?: boolean;
 }
 
-const { class: className = '' } = Astro.props;
+const { class: className = '', dark = false } = Astro.props;
+const linkClass = dark
+  ? 'text-sm text-ink-300 transition-colors hover:text-accent'
+  : 'text-sm text-ink-500 transition-colors hover:text-accent-ink';
 ---
 
 {
@@ -13,12 +18,7 @@ const { class: className = '' } = Astro.props;
     <ul class={`flex items-center gap-4 ${className}`}>
       {SOCIAL_LINKS.map((link) => (
         <li>
-          <a
-            href={link.href}
-            class="text-sm text-ink-500 transition-colors hover:text-accent-ink"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
+          <a href={link.href} class={linkClass} target="_blank" rel="noopener noreferrer">
             {link.label}
           </a>
         </li>

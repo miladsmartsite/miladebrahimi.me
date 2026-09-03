@@ -1,21 +1,45 @@
 ---
 /**
  * Speaking, led with honest "topics I can speak about" rather than
- * fabricated past engagements — see content-status.md. Real engagements
+ * fabricated past engagements — presented as a typographic field (varied
+ * scale, flowing layout) rather than a uniform card grid. Real engagements
  * (once any exist) render separately via the `speaking` collection and
- * SpeakingList.astro.
+ * SpeakingList.astro. Descriptions stay always-visible rather than
+ * hover-gated: nothing here is focusable, so a hover-only reveal would be
+ * unreachable for keyboard users.
  */
 import Section from '@components/Section.astro';
 import { SPEAKING_TOPICS, HOME } from '@lib/site';
+
+interface Props {
+  showHeading?: boolean;
+}
+const { showHeading = true } = Astro.props;
+
+// Deterministic size variation (not random) — every third topic reads as
+// an "anchor" at larger scale, giving the field visual rhythm.
+const sizeClass = (i: number) =>
+  i % 3 === 0
+    ? 'text-3xl sm:text-4xl'
+    : i % 3 === 1
+      ? 'text-2xl sm:text-3xl'
+      : 'text-xl sm:text-2xl';
 ---
 
-<Section kicker={HOME.speaking.kicker} heading={HOME.speaking.heading} tone="dim" reveal>
-  <p class="mb-8 max-w-2xl text-sm text-ink-500 italic">{HOME.speaking.note}</p>
-  <ul class="grid gap-x-8 gap-y-6 sm:grid-cols-2">
-    {SPEAKING_TOPICS.map((topic) => (
-      <li class="border-t border-ink-300 pt-4">
-        <h3 class="font-display text-lg text-ink-950">{topic.title}</h3>
-        <p class="mt-1.5 text-sm text-ink-700">{topic.description}</p>
+<Section
+  kicker={showHeading ? HOME.speaking.kicker : undefined}
+  heading={showHeading ? HOME.speaking.heading : undefined}
+  tone="dim"
+  reveal
+>
+  <p class="mb-10 max-w-2xl font-body text-base text-meta italic">{HOME.speaking.note}</p>
+  <ul class="flex flex-wrap items-baseline gap-x-10 gap-y-8">
+    {SPEAKING_TOPICS.map((topic, i) => (
+      <li class="group/topic max-w-xs">
+        <h3 class:list={['font-display font-bold tracking-[-0.02em] leading-tight text-ink transition-colors group-hover/topic:text-accent-ink', sizeClass(i)]}>
+          {topic.title}
+        </h3>
+        <p class="mt-1.5 font-body text-base text-body">{topic.description}</p>
       </li>
     ))}
   </ul>

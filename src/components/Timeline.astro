@@ -15,17 +15,17 @@ function formatRange(start: Date, end?: Date) {
 }
 ---
 
-<ol class="flex flex-col divide-y divide-ink-100 border-t border-ink-100">
+<ol class="flex flex-col divide-y divide-line border-t border-line">
   {items.map((item) => (
     <li class="grid gap-1 py-6 sm:grid-cols-[12rem_1fr] sm:gap-6">
-      <p class="text-xs text-ink-500">{formatRange(item.data.startDate, item.data.endDate)}</p>
+      <p class="font-mono text-[11px] text-meta uppercase tracking-wide">{formatRange(item.data.startDate, item.data.endDate)}</p>
       <div>
-        <h3 class="font-display text-lg text-ink-950">{item.data.role}</h3>
-        <p class="text-sm text-ink-700">
+        <h3 class="font-display text-lg font-bold text-ink">{item.data.role}</h3>
+        <p class="font-body text-base text-body">
           {item.data.organization}
-          {item.data.location && <span class="text-ink-500"> · {item.data.location}</span>}
+          {item.data.location && <span class="text-meta"> · {item.data.location}</span>}
         </p>
-        <p class="mt-2 text-sm text-ink-700">{item.data.summary}</p>
+        <p class="mt-2 font-body text-base text-body">{item.data.summary}</p>
       </div>
     </li>
   ))}

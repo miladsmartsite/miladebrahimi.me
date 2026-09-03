@@ -1,8 +1,10 @@
 ---
 import { getCollection } from 'astro:content';
 import BaseLayout from '@layouts/BaseLayout.astro';
+import PageHero from '@components/PageHero.astro';
 import Section from '@components/Section.astro';
 import Timeline from '@components/Timeline.astro';
+import Button from '@components/Button.astro';
 import { SITE, CV, RESULTS, HOME } from '@lib/site';
 
 const allExperience = await getCollection('experience', ({ data }) => !data.draft);
@@ -18,12 +20,16 @@ const books = allBooks.sort((a, b) => a.data.order - b.data.order);
   title="CV"
   description="A digital professional profile — experience, results, skills, education, and languages."
 >
-  <Section kicker="CV" heading={SITE.name} reveal>
-    <p class="max-w-(--container-prose) text-lg text-ink-700">{CV.summary}</p>
-    <p class="mt-4 text-xs text-ink-500">
-      A downloadable PDF version of this profile isn't available yet — this page is the canonical,
-      up-to-date version in the meantime.
+  <PageHero kicker="CV" title={SITE.name} subtitle={CV.summary} />
+
+  <Section reveal>
+    <p class="max-w-(--container-prose) font-body text-base text-meta">
+      This page complements the PDF rather than duplicating every line of it — full detail, dates,
+      and formatting live in the download.
     </p>
+    <div class="mt-6">
+      <Button href={SITE.cvUrl} variant="accent" external arrow>Download CV</Button>
+    </div>
   </Section>
 
   <Section kicker="Experience" heading="Career history." tone="dim" reveal>
@@ -34,21 +40,21 @@ const books = allBooks.sort((a, b) => a.data.order - b.data.order);
     <div class="grid gap-8 sm:grid-cols-3 sm:gap-6">
       {RESULTS.map((result) => (
         <div class="border-t-2 border-accent pt-5">
-          <p class="font-display text-4xl text-ink-950">{result.metric}</p>
-          <p class="mt-3 text-sm text-ink-700">{result.detail}</p>
-          <p class="mt-3 text-xs tracking-wide text-ink-500 uppercase">{result.source}</p>
+          <p class="font-display text-4xl font-bold text-ink">{result.metric}</p>
+          <p class="mt-3 font-body text-base text-body">{result.detail}</p>
+          <p class="mt-3 font-mono text-[10px] tracking-wide text-meta uppercase">{result.source}</p>
         </div>
       ))}
     </div>
-    <p class="mt-8 max-w-2xl text-xs text-ink-500 italic">{HOME.results.note}</p>
+    <p class="mt-8 max-w-2xl font-body text-sm text-meta italic">{HOME.results.note}</p>
   </Section>
 
   <Section kicker="Skills" heading="Skills." tone="dim" reveal>
     <ul class="grid gap-x-8 gap-y-4 sm:grid-cols-2">
       {CV.skills.map((item) => (
-        <li class="border-t border-ink-300 pt-3">
-          <p class="text-xs tracking-wide text-accent uppercase">{item.category}</p>
-          <p class="mt-1 text-ink-950">{item.skill}</p>
+        <li class="border-t border-line pt-3">
+          <p class="font-mono text-[11px] font-bold tracking-[0.16em] text-accent-ink uppercase">{item.category}</p>
+          <p class="mt-1 font-body text-lg text-ink">{item.skill}</p>
         </li>
       ))}
     </ul>
@@ -57,22 +63,22 @@ const books = allBooks.sort((a, b) => a.data.order - b.data.order);
   <Section kicker="Education & Certifications" heading="Education & certifications." reveal>
     <div class="grid gap-10 sm:grid-cols-2">
       <div>
-        <h3 class="text-xs font-semibold tracking-[0.14em] text-accent uppercase">Education</h3>
+        <h3 class="font-mono text-[11px] font-bold tracking-[0.16em] text-accent-ink uppercase">Education</h3>
         <ul class="mt-4 space-y-4">
           {CV.education.map((edu) => (
             <li>
-              <p class="font-display text-lg text-ink-950">{edu.institution}</p>
-              <p class="text-sm text-ink-700">{edu.program}</p>
-              <p class="text-xs text-ink-500">{edu.location} · {edu.period}</p>
+              <p class="font-display text-lg font-bold tracking-[-0.02em] text-ink">{edu.institution}</p>
+              <p class="font-body text-base text-body">{edu.program}</p>
+              <p class="font-mono text-[11px] text-meta">{edu.location} · {edu.period}</p>
             </li>
           ))}
         </ul>
       </div>
       <div>
-        <h3 class="text-xs font-semibold tracking-[0.14em] text-accent uppercase">Certifications</h3>
+        <h3 class="font-mono text-[11px] font-bold tracking-[0.16em] text-accent-ink uppercase">Certifications</h3>
         <ul class="mt-4 space-y-3">
           {CV.certifications.map((cert) => (
-            <li class="text-sm text-ink-700">{cert}</li>
+            <li class="font-body text-base text-body">{cert}</li>
           ))}
         </ul>
       </div>
@@ -83,9 +89,9 @@ const books = allBooks.sort((a, b) => a.data.order - b.data.order);
     <Section kicker="Books" heading="Published books." tone="dim" reveal>
       <ul class="grid gap-6 sm:grid-cols-3">
         {books.map((book) => (
-          <li class="border border-ink-300 p-5">
-            <p class="text-xs text-ink-500">{book.data.year} · {book.data.language}</p>
-            <p class="mt-2 font-display text-lg text-ink-950">{book.data.title}</p>
+          <li class="border border-line p-5">
+            <p class="font-mono text-[11px] text-meta">{book.data.year} · {book.data.language}</p>
+            <p class="mt-2 font-display text-lg font-bold tracking-[-0.02em] text-ink">{book.data.title}</p>
           </li>
         ))}
       </ul>
@@ -96,10 +102,20 @@ const books = allBooks.sort((a, b) => a.data.order - b.data.order);
     <ul class="flex flex-wrap gap-8">
       {CV.languages.map((lang) => (
         <li>
-          <p class="font-display text-lg text-ink-950">{lang.language}</p>
-          <p class="text-xs text-ink-500">{lang.level}</p>
+          <p class="font-display text-lg font-bold tracking-[-0.02em] text-ink">{lang.language}</p>
+          <p class="font-mono text-[11px] text-meta">{lang.level}</p>
         </li>
       ))}
     </ul>
+  </Section>
+
+  <Section reveal>
+    <div class="flex flex-col items-start gap-6 border-t border-line pt-10 sm:flex-row sm:items-center sm:justify-between">
+      <p class="max-w-md font-body text-lg text-body">Want the full PDF, or to talk about any of this directly?</p>
+      <div class="flex flex-wrap gap-3">
+        <Button href={SITE.cvUrl} variant="accent" external arrow>Download CV</Button>
+        <Button href="/contact" variant="ghost" arrow>Get in touch</Button>
+      </div>
+    </div>
   </Section>
 </BaseLayout>

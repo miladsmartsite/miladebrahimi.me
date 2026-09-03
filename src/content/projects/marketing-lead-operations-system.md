@@ -6,6 +6,7 @@ role: "Marketing"
 client: "Perla Engineering"
 year: "2025"
 featured: true
+previewType: "marketing"
 order: 5
 context: >
   Marketing activity generated leads, but there was no consistent system for logging them,

@@ -1,0 +1,46 @@
+---
+/**
+ * The reusable ME mark — one wordmark system used everywhere the brand
+ * signs its name (nav, footer, 404, About). `size="large"` is the full
+ * block from the handoff (mark, brass rule, name, tagline); `size="small"`
+ * is the compact nav-scale version. `reversed` swaps to the on-dark tokens
+ * for use on the ink surface.
+ */
+import { SITE } from '@lib/site';
+
+interface Props {
+  size?: 'large' | 'small';
+  reversed?: boolean;
+  class?: string;
+}
+
+const { size = 'small', reversed = false, class: className = '' } = Astro.props;
+const markColor = reversed ? 'text-paper' : 'text-ink';
+const nameColor = reversed ? 'text-paper' : 'text-ink';
+const taglineColor = reversed ? 'text-on-dark-muted' : 'text-accent-ink';
+---
+
+{
+  size === 'large' ? (
+    <div class={`inline-flex flex-col items-start ${className}`}>
+      <span
+        class={`font-display font-extrabold ${markColor}`}
+        style="font-size:5.625rem; line-height:0.84; letter-spacing:-0.045em;"
+      >
+        ME
+      </span>
+      <span class="brass-rule mt-2 h-[3px] w-[92px]" aria-hidden="true"></span>
+      <span class={`mt-3 font-display text-xl font-semibold ${nameColor}`}>{SITE.name}</span>
+      <span class={`mt-1 font-body text-base italic ${taglineColor}`}>maker, mostly digital</span>
+    </div>
+  ) : (
+    <span class={`inline-flex items-center gap-2.5 ${className}`}>
+      <span
+        class={`flex size-8 items-center justify-center border font-display text-xs font-bold ${reversed ? 'border-accent text-accent' : 'border-ink text-ink'}`}
+      >
+        ME
+      </span>
+      <span class={`font-display text-base font-semibold tracking-tight ${nameColor}`}>{SITE.brandName}</span>
+    </span>
+  )
+}

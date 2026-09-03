@@ -11,9 +11,11 @@ interface Props {
   image?: string;
   type?: 'website' | 'article';
   noindex?: boolean;
+  /** Extra JSON-LD (Article/Book/etc.) for pages beyond the sitewide Person schema. */
+  structuredData?: Record<string, unknown>;
 }
 
-const { title, description, image, type, noindex } = Astro.props;
+const { title, description, image, type, noindex, structuredData } = Astro.props;
 
 // Minimal Person schema — structural fields only. No claimed achievements,
 // job titles, or credentials are asserted here; sameAs is populated once
@@ -36,10 +38,13 @@ const personSchema = {
     <meta name="generator" content={Astro.generator} />
     <SEO title={title} description={description} image={image} type={type} noindex={noindex} />
     <script type="application/ld+json" is:inline set:html={JSON.stringify(personSchema)} />
+    {structuredData && (
+      <script type="application/ld+json" is:inline set:html={JSON.stringify(structuredData)} />
+    )}
 
     <!-- Preload the two fonts used above the fold on every page. -->
-    <link rel="preload" as="font" type="font/woff2" href="/fonts/fraunces/fraunces-variable.woff2" crossorigin />
-    <link rel="preload" as="font" type="font/woff2" href="/fonts/inter/inter-variable.woff2" crossorigin />
+    <link rel="preload" as="font" type="font/woff2" href="/fonts/bricolage-grotesque/bricolage-grotesque-variable.woff2" crossorigin />
+    <link rel="preload" as="font" type="font/woff2" href="/fonts/crimson-pro/crimson-pro-variable.woff2" crossorigin />
 
     <noscript>
       <style>

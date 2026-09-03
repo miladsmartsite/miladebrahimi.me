@@ -1,57 +1,124 @@
 ---
+/**
+ * About = personal story + professional identity, not a CV dump (the CV
+ * page exists separately for that). Hero+portrait → the practice → career
+ * trajectory → how I work → capabilities → books/ideas → download CV.
+ */
+import { getCollection } from 'astro:content';
 import BaseLayout from '@layouts/BaseLayout.astro';
+import PageHero from '@components/PageHero.astro';
 import Section from '@components/Section.astro';
+import Portrait from '@components/Portrait.astro';
 import Career from '@components/home/Career.astro';
 import Button from '@components/Button.astro';
+import { SITE, HOW_I_WORK, CV } from '@lib/site';
+
+const allBooks = await getCollection('books', ({ data }) => !data.draft);
 ---
 
 <BaseLayout
   title="About"
   description="From education, into marketing, into operations — the background behind the systems work."
 >
-  <Section kicker="About" heading="A working practice, not a highlight reel." reveal>
-    <div class="max-w-(--container-prose) space-y-6 text-ink-700">
-      <p>
-        The path here didn't start with operations. It started with running an independent
-        education practice for six years — the kind of work where you're responsible for
-        everything at once, because there's no one else to hand it to.
-      </p>
-      <p>
-        From there, the work moved into marketing: first as a specialist executing campaigns,
-        then managing digital marketing, then leading marketing communications end to end. Three
-        roles, three companies, each one a step up in scope — content, lead generation, brand
-        visuals, campaign strategy.
-      </p>
-      <p>
-        The shift into operations happened at Perla Engineering — starting in marketing, then
-        moving into an operations role once it became clear that the more valuable work was
-        further upstream: not just producing content or campaigns, but building the systems that
-        let a business actually run — daily reporting, material requests, a defined operating
-        rhythm for the role itself.
-      </p>
-      <p>
-        That practice is now continuing at Tathmeer Properties, consolidating reporting across a
-        larger project portfolio. Alongside it, three books have been written over the past
-        decade — on time, on balance, and on self-coaching — a separate but related thread about
-        how people (not just businesses) actually get better at their work.
-      </p>
-      <p>
-        The throughline across all of it: understand how something actually works, find where
-        it's breaking, and build the smallest system that fixes it. Not a title, not a pitch —
-        just the way the work has consistently gone.
-      </p>
+  <PageHero
+    kicker="About"
+    title={SITE.name}
+    subtitle="A working practice, not a highlight reel — the background behind the systems work."
+  />
+
+  <Section reveal>
+    <div class="grid gap-10 lg:grid-cols-12 lg:gap-12">
+      <div class="lg:col-span-3">
+        <Portrait class="max-w-72" />
+      </div>
+      <div class="max-w-(--container-prose) space-y-6 font-body text-lg text-body lg:col-span-9">
+        <p>
+          The path here didn't start with operations. It started with running an independent
+          education practice for six years — the kind of work where you're responsible for
+          everything at once, because there's no one else to hand it to.
+        </p>
+        <p>
+          From there, the work moved into marketing: first as a specialist executing campaigns,
+          then managing digital marketing, then leading marketing communications end to end.
+          Three roles, three companies, each one a step up in scope — content, lead generation,
+          brand visuals, campaign strategy.
+        </p>
+        <p>
+          The shift into operations happened at Perla Engineering — starting in marketing, then
+          moving into an operations role once it became clear that the more valuable work was
+          further upstream: not just producing content or campaigns, but building the systems
+          that let a business actually run — daily reporting, material requests, a defined
+          operating rhythm for the role itself.
+        </p>
+        <p>
+          That practice is now continuing at Tathmeer Properties, consolidating reporting across
+          a larger project portfolio. Alongside it, three books have been written over the past
+          decade — on time, on balance, and on self-coaching — a separate but related thread
+          about how people (not just businesses) actually get better at their work.
+        </p>
+      </div>
     </div>
+  </Section>
+
+  <Section kicker="The practice" heading="Where operations, systems, and strategy meet." tone="navy" field reveal>
+    <p class="max-w-2xl font-body text-lg text-on-dark-muted">
+      The throughline across all of it: understand how something actually works, find where it's
+      breaking, and build the smallest system that fixes it — whether that means an operational
+      process, a piece of marketing, or a place AI genuinely changes the outcome. Not a title,
+      not a pitch — just the way the work has consistently gone.
+    </p>
   </Section>
 
   <Career />
 
-  <Section tone="dim" reveal>
-    <div class="flex flex-col items-start gap-6 sm:flex-row sm:items-center sm:justify-between">
-      <p class="max-w-md text-ink-700">
+  <Section kicker="How I work" heading="The same method, every time." tone="dim" reveal>
+    <ol class="grid gap-8 sm:grid-cols-5 sm:gap-4">
+      {HOW_I_WORK.map((item, i) => (
+        <li>
+          <span class="font-display text-2xl font-bold text-accent-ink">{String(i + 1).padStart(2, '0')}</span>
+          <h3 class="mt-2 font-display text-lg font-bold tracking-[-0.02em] text-ink">{item.step}</h3>
+          <p class="mt-1.5 font-body text-base text-body">{item.description}</p>
+        </li>
+      ))}
+    </ol>
+  </Section>
+
+  <Section kicker="Capabilities" heading="Skills, as they're actually applied." reveal>
+    <ul class="grid gap-x-8 gap-y-5 border-t border-line pt-6 sm:grid-cols-2">
+      {CV.skills.map((item) => (
+        <li class="border-b border-line pb-5">
+          <p class="font-mono text-[11px] font-bold tracking-[0.16em] text-accent-ink uppercase">{item.category}</p>
+          <p class="mt-1.5 font-body text-lg text-ink">{item.skill}</p>
+        </li>
+      ))}
+    </ul>
+  </Section>
+
+  {allBooks.length > 0 && (
+    <Section tone="dim" reveal>
+      <div class="flex flex-col items-start gap-6 sm:flex-row sm:items-center sm:justify-between">
+        <p class="max-w-md font-body text-lg text-body">
+          Alongside the systems work, {allBooks.length} books on time, balance, and
+          self-coaching — and a running set of ideas in progress on operations and AI.
+        </p>
+        <div class="flex flex-wrap gap-3">
+          <Button href="/books" variant="secondary" arrow>See the books</Button>
+          <Button href="/articles" variant="ghost" arrow>Read the ideas</Button>
+        </div>
+      </div>
+    </Section>
+  )}
+
+  <Section reveal>
+    <div class="flex flex-col items-start gap-6 border-t border-line pt-10 sm:flex-row sm:items-center sm:justify-between">
+      <p class="max-w-md font-body text-lg text-body">
         A fuller professional profile — experience, results, skills, education — is on the CV
         page.
       </p>
-      <Button href="/cv" variant="secondary" arrow>View the CV</Button>
+      <div class="flex flex-wrap gap-3">
+        <Button href="/cv" variant="secondary" arrow>View the CV</Button>
+        <Button href={SITE.cvUrl} variant="accent" external>Download CV</Button>
+      </div>
     </div>
   </Section>
 </BaseLayout>

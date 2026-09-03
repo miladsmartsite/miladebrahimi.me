@@ -1,0 +1,44 @@
+---
+/**
+ * Article header image with the same graceful-placeholder pattern as
+ * Portrait.astro/BookCover.astro — checked at build time via the
+ * filesystem, so dropping a real image into public/images/articles/
+ * later never requires a code change. Renders nothing (not even a
+ * placeholder box) when the article simply has no image configured,
+ * since a header image is optional, unlike a portrait or a book cover.
+ */
+import fs from 'node:fs';
+import path from 'node:path';
+
+interface Props {
+  src?: string;
+  title: string;
+  class?: string;
+}
+
+const { src, title, class: className = '' } = Astro.props;
+const exists = src ? fs.existsSync(path.join(process.cwd(), 'public', src)) : false;
+---
+
+{
+  src && (
+    <div class={`relative aspect-[16/9] overflow-hidden bg-ink ${className}`}>
+      {exists ? (
+        <img
+          src={src}
+          alt={title}
+          width="1600"
+          height="900"
+          loading="lazy"
+          decoding="async"
+          class="h-full w-full object-cover"
+        />
+      ) : (
+        <div class="field-grid flex h-full w-full flex-col items-center justify-center gap-2 border border-on-dark-line p-6 text-center">
+          <span class="font-mono text-[10px] tracking-[0.16em] text-on-dark-muted uppercase">Image pending</span>
+          <p class="max-w-xs font-mono text-[10px] text-line">public{src}</p>
+        </div>
+      )}
+    </div>
+  )
+}

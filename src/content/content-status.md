@@ -66,6 +66,8 @@ actually confirmed versus what's provisional positioning copy written for V1.
 | Titles, languages, years, descriptions for all 3 books | CONFIRMED | Verbatim from CV |
 | Self-Coaching Blueprint subtitle + cover concept (yellow cover, "A Repeatable Plan...") | CONFIRMED | Visible in CV; no actual cover image file has been supplied to the project, so the site uses a typographic treatment, not the real cover image |
 | Time Engineering / The Balance Book covers | NEEDS VERIFICATION | No cover exists/was supplied for either |
+| All three book covers as real image files | NEEDED | `BookCover.astro` renders a graceful gold-monogram placeholder until real cover photography is added at `public/images/books/<slug>.jpg` — no cover has been supplied yet, including for Self-Coaching Blueprint |
+| Milad's portrait photo | NEEDED | `Portrait.astro` renders a graceful placeholder until a real photo is added at `public/images/profile/milad-portrait.jpg` (see `public/images/README.md` for spec) — used in the Hero and About teaser; no stock or generated photo used to fill the gap |
 | Purchase/read links for all 3 | NEEDED | Not yet provided |
 
 ## Ideas (Articles)
@@ -81,6 +83,7 @@ actually confirmed versus what's provisional positioning copy written for V1.
 | --- | --- | --- |
 | Any past speaking engagement | NONE EXISTS | No fabricated engagements added — the two old fake placeholder entries were removed |
 | Topics Milad could speak/write about | PROVISIONAL | Reasonable topics derived from the confirmed practice areas and systems work — not a claim that any talk has happened |
+| "Why I Speak" statement on `/speaking` | PROVISIONAL | Written for the page; a positioning statement, not a factual claim about past speaking activity |
 
 ## Resources
 
@@ -95,6 +98,7 @@ actually confirmed versus what's provisional positioning copy written for V1.
 | Public email address (miladsmartsite@gmail.com) | CONFIRMED | Explicitly confirmed by Milad for public use — used on `/contact`, and no other address from the CV or project files should ever be published |
 | LinkedIn (linkedin.com/in/miladebrahimi-me) | CONFIRMED | Explicitly confirmed by Milad — used on `/contact`, in the footer, and in the Person JSON-LD `sameAs` field |
 | Topics open for conversation on `/contact` | PROVISIONAL | Phrasing written for the page; the six topic areas themselves are CONFIRMED (Milad's own list) |
+| CV download link (Google Drive) | CONFIRMED | Explicitly confirmed by Milad as the current CV destination; stored as `SITE.cvUrl` in one place so a future local PDF swap needs no component changes — used in the Hero, About teaser, and mobile nav |
 
 ## About / Personal narrative
 

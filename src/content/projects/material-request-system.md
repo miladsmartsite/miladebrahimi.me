@@ -6,6 +6,7 @@ role: "Operations"
 client: "Perla Engineering"
 year: "2026"
 featured: true
+previewType: "workflow"
 order: 2
 context: >
   Site engineers needed materials delivered on time, but requests were made informally — with no

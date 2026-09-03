@@ -1,103 +1,145 @@
 @import "tailwindcss";
 
 /*
- * Self-hosted variable fonts (no runtime Google Fonts request — better
- * performance and no third-party call for an "international" audience).
- * Fraunces and Inter both ship as single variable-weight woff2 files, so
- * one @font-face per style covers the whole weight range.
+ * Self-hosted variable/static font files — no runtime Google Fonts request.
+ * Sourced from the official Fontsource builds (same upstream files Google
+ * Fonts serves), extracted once into public/fonts/ so the site stays a
+ * static, dependency-free build. See public/fonts/README.md if present.
  */
 @font-face {
-  font-family: "Fraunces";
+  font-family: "Bricolage Grotesque";
   font-style: normal;
-  font-weight: 300 700;
+  font-weight: 200 800;
   font-display: swap;
-  src: url("/fonts/fraunces/fraunces-variable.woff2") format("woff2");
+  src: url("/fonts/bricolage-grotesque/bricolage-grotesque-variable.woff2") format("woff2");
 }
 
 @font-face {
-  font-family: "Fraunces";
+  font-family: "Crimson Pro";
+  font-style: normal;
+  font-weight: 200 900;
+  font-display: swap;
+  src: url("/fonts/crimson-pro/crimson-pro-variable.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Crimson Pro";
   font-style: italic;
-  font-weight: 400 500;
+  font-weight: 200 900;
   font-display: swap;
-  src: url("/fonts/fraunces/fraunces-italic-variable.woff2") format("woff2");
+  src: url("/fonts/crimson-pro/crimson-pro-italic-variable.woff2") format("woff2");
 }
 
 @font-face {
-  font-family: "Inter";
+  font-family: "IBM Plex Mono";
   font-style: normal;
-  font-weight: 400 800;
+  font-weight: 500;
   font-display: swap;
-  src: url("/fonts/inter/inter-variable.woff2") format("woff2");
+  src: url("/fonts/ibm-plex-mono/ibm-plex-mono-500.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/ibm-plex-mono/ibm-plex-mono-700.woff2") format("woff2");
 }
 
 /*
- * Design tokens (Tailwind v4 CSS-first theme).
+ * Design tokens — 2C · HARBOUR (slate blue + brass).
  *
- * Palette: a warm "paper and ink" neutral foundation (not cool digital
- * gray) with a single terracotta accent — deliberately not tech-blue.
- * Change the values here; components reference token names (bg-paper,
- * text-ink-700, bg-accent, font-display, …) so the whole site can be
- * re-themed from this one block.
+ * "Closer to a studio than a startup." Ink + paper is the dominant
+ * relationship; brass is a metal, not a highlighter — it never fills large
+ * surfaces (see --color-accent-tint for that job). Exact hex values are the
+ * approved handoff tokens, with two narrow, documented exceptions:
+ * --color-accent-ink and --color-meta are each darkened a few percent from
+ * the handoff's literal value because, measured as small text on
+ * --color-paper, the literal values fall short of WCAG AA (4.5:1) — the
+ * same category of fix already applied to the gold accent in the previous
+ * palette (design-system.md documents the precedent). Every other token
+ * below is used exactly as specified.
  */
 @theme {
-  /* Warm neutrals, paper (lightest) to ink (darkest). */
-  --color-paper: #faf8f1;
-  --color-paper-dim: #f1ece1;
-  --color-ink-950: #17140f;
-  --color-ink-900: #211d17;
-  --color-ink-700: #4a453d;
-  --color-ink-500: #8b8478;
-  --color-ink-300: #c9c2b0;
-  --color-ink-100: #e7e1d0;
+  /* Ink — primary text on paper AND the primary dark/immersive surface.
+     There is deliberately one ink, not a scale: Harbour's restraint comes
+     from typography and spacing, not from more neutrals. */
+  --color-ink: #22344a;
+
+  /* Paper — the base editorial surface. paper-dim is a slightly deeper
+     tone of the same family, for alternating section rhythm only. */
+  --color-paper: #edebe3;
+  --color-paper-dim: #e4e0d2;
+
+  /* Reading/metadata text on paper. */
+  --color-body: #55524b;
+  /* Handoff value #8e8878 measures ~2.96:1 on --color-paper (fails AA even
+     for large text). Darkened to clear 4.5:1 for small metadata/captions. */
+  --color-meta: #6d6757;
+
+  /* Hairline borders and dividers on paper. Also stands in for the old
+     multi-shade "ink-100 / ink-300" borders-and-quiet-numerals role. */
+  --color-line: #d5d1c6;
+
+  /* Brass — a restrained interaction/detail accent. Never a large fill;
+     see --color-accent-tint for that. */
+  --color-accent: #c9a227;
+  /* Handoff value #8a6e12 measures ~4.08:1 on --color-paper (fails AA for
+     normal-size text — most uses here are small uppercase labels).
+     Darkened to ~4.7:1 while staying the same "brass ink" family. */
+  --color-accent-ink: #816311;
+  --color-accent-tint: #efe0b0;
+
+  /* Text and hairlines on the ink surface. */
+  --color-on-dark-muted: #a6b5c8;
+  --color-on-dark-line: #3f5470;
+
+  /* --- Back-compat aliases -----------------------------------------------
+     Every component below was authored against the previous palette's
+     token names (ink-950, navy-950, accent-soft, etc). Aliasing those names
+     to the Harbour values means the whole site re-themes correctly by
+     construction, rather than by hunting every class string — the same
+     guarantee a rename-in-place would give, with far less risk of an
+     inconsistent miss. ink-100 and ink-300 collapse onto the single --line
+     token: Harbour intentionally has one quiet neutral, not two. */
+  --color-ink-950: var(--color-ink);
+  --color-ink-900: var(--color-ink);
+  --color-ink-700: var(--color-body);
+  --color-ink-500: var(--color-meta);
+  --color-ink-300: var(--color-line);
+  --color-ink-100: var(--color-line);
   --color-ink-0: var(--color-paper);
+  --color-navy-950: var(--color-ink);
+  --color-navy-900: var(--color-ink);
+  --color-navy-line: var(--color-on-dark-line);
+  --color-accent-soft: var(--color-accent-tint);
 
-  /* Single accent — a grounded rust/terracotta rather than tech blue. */
-  --color-accent: #b5502e;
-  --color-accent-ink: #8a3d22;
-  --color-accent-soft: #f2e1d3;
-
-  --font-display: "Fraunces", "Iowan Old Style", "Times New Roman", serif;
-  --font-sans: "Inter", -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  /* Bricolage Grotesque = display + structural UI. Crimson Pro = reading +
+     voice (the sitewide body default). IBM Plex Mono = functional metadata
+     only — never sentences. */
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Crimson Pro", "Iowan Old Style", Georgia, serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
 
   /* Editorial content widths. */
   --container-content: 72rem;
   --container-wide: 90rem;
   --container-prose: 42rem;
 
-  /* Hero entrance animations (Tailwind v4 generates animate-hero-in /
-     animate-hero-rule utilities from these). */
-  --animate-hero-in: hero-in 0.9s var(--ease-premium) both;
-  --animate-hero-rule: hero-rule 0.9s var(--ease-premium) 0.1s both;
+  /* Radius is 0 everywhere — no theme radius tokens are defined, and no
+     component in this codebase should apply a rounded-* utility except the
+     handful of small circular markers explicitly sanctioned as "micro
+     interactions / small visual markers" in the brief (never cards, never
+     pills, never buttons). */
 }
 
-@keyframes hero-in {
-  from {
-    transform: translateY(110%);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-@keyframes hero-rule {
-  from {
-    transform: scaleX(0);
-  }
-  to {
-    transform: scaleX(1);
-  }
-}
-
-/* Motion tokens — not part of @theme since they back custom transitions/
-   animations rather than generated utilities. Kept in one place so pacing
-   can be tuned globally. */
+/* Motion — quiet by design. 160ms ease-out for interactive state changes;
+   a slightly longer, still-subtle duration for the one-time scroll-reveal.
+   No entrance-animation choreography, no ambient/looping motion. */
 :root {
-  --ease-premium: cubic-bezier(0.16, 1, 0.3, 1);
-  --duration-fast: 200ms;
-  --duration-base: 500ms;
-  --duration-slow: 900ms;
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --duration-fast: 160ms;
+  --duration-base: 320ms;
 }
 
 @layer base {
@@ -112,21 +154,29 @@
 
   body {
     background-color: var(--color-paper);
-    color: var(--color-ink-950);
-    font-family: var(--font-sans);
+    color: var(--color-ink);
+    font-family: var(--font-body);
+    font-size: 1.125rem;
+    line-height: 1.55;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
-    font-feature-settings: "ss01" 1;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    border-radius: 0;
   }
 
   ::selection {
     background-color: var(--color-accent);
-    color: var(--color-paper);
+    color: var(--color-ink);
   }
 
   :focus-visible {
     outline: 2px solid var(--color-accent);
-    outline-offset: 3px;
+    outline-offset: 2px;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -148,15 +198,16 @@
 /*
  * Scroll-reveal utility. Elements start hidden/offset and are promoted to
  * their resting state by BaseLayout's IntersectionObserver, which adds
- * `.is-revealed`. Falls back to fully visible if JS never runs.
+ * `.is-revealed`. Falls back to fully visible if JS never runs. Kept
+ * deliberately subtle (small offset, short duration) — Harbour is quiet.
  */
 @layer components {
   [data-reveal] {
     opacity: 0;
-    transform: translateY(1.25rem);
+    transform: translateY(0.75rem);
     transition:
-      opacity var(--duration-slow) var(--ease-premium),
-      transform var(--duration-slow) var(--ease-premium);
+      opacity var(--duration-base) var(--ease-out),
+      transform var(--duration-base) var(--ease-out);
   }
 
   [data-reveal].is-revealed {
@@ -165,6 +216,23 @@
   }
 
   [data-reveal-group] > * {
-    transition-delay: calc(var(--reveal-index, 0) * 90ms);
+    transition-delay: calc(var(--reveal-index, 0) * 60ms);
+  }
+
+  /* Full-bleed technical grid texture for immersive ink sections — reads as
+     a drawing sheet / notebook grid, not a decorative gradient. */
+  .field-grid {
+    background-image:
+      linear-gradient(var(--color-on-dark-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--color-on-dark-line) 1px, transparent 1px);
+    background-size: 56px 56px;
+    -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, #000 40%, transparent 85%);
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, #000 40%, transparent 85%);
+  }
+
+  /* A single 1–3px brass rule — the wordmark underline, and any other
+     "instrument mark" that wants the same deliberate hairline. */
+  .brass-rule {
+    background-color: var(--color-accent);
   }
 }

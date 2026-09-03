@@ -1,6 +1,7 @@
 ---
-import { NAV_ITEMS, SITE } from '@lib/site';
+import { NAV_ITEMS } from '@lib/site';
 import MobileNav from '@components/MobileNav.astro';
+import Wordmark from '@components/Wordmark.astro';
 
 const currentPath = Astro.url.pathname;
 const isActive = (href: string) => currentPath === href || currentPath.startsWith(`${href}/`);
@@ -8,11 +9,11 @@ const isActive = (href: string) => currentPath === href || currentPath.startsWit
 
 <header
   id="site-header"
-  class="sticky top-0 z-40 border-b border-transparent bg-paper/90 backdrop-blur-sm transition-colors duration-(--duration-fast) data-[elevated]:border-ink-100"
+  class="sticky top-0 z-40 border-b border-transparent bg-paper/95 backdrop-blur-sm transition-[border-color,padding] duration-(--duration-fast) data-[elevated]:border-line"
 >
-  <div class="mx-auto flex max-w-(--container-wide) items-center justify-between px-6 py-5 sm:px-8">
-    <a href="/" class="font-display text-lg tracking-wide text-ink-950">
-      {SITE.brandName}
+  <div class="mx-auto flex max-w-(--container-wide) items-center justify-between px-6 py-5 transition-[padding] duration-(--duration-base) sm:px-8 [[data-elevated]_&]:py-3.5">
+    <a href="/" aria-label="Home">
+      <Wordmark size="small" />
     </a>
 
     <nav aria-label="Primary" class="hidden items-center gap-9 md:flex">
@@ -22,7 +23,7 @@ const isActive = (href: string) => currentPath === href || currentPath.startsWit
             <a
               href={item.href}
               aria-current={isActive(item.href) ? 'page' : undefined}
-              class="relative py-1 text-sm text-ink-700 transition-colors duration-(--duration-fast) hover:text-ink-950 aria-[current=page]:text-ink-950 after:absolute after:inset-x-0 after:-bottom-0.5 after:h-px after:origin-left after:scale-x-0 after:bg-accent after:transition-transform after:duration-(--duration-fast) hover:after:scale-x-100 aria-[current=page]:after:scale-x-100"
+              class="relative py-1 font-body text-[17px] text-body transition-colors duration-(--duration-fast) hover:text-ink aria-[current=page]:text-ink after:absolute after:inset-x-0 after:-bottom-0.5 after:h-px after:origin-left after:scale-x-0 after:bg-accent after:transition-transform after:duration-(--duration-fast) hover:after:scale-x-100 aria-[current=page]:after:scale-x-100"
             >
               {item.label}
             </a>
@@ -31,7 +32,7 @@ const isActive = (href: string) => currentPath === href || currentPath.startsWit
       </ul>
       <a
         href="/contact"
-        class="border border-ink-950 px-4 py-1.5 text-sm text-ink-950 transition-colors duration-(--duration-fast) hover:border-accent hover:bg-accent hover:text-paper"
+        class="border border-ink px-4 py-1.5 font-mono text-[13px] font-medium tracking-wide text-ink transition-colors duration-(--duration-fast) hover:border-accent hover:bg-accent-tint"
       >
         Let's talk
       </a>

@@ -1,0 +1,130 @@
+---
+/**
+ * Reusable conceptual visualization for a system entry — never a real
+ * screenshot (several of the real systems involve confidential company
+ * data; these are always recreated/abstracted representations). Pure
+ * inline SVG, no charting library. Linework uses `currentColor` so the
+ * parent controls it via a text-* utility class (e.g. text-line at rest,
+ * text-accent when the entry is active/hovered); each diagram also carries
+ * one permanent brass "evidence marker" (a fixed accent dot, independent
+ * of currentColor) so the preview reads as more than a wireframe even at
+ * rest — brass as a small, constant marker, never a large fill.
+ *
+ * Usage: <SystemPreview type="dashboard" />
+ */
+interface Props {
+  type: 'dashboard' | 'workflow' | 'reporting' | 'operations' | 'marketing';
+  class?: string;
+}
+
+const { type, class: className = '' } = Astro.props;
+---
+
+<div class={`system-preview text-line transition-colors duration-(--duration-base) ${className}`}>
+  <svg viewBox="0 0 240 160" class="h-auto w-full" fill="none" role="presentation" aria-hidden="true">
+    {type === 'dashboard' && (
+      <g>
+        <g stroke="currentColor" stroke-width="1" opacity="0.25">
+          <line x1="16" y1="52" x2="224" y2="52" />
+          <line x1="16" y1="84" x2="224" y2="84" />
+          <line x1="16" y1="116" x2="224" y2="116" />
+        </g>
+        <g stroke="currentColor" stroke-width="1.5">
+          <rect x="16" y="20" width="208" height="120" opacity="0.5" />
+          <line x1="16" y1="44" x2="224" y2="44" opacity="0.5" />
+          <rect x="26" y="96" width="20" height="28" />
+          <rect x="56" y="72" width="20" height="52" />
+          <rect x="86" y="104" width="20" height="20" />
+          <rect x="116" y="56" width="20" height="68" />
+          <rect x="146" y="84" width="20" height="40" />
+          <polyline points="26,64 56,44 86,72 116,32 146,52 176,40" stroke-dasharray="3 3" opacity="0.8" />
+        </g>
+        <circle cx="176" cy="40" r="3.5" fill="var(--color-accent)" stroke="none" />
+        <circle cx="26" cy="30" r="1.5" fill="currentColor" stroke="none" opacity="0.6" />
+        <circle cx="34" cy="30" r="1.5" fill="currentColor" stroke="none" opacity="0.6" />
+        <circle cx="42" cy="30" r="1.5" fill="currentColor" stroke="none" opacity="0.6" />
+      </g>
+    )}
+
+    {type === 'workflow' && (
+      <g>
+        <g stroke="currentColor" stroke-width="1" opacity="0.2">
+          {Array.from({ length: 6 }).map((_, i) => <line x1={20 + i * 36} y1="30" x2={20 + i * 36} y2="130" />)}
+        </g>
+        <g stroke="currentColor" stroke-width="1.5">
+          <rect x="10" y="64" width="46" height="30" />
+          <rect x="87" y="64" width="46" height="30" />
+          <rect x="164" y="64" width="46" height="30" />
+          <line x1="56" y1="79" x2="87" y2="79" stroke-dasharray="3 3" />
+          <line x1="133" y1="79" x2="164" y2="79" stroke-dasharray="3 3" />
+          <path d="M81 79 L87 76 L87 82 Z" fill="currentColor" stroke="none" />
+          <path d="M158 79 L164 76 L164 82 Z" fill="currentColor" stroke="none" />
+        </g>
+        <text x="33" y="82" text-anchor="middle" font-size="8" letter-spacing="0.04em" fill="currentColor" opacity="0.7">REQ</text>
+        <text x="110" y="82" text-anchor="middle" font-size="8" letter-spacing="0.04em" fill="currentColor" opacity="0.7">REVIEW</text>
+        <circle cx="187" cy="79" r="9" fill="none" stroke="var(--color-accent)" stroke-width="1.5" />
+        <path d="M182 79 L186 83 L193 74" stroke="var(--color-accent)" stroke-width="1.5" fill="none" />
+      </g>
+    )}
+
+    {type === 'reporting' && (
+      <g>
+        <g stroke="currentColor" stroke-width="1.5" opacity="0.5">
+          <rect x="94" y="18" width="52" height="124" rx="4" />
+          <line x1="94" y1="30" x2="146" y2="30" />
+          <line x1="94" y1="128" x2="146" y2="128" />
+        </g>
+        <g stroke="currentColor" stroke-width="1.5">
+          {Array.from({ length: 4 }).map((_, row) => (
+            <rect x="102" y={40 + row * 21} width="36" height="13" opacity={row === 1 ? '1' : '0.35'} fill={row === 1 ? 'currentColor' : 'none'} />
+          ))}
+        </g>
+        <g stroke="currentColor" stroke-width="1" opacity="0.3">
+          <line x1="18" y1="40" x2="70" y2="40" />
+          <line x1="18" y1="56" x2="70" y2="56" />
+          <line x1="18" y1="72" x2="60" y2="72" />
+          <line x1="170" y1="88" x2="222" y2="88" />
+          <line x1="170" y1="104" x2="222" y2="104" />
+          <line x1="170" y1="120" x2="212" y2="120" />
+        </g>
+        <circle cx="120" cy="82.5" r="3" fill="var(--color-accent)" stroke="none" />
+      </g>
+    )}
+
+    {type === 'operations' && (
+      <g>
+        <circle cx="120" cy="80" r="52" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 4" opacity="0.5" />
+        <circle cx="120" cy="80" r="30" stroke="currentColor" stroke-width="1" opacity="0.25" />
+        <g stroke="currentColor" stroke-width="1.5">
+          <circle cx="120" cy="28" r="6" fill="var(--color-accent)" stroke="none" />
+          <circle cx="168" cy="80" r="6" />
+          <circle cx="120" cy="132" r="6" />
+          <circle cx="72" cy="80" r="6" />
+          <path d="M130 30 A52 52 0 0 1 166 68" stroke-dasharray="2 4" />
+          <path d="M166 92 A52 52 0 0 1 130 130" stroke-dasharray="2 4" />
+          <path d="M110 130 A52 52 0 0 1 74 92" stroke-dasharray="2 4" />
+          <path d="M74 68 A52 52 0 0 1 110 30" stroke-dasharray="2 4" />
+        </g>
+        <text x="120" y="83" text-anchor="middle" font-size="8" letter-spacing="0.04em" fill="currentColor" opacity="0.6">OPS</text>
+      </g>
+    )}
+
+    {type === 'marketing' && (
+      <g>
+        <g stroke="currentColor" stroke-width="1.5">
+          <polygon points="30,26 210,26 168,60 72,60" />
+          <polygon points="72,60 168,60 146,92 94,92" />
+          <polygon points="94,92 146,92 130,122 110,122" />
+        </g>
+        <text x="120" y="42" text-anchor="middle" font-size="7" letter-spacing="0.06em" fill="currentColor" opacity="0.6">REACH</text>
+        <text x="120" y="79" text-anchor="middle" font-size="7" letter-spacing="0.06em" fill="currentColor" opacity="0.6">LEADS</text>
+        <g stroke="currentColor" stroke-width="1.5">
+          <path d="M120 122 L120 140" stroke-dasharray="3 3" />
+          <path d="M120 140 A20 12 0 1 0 100 140" stroke-dasharray="2 3" opacity="0.7" />
+          <path d="M96 136 L100 140 L96 144" fill="none" />
+        </g>
+        <circle cx="120" cy="150" r="3.5" fill="var(--color-accent)" stroke="none" />
+      </g>
+    )}
+  </svg>
+</div>

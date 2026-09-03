@@ -1,0 +1,33 @@
+---
+/**
+ * A large editorial pull-quote / statement moment — the site's visual
+ * "breath" between text-dense sections. Deliberately not a testimonial
+ * component: there's no attribution slot for anyone but Milad, since no
+ * third-party testimonials exist to quote honestly.
+ */
+interface Props {
+  tone?: 'paper' | 'navy';
+  class?: string;
+}
+
+const { tone = 'paper', class: className = '' } = Astro.props;
+const isNavy = tone === 'navy';
+---
+
+<blockquote class={`relative ${className}`}>
+  <span
+    class:list={['font-display text-6xl leading-none font-extrabold', isNavy ? 'text-on-dark-line' : 'text-line']}
+    aria-hidden="true"
+  >
+    “
+  </span>
+  <p
+    class:list={[
+      '-mt-6 max-w-2xl font-display text-2xl leading-snug font-semibold tracking-[-0.02em] text-balance sm:text-3xl',
+      isNavy ? 'text-paper' : 'text-ink',
+    ]}
+  >
+    <slot />
+  </p>
+  <span class="brass-rule mt-5 block h-[3px] w-12" aria-hidden="true"></span>
+</blockquote>

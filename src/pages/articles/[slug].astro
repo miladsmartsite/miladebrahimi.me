@@ -1,37 +1,119 @@
 ---
+/**
+ * Article detail = a reading experience. Prose is capped at
+ * --container-prose (42rem ≈ 70 characters per line at this type size)
+ * for comfortable reading. Related articles are derived from shared tags
+ * — no manual curation needed as the archive grows.
+ */
 import { getCollection, render } from 'astro:content';
 import BaseLayout from '@layouts/BaseLayout.astro';
 import Section from '@components/Section.astro';
 import PlaceholderTag from '@components/PlaceholderTag.astro';
+import ArticleImage from '@components/ArticleImage.astro';
+import QuoteBlock from '@components/QuoteBlock.astro';
+import VideoFeature from '@components/VideoFeature.astro';
+import Button from '@components/Button.astro';
+import { readingTime } from '@lib/reading-time';
+import { SITE } from '@lib/site';
 
 export async function getStaticPaths() {
   const articles = await getCollection('articles', ({ data }) => !data.draft);
-  return articles.map((article) => ({
+  const sorted = articles.sort((a, b) => b.data.publishDate.valueOf() - a.data.publishDate.valueOf());
+  return sorted.map((article, i) => ({
     params: { slug: article.id },
-    props: { article },
+    props: {
+      article,
+      prev: sorted[i - 1] ?? null,
+      next: sorted[i + 1] ?? null,
+      related: sorted.filter((_, j) => j !== i),
+    },
   }));
 }
 
-const { article } = Astro.props;
+const { article, prev, next, related } = Astro.props;
 const { Content } = await render(article);
 const formattedDate = article.data.publishDate.toLocaleDateString('en-US', {
   year: 'numeric',
   month: 'long',
   day: 'numeric',
 });
+const sameTagRelated = related.filter((r) => r.data.tags.some((t) => article.data.tags.includes(t))).slice(0, 3);
+
+const articleSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Article',
+  headline: article.data.title,
+  description: article.data.description,
+  datePublished: article.data.publishDate.toISOString(),
+  ...(article.data.updatedDate ? { dateModified: article.data.updatedDate.toISOString() } : {}),
+  author: { '@type': 'Person', name: SITE.name, url: SITE.url },
+};
 ---
 
-<BaseLayout title={article.data.title} description={article.data.description} type="article">
+<BaseLayout
+  title={article.data.title}
+  description={article.data.description}
+  type="article"
+  structuredData={articleSchema}
+>
   <Section>
-    <div class="flex flex-wrap items-center gap-3">
-      <time datetime={article.data.publishDate.toISOString()} class="text-xs text-ink-500">
-        {formattedDate}
-      </time>
+    <div class="flex flex-wrap items-center gap-3 font-mono text-[11px] tracking-wide text-meta uppercase">
+      <time datetime={article.data.publishDate.toISOString()}>{formattedDate}</time>
+      <span>{readingTime(article.body ?? '')}</span>
+      {article.data.tags[0] && <span>{article.data.tags[0]}</span>}
       {article.data.placeholder && <PlaceholderTag />}
     </div>
-    <h1 class="mt-2 max-w-3xl font-display text-3xl text-ink-950 sm:text-4xl">{article.data.title}</h1>
-    <div class="prose mt-8 max-w-(--container-prose) border-t border-ink-100 pt-8 text-ink-700">
+    <h1 class="mt-3 max-w-3xl font-display text-3xl font-bold tracking-[-0.03em] text-ink sm:text-4xl">{article.data.title}</h1>
+    <p class="mt-4 max-w-2xl font-body text-lg text-body">{article.data.description}</p>
+
+    {article.data.coverImage && (
+      <ArticleImage src={article.data.coverImage} title={article.data.title} class="mt-8 max-w-(--container-prose)" />
+    )}
+
+    <div class="prose prose-lg mt-10 max-w-(--container-prose) border-t border-line pt-8 font-body text-body">
       <Content />
     </div>
+
+    {article.data.quote && <QuoteBlock class="mt-10 max-w-(--container-prose)">{article.data.quote}</QuoteBlock>}
+
+    {article.data.videoUrl && (
+      <VideoFeature
+        title={`Watch: ${article.data.title}`}
+        category={article.data.tags[0]}
+        url={article.data.videoUrl}
+        class="mt-10 max-w-(--container-prose)"
+      />
+    )}
+
+    <div class="mt-10 flex flex-wrap gap-3 border-t border-line pt-8">
+      <Button href="/books" variant="secondary" arrow>See the books</Button>
+      <Button href="/projects" variant="ghost" arrow>Explore the systems</Button>
+    </div>
+
+    {sameTagRelated.length > 0 && (
+      <div class="mt-12 border-t border-line pt-8">
+        <h2 class="font-mono text-[11px] font-bold tracking-[0.16em] text-accent-ink uppercase">Related writing</h2>
+        <ul class="mt-4 flex flex-wrap gap-x-8 gap-y-2">
+          {sameTagRelated.map((r) => (
+            <li>
+              <a href={`/articles/${r.id}`} class="font-body text-base text-body underline decoration-line underline-offset-4 hover:text-accent-ink hover:decoration-accent">
+                {r.data.title}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    )}
+
+    <nav aria-label="Article navigation" class="mt-10 flex items-center justify-between border-t border-line pt-8">
+      {prev ? (
+        <Button href={`/articles/${prev.id}`} variant="ghost" class="-ml-5">← {prev.data.title}</Button>
+      ) : <span />}
+      {next ? (
+        <Button href={`/articles/${next.id}`} variant="ghost" arrow>{next.data.title}</Button>
+      ) : (
+        <Button href="/articles" variant="ghost" arrow>All ideas</Button>
+      )}
+    </nav>
   </Section>
 </BaseLayout>
