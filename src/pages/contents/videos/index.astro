@@ -1,0 +1,22 @@
+---
+/**
+ * No real video exists yet — VideoFeature's honest "coming soon" state,
+ * not a fabricated video list.
+ */
+import BaseLayout from '@layouts/BaseLayout.astro';
+import PageHero from '@components/PageHero.astro';
+import Section from '@components/Section.astro';
+import VideoFeature from '@components/VideoFeature.astro';
+import Button from '@components/Button.astro';
+---
+
+<BaseLayout title="Videos" description="Recorded talks and walkthroughs of real systems — coming soon.">
+  <PageHero kicker="Contents · Videos" title="Videos." subtitle="Nothing recorded yet — this page is here so the destination exists before the first video does." />
+
+  <Section reveal>
+    <VideoFeature title="First recorded walkthrough" category="Systems" class="max-w-2xl" />
+    <div class="mt-8">
+      <Button href="/contents" variant="secondary" arrow>Back to Contents</Button>
+    </div>
+  </Section>
+</BaseLayout>

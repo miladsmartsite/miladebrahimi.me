@@ -1,0 +1,45 @@
+---
+/**
+ * "More" — the Contents catch-all: speaking topics and the practical
+ * resource library, both real existing pages that don't fit neatly under
+ * Articles/Books/Podcasts/Videos.
+ */
+import BaseLayout from '@layouts/BaseLayout.astro';
+import PageHero from '@components/PageHero.astro';
+import Section from '@components/Section.astro';
+
+const more = [
+  {
+    label: 'Speaking',
+    href: '/speaking',
+    description: 'Topics open for conversation, talks, or writing — no past engagements claimed.',
+  },
+  {
+    label: 'Resources',
+    href: '/resources',
+    description: 'A practical library — templates, guides, and tools, added as they’re actually ready.',
+  },
+];
+---
+
+<BaseLayout title="More" description="Speaking topics and practical resources — the rest of what's here.">
+  <PageHero kicker="Contents · More" title="More from Milad." subtitle="Speaking topics and practical resources — the rest of what's here." />
+
+  <Section reveal>
+    <ol class="border-t border-line">
+      {more.map((item, i) => (
+        <li class="group border-b border-line transition-colors hover:bg-paper-dim">
+          <a href={item.href} class="flex min-h-16 items-center gap-6 py-6">
+            <span class="font-mono text-[11px] text-meta tabular-nums sm:w-10 sm:shrink-0">{String(i + 1).padStart(2, '0')}</span>
+            <span>
+              <span class="block font-display text-2xl font-bold tracking-[-0.02em] text-ink transition-colors group-hover:text-accent-ink sm:text-3xl">
+                {item.label}
+              </span>
+              <span class="mt-1 block max-w-lg font-body text-base text-body">{item.description}</span>
+            </span>
+          </a>
+        </li>
+      ))}
+    </ol>
+  </Section>
+</BaseLayout>

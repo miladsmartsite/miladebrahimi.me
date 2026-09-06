@@ -571,3 +571,76 @@ links resolve to the confirmed real destinations; all 19 routes return 200.
 Same two items as §16/§17: no real portrait/book-cover photography, no page transitions. A third
 Video architecture is now built and placed, but has no real video yet — same "ready, not faked"
 treatment as everything else.
+
+**Update, Phase 3:** a real portrait now exists at `public/images/profile/milad-portrait.jpg`
+(added between passes) — `Portrait.astro` picked it up automatically, no code change needed, which
+is exactly the point of that component's build-time existence check. It's a large file (~2MB); the
+`public/images/README.md` guidance (compress, keep under ~400KB) still applies and hasn't been
+acted on yet. Book covers are still placeholders.
+
+## 19. Phase 3 — information architecture & homepage restructure
+
+Palette/type untouched (still Harbour, per explicit instruction). This pass changed the *site
+map* and the *homepage composition*, not the design tokens.
+
+### Navigation
+
+`NAV_ITEMS` (`src/lib/site.ts`) is now Expertise / Work / Contents / About Me & Resume / Contact.
+`Contents` is the first `NavItem` with a `children` array — `Nav.astro` renders it as a CSS-only
+dropdown (`group-hover`/`group-focus-within`, no JS) listing Articles/Books/Podcasts/Videos/More.
+The mobile full-screen panel (`MobileNavPanel.astro`, built in the prior phase) deliberately stays
+flat — Home/Expertise/Work/Contents/About Me & Resume/Contact — rather than nesting an accordion
+inside an already-established overlay; `Contents` there links to the `/contents` hub. Nothing about
+the mobile nav's stacking, focus trap, scroll lock, or reduced-motion handling changed.
+
+### Routes
+
+New: `/expertise`, `/contents`, `/contents/articles`, `/contents/books`, `/contents/podcasts`,
+`/contents/videos`, `/contents/more`, `/resume`. `/contents/articles` and `/contents/books` are the
+real listings (moved from `/articles` and `/books`); individual article pages stay at
+`/articles/<slug>` — only the archive index moved. `/articles`, `/books`, `/about`, and `/cv` are
+now one-line `Astro.redirect(..., 301)` pages rather than deleted routes, so every previously
+published URL still resolves. `/resume` absorbs both the old `/about` narrative and the old `/cv`
+archive into one page; `/work` (the full experience timeline) is untouched and still reachable,
+just not in the primary nav (unchanged from before this phase).
+
+### Homepage
+
+Rebuilt to the approved eight-section sequence: Hero → Five Areas → The Milad Method → Selected
+Work → Proof of Work → Contents → Books → Final CTA. Removed from the homepage entirely: the
+standalone "idea"/System Map sections, the condensed Career timeline, the standalone Results
+section, the About teaser, and the Speaking topics field — all either moved to `/resume`
+(Career, Results) or simply dropped from Home since the brief's section list didn't include them
+and "the homepage is not a full resume" was explicit. `AreasOfWork.astro`, `HowIWork.astro`,
+`AboutTeaser.astro`, and `Career.astro` were deleted (superseded, zero remaining references) rather
+than left as dead code; `Results.astro` and `BooksShowcase.astro` survived and are now reused on
+`/resume` and the homepage respectively.
+
+New components: `ExpertiseAreas.astro` (native `<details name="expertise-areas">` — a real,
+zero-JS, keyboard-accessible exclusive accordion; one open at a time; Operations open by default;
+identical behavior on desktop and mobile, with a subtle hover tint as the desktop-only "response"
+cue), `MiladMethod.astro` (horizontal path at `sm:`+, vertical with a connecting line below it),
+`ProofOfWork.astro` (stat trio + the CV-stated percentages + an explicit non-attribution
+clarification line), `ContentsPreview.astro` (status per category computed from the real
+collections, not hard-coded).
+
+**A real bug caught by testing, not just written correctly the first time:** both `Results.astro`
+and `ProofOfWork.astro` switched to a 3-column grid at `sm:` (640px) while also jumping their metric
+text to `text-7xl`/`text-8xl` at that same breakpoint — fine at 375px (single column, full width)
+and fine at 1024px+ (wide columns), but the numbers didn't fit their ~210px column specifically in
+the 640–767px range, causing real horizontal overflow. Caught by sweeping ~20 viewport widths per
+page rather than only the 8 named breakpoints, which is what actually found it — testing only
+320/375/390/430/768/1024/1440/1920 (the usual list) would have missed this exact gap. Fixed by
+moving the grid/font scale-up from `sm:` to `lg:` in both components — the earlier plain testing
+matrix is not sufficient for anything with a large responsive type jump; a denser sweep is worth it
+whenever a component scales font size and column count at the same breakpoint.
+
+### No-fabrication check for this pass
+
+Five areas of practice, the Method's five steps, and the stat trio were all checked against
+`master-profile.md`/the CV before writing: "Leadership" and every Method verb are traceable to
+existing CV language or the already-established evidence model, not new claims. `ContentsPreview`
+and the Contents hub compute their per-category status from the real collections rather than
+stating "3 articles" as a hard-coded string, so they can't silently drift out of sync with what's
+actually published. Podcasts/Videos have no real content; both pages say so plainly rather than
+implying otherwise.

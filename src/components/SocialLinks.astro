@@ -9,8 +9,8 @@ interface Props {
 
 const { class: className = '', dark = false } = Astro.props;
 const linkClass = dark
-  ? 'text-sm text-ink-300 transition-colors hover:text-accent'
-  : 'text-sm text-ink-500 transition-colors hover:text-accent-ink';
+  ? 'flex min-h-11 items-center text-sm text-ink-300 transition-colors hover:text-accent'
+  : 'flex min-h-11 items-center text-sm text-ink-500 transition-colors hover:text-accent-ink';
 ---
 
 {

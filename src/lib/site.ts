@@ -9,8 +9,8 @@
 export const SITE = {
   name: 'Milad Ebrahimi',
   brandName: 'MILAD EBRAHIMI',
-  // PROVISIONAL — strategic direction, not a finalized tagline.
-  positioning: 'Building better ways for businesses to work.',
+  // PROVISIONAL — approved core positioning line (Phase 3).
+  positioning: 'I build the systems that move organizations forward.',
   url: 'https://miladebrahimi.me',
   // CONFIRMED BY MILAD — the public contact address. Do not use any other
   // email address found in the CV or project files.
@@ -29,20 +29,47 @@ export const SITE = {
 export type NavItem = {
   label: string;
   href: string;
+  /** Dropdown children (desktop only) — currently just "Contents". */
+  children?: NavItem[];
 };
 
-// "Work" points at the case-study listing (src/pages/projects/) and "Ideas"
-// at the writing listing (src/pages/articles/) — the underlying routes and
-// content collections keep their original names; only the nav labels map
-// onto the six-item structure requested for the brand site. /work (the
-// experience timeline) and /cv and /resources still exist and are reachable
-// directly — they're just not in the primary nav.
+// Phase 3 approved primary-nav structure. /about and /cv both still exist
+// as thin redirects into /resume (the new merged "About Me & Resume"
+// destination) — old links/bookmarks keep working. /books and /articles
+// still exist at their original paths too (individual article pages are
+// unchanged); their *index* pages now redirect into /contents/articles
+// and /contents/books, the new canonical listing locations, so there is
+// one source for each listing rather than two. /speaking and /resources
+// aren't in this nav structure at all — both still exist and are linked
+// from /contents/more.
 export const NAV_ITEMS: NavItem[] = [
-  { label: 'About', href: '/about' },
+  { label: 'Expertise', href: '/expertise' },
   { label: 'Work', href: '/projects' },
-  { label: 'Ideas', href: '/articles' },
-  { label: 'Books', href: '/books' },
-  { label: 'Speaking', href: '/speaking' },
+  {
+    label: 'Contents',
+    href: '/contents',
+    children: [
+      { label: 'Articles', href: '/contents/articles' },
+      { label: 'Books', href: '/contents/books' },
+      { label: 'Podcasts', href: '/contents/podcasts' },
+      { label: 'Videos', href: '/contents/videos' },
+      { label: 'More', href: '/contents/more' },
+    ],
+  },
+  { label: 'About Me & Resume', href: '/resume' },
+  { label: 'Contact', href: '/contact' },
+];
+
+// The mobile full-screen nav stays flat (no nested accordion inside the
+// already-established overlay — see MobileNavPanel.astro's "do not
+// regress" requirement) but points at the same Phase 3 destinations, plus
+// "Home" for a direct top-of-menu return.
+export const MOBILE_NAV_ITEMS: NavItem[] = [
+  { label: 'Home', href: '/' },
+  { label: 'Expertise', href: '/expertise' },
+  { label: 'Work', href: '/projects' },
+  { label: 'Contents', href: '/contents' },
+  { label: 'About Me & Resume', href: '/resume' },
   { label: 'Contact', href: '/contact' },
 ];
 
@@ -66,60 +93,54 @@ export const CONTACT_TOPICS = [
   'Speaking / Writing / Collaboration',
 ];
 
-export type PracticeArea = {
+export type ExpertiseArea = {
+  code: string;
   title: string;
   description: string;
   /** How confidently this can be claimed, given current evidence. */
-  standing: 'Practice' | 'Experience' | 'Focus';
+  standing: 'Core' | 'Practice' | 'Experience' | 'Focus';
 };
 
 /**
- * The seven positioning areas, presented editorially (an indexed list) on
- * the homepage rather than as service cards. `standing` avoids overclaiming
- * "expertise" across the board — see content-brief.md §5 for the framing
- * rationale. This is a PROVISIONAL framing decision, not a final one.
+ * Phase 3 approved five areas of practice — Operations is explicitly CORE;
+ * the other four are lenses through which organizational improvement
+ * happens, not separate service lines. Replaces the earlier seven-item
+ * PRACTICE_AREAS. `standing` still avoids overclaiming "expertise" across
+ * the board (see content-brief.md §5) — this is PROVISIONAL framing
+ * language, not a final claim, but every underlying discipline it names is
+ * CV-confirmed (see master-profile.md: "business operations, leadership,
+ * marketing, and organizational development").
  */
-export const PRACTICE_AREAS: PracticeArea[] = [
+export const EXPERTISE_AREAS: ExpertiseArea[] = [
   {
+    code: '01',
     title: 'Operations',
-    standing: 'Practice',
-    description:
-      'The day-to-day mechanics that keep a business running — and the discipline of making them run better. Current, hands-on work.',
+    standing: 'Core',
+    description: 'Building the structure behind effective organizations.',
   },
   {
-    title: 'Business Systems',
-    standing: 'Practice',
-    description:
-      'The tools, workflows, and data structures a business depends on, designed to scale without breaking. Five real systems built to date.',
-  },
-  {
-    title: 'Process Improvement',
-    standing: 'Practice',
-    description: 'Finding where work slows down or breaks, and redesigning it so it doesn’t.',
-  },
-  {
-    title: 'Marketing & Growth',
+    code: '02',
+    title: 'Marketing',
     standing: 'Experience',
-    description:
-      'Content, lead capture, and campaign work across three roles — the discipline that preceded and now runs alongside the operations practice.',
+    description: 'Turning positioning, communication, and growth into repeatable systems.',
   },
   {
+    code: '03',
     title: 'Productivity',
     standing: 'Focus',
-    description:
-      'Systems for individuals and teams to do focused, high-quality work — the subject of three published books, and a recurring thread through the operations work itself.',
+    description: 'Designing better ways of working, prioritizing, and executing.',
   },
   {
-    title: 'AI & Digital Transformation',
+    code: '04',
+    title: 'AI',
     standing: 'Focus',
-    description:
-      'Applying new tools deliberately — where they change outcomes, not just where they’re fashionable. An active interest, applied where it earns its place.',
+    description: 'Applying AI and automation to improve how work gets done.',
   },
   {
-    title: 'Construction / Real Estate Operations',
-    standing: 'Experience',
-    description:
-      'Operational systems built inside a real construction/property portfolio — reporting, material requests, and site-level process.',
+    code: '05',
+    title: 'Leadership',
+    standing: 'Practice',
+    description: 'Building clarity, accountability, and better ways of leading teams.',
   },
 ];
 
@@ -158,50 +179,10 @@ export const DOMAIN_CODES: { tag: string; code: string }[] = [
   { tag: 'construction-real-estate', code: 'C/RE' },
 ];
 
-export type CareerStop = {
-  organization: string;
-  roleSummary: string;
-  period: string;
-  location: string;
-};
-
-/**
- * Condensed, organization-level career timeline for the homepage — the full
- * role-by-role detail (including sub-roles and exact dates) lives in the
- * `experience` content collection and renders on /work. CONFIRMED from CV.
- */
-export const CAREER: CareerStop[] = [
-  {
-    organization: 'Milad Ebrahimi Academy',
-    roleSummary: 'Education Professional (Self-employed)',
-    period: '2013 – 2019',
-    location: 'Mashhad, Iran',
-  },
-  {
-    organization: 'SKYLAND Holding',
-    roleSummary: 'Digital Marketing Specialist → Digital Marketing Manager',
-    period: '2023 – 2024',
-    location: 'Muscat, Oman',
-  },
-  {
-    organization: 'Noor AlYaghoot Dovali',
-    roleSummary: 'Marketing Communications Manager',
-    period: '2024 – 2025',
-    location: 'Muscat, Oman',
-  },
-  {
-    organization: 'Perla Engineering',
-    roleSummary: 'Marketing Manager → Operations Manager',
-    period: '2025 – Present',
-    location: 'Muscat, Oman',
-  },
-  {
-    organization: 'Tathmeer Properties',
-    roleSummary: 'Business Operations Manager (Trial)',
-    period: '2026 – Present',
-    location: 'Muscat, Oman',
-  },
-];
+// The condensed organization-level CAREER list (formerly used by the
+// homepage's Career component) was removed — /resume now shows the full
+// role-by-role `experience` collection directly via Timeline.astro, so a
+// separate condensed duplicate isn't needed. See content-status.md.
 
 export type ResultItem = {
   metric: string;
@@ -238,14 +219,20 @@ export type ProcessStep = {
   description: string;
 };
 
-// PROVISIONAL — an original framing for how the work actually proceeds,
-// written for the site rather than quoted from any source.
-export const HOW_I_WORK: ProcessStep[] = [
-  { step: 'Observe', description: 'Watch how the work actually happens — not how the org chart says it should.' },
-  { step: 'Map', description: 'Trace the real flow of people, information, and decisions, and find where it breaks.' },
-  { step: 'Design', description: 'Design the smallest system that removes the friction — not the most impressive one.' },
-  { step: 'Build', description: 'Build it with tools the team already trusts, so adoption isn’t a second project.' },
-  { step: 'Improve', description: 'Treat the first version as a draft. Systems get better by being used, not by being finished.' },
+/**
+ * "The Milad Method" — a personal working framework, not an academically
+ * validated methodology, a certification, or proprietary technology. See
+ * /expertise and the homepage for the explicit framing ("Milad's way of
+ * approaching organizational improvement"). PROVISIONAL — an original
+ * framing for how the work actually proceeds, written for the site rather
+ * than quoted from any source.
+ */
+export const MILAD_METHOD: ProcessStep[] = [
+  { step: 'Understand', description: 'Understand the organization, people, processes, problems, and objectives.' },
+  { step: 'Structure', description: 'Create clarity across roles, responsibilities, workflows, and priorities.' },
+  { step: 'Systemize', description: 'Turn repeatable work into practical systems, processes, and standards.' },
+  { step: 'Optimize', description: 'Measure, identify friction, and continuously improve how work gets done.' },
+  { step: 'Transform', description: 'Connect people, processes, technology, and leadership to move the organization forward.' },
 ];
 
 export type SpeakingTopic = {
@@ -328,45 +315,53 @@ export const CV = {
  * Central, editable copy block for the homepage. Every value here is
  * PROVISIONAL positioning/copy unless the field comment says otherwise —
  * see content-status.md for the full breakdown. Kept in one object so it's
- * easy to find and revise without touching component code.
+ * easy to find and revise without touching component code. Restructured
+ * for the Phase 3 eight-section homepage (Hero → Five Areas → Method →
+ * Selected Work → Proof → Contents → Books → Final CTA) — the homepage is
+ * deliberately NOT the full resume; /resume carries the complete archive.
  */
 export const HOME = {
   hero: {
     eyebrow: 'Business Operations · Systems · Strategy',
-    headline: 'I build the systems that make businesses work.',
+    headline: 'I build the systems that move organizations forward.',
     subhead:
-      'An operator working at the intersection of operations, business systems, process improvement, marketing, and applied AI — not as separate services, but as one continuous practice.',
+      'From operational structure and business processes to productivity, AI, and growth, I design practical systems that help organizations work better.',
     note: 'A working practice, documented as it happens — not an agency, not a portfolio site.',
     primaryCta: 'Explore My Work',
-    secondaryCta: 'Download CV',
+    secondaryCta: 'About Me & Resume',
   },
   idea: {
     kicker: 'The idea',
-    heading: 'Every business is made of systems.',
-    body: 'People, processes, information, decisions, tools — that’s what a business actually runs on. When those systems are unclear, work slows down and fragments: the same question gets asked twice, the same delay repeats, nobody quite owns the fix. The work here starts with understanding how a business actually runs, then rebuilding the specific parts that create friction.',
+    heading: 'Every organization is made of systems.',
+    body: 'People, processes, information, decisions, tools — that’s what an organization actually runs on. When those systems are unclear, work slows down and fragments: the same question gets asked twice, the same delay repeats, nobody quite owns the fix. The work here starts with understanding how an organization actually works, then rebuilding the specific parts that create friction.',
   },
   systemMap: {
     kicker: 'The map',
     heading: 'One practice, six disciplines.',
     body: 'Not six separate services — six lenses on the same underlying work, applied together depending on what a given system actually needs.',
   },
-  systems: {
-    kicker: 'Systems I’ve built',
-    heading: 'Five real systems, built to solve a specific operational problem.',
-    note: 'Every system below was designed and built firsthand. Where a measurable result exists, it’s shown. Where it doesn’t yet, that’s stated directly — nothing here is invented.',
-  },
-  process: {
-    kicker: 'How I work',
-    heading: 'The same method, every time.',
-  },
   areas: {
     kicker: 'Areas of practice',
-    heading: 'Seven lenses on the same underlying problem.',
+    heading: 'Five lenses I use to improve how organizations work.',
   },
-  // PROVISIONAL — a positioning statement in the site's own voice, not a
-  // quote from any source. Used as a QuoteBlock visual break on the
-  // homepage between Career and Results.
-  manifesto: 'Systems don’t need to be complicated to work. They need to be used.',
+  method: {
+    kicker: 'The Milad Method',
+    heading: 'The Milad Method',
+    intro: 'I don’t start by adding more tools. I start by understanding how the organization actually works.',
+    note: 'This is a personal working framework — how I approach organizational improvement, not an academically validated or certified methodology.',
+  },
+  selectedWork: {
+    kicker: 'Selected work',
+    heading: 'Systems built to solve real operational problems.',
+    note: 'Every system below was designed and built firsthand. Where a measurable result exists, it’s shown. Where it doesn’t yet, that’s stated directly — nothing here is invented.',
+  },
+  proof: {
+    kicker: 'Proof of work',
+    heading: 'Proof of work.',
+    note: 'Selected results reported in my professional experience. Not all figures are attributable to the systems shown above.',
+  },
+  // Still used on /resume (Career history, Selected achievements) even
+  // though the homepage no longer renders the full timeline directly.
   career: {
     kicker: 'Career',
     heading: 'From education, into marketing, into operations.',
@@ -376,27 +371,35 @@ export const HOME = {
     heading: 'Measurable results, as stated on the CV.',
     note: 'These figures come directly from the CV and describe marketing performance during specific roles. They are not claimed as outcomes of the systems work above — no evidence connects the two, so they’re kept separate.',
   },
-  ideas: {
-    kicker: 'Ideas',
-    heading: 'Writing in progress — on operations, systems, and where AI actually helps.',
-    note: 'Nothing below is a finished, published piece yet — these are the topics currently being written.',
+  contentsPreview: {
+    kicker: 'Contents',
+    heading: 'Ideas, frameworks, and things I’m building.',
+    cta: 'Explore Contents',
   },
   books: {
     kicker: 'Books',
     heading: 'Three books, across a decade, on time, balance, and self-coaching.',
   },
-  about: {
-    kicker: 'A note',
-    body: 'This site is a working home base more than a highlight reel — a place to track real systems as they’re built, and to think in public about operations, process, and the tools reshaping both.',
-    cta: 'More about the background →',
+  finalCta: {
+    heading: 'Let’s build something that works better.',
+    body: 'If you’re building something, fixing something, or trying to make the work work better — let’s talk.',
+    primaryCta: 'Work With Me',
+    secondaryCta: 'View Resume',
   },
   speaking: {
     kicker: 'Speaking',
     heading: 'Topics I speak and write about.',
     note: 'No past speaking engagements are claimed here — these are subjects open for conversation, talks, or writing.',
   },
-  finalCta: {
-    heading: 'If you’re building something, fixing something, or trying to make the work work better — let’s talk.',
-    body: 'A short note is enough to start.',
-  },
 } as const;
+
+/**
+ * Homepage "Proof" stat trio — CONFIRMED from the CV/case-study evidence
+ * (9+ years stated on the CV; 5 systems and 3 books both count real,
+ * published entries in their respective content collections).
+ */
+export const PROOF_STATS = [
+  { value: '9+', label: 'Years experience' },
+  { value: '5', label: 'Systems built' },
+  { value: '3', label: 'Books' },
+] as const;

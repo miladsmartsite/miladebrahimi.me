@@ -86,7 +86,7 @@ const articleSchema = {
     )}
 
     <div class="mt-10 flex flex-wrap gap-3 border-t border-line pt-8">
-      <Button href="/books" variant="secondary" arrow>See the books</Button>
+      <Button href="/contents/books" variant="secondary" arrow>See the books</Button>
       <Button href="/projects" variant="ghost" arrow>Explore the systems</Button>
     </div>
 
@@ -96,7 +96,7 @@ const articleSchema = {
         <ul class="mt-4 flex flex-wrap gap-x-8 gap-y-2">
           {sameTagRelated.map((r) => (
             <li>
-              <a href={`/articles/${r.id}`} class="font-body text-base text-body underline decoration-line underline-offset-4 hover:text-accent-ink hover:decoration-accent">
+              <a href={`/articles/${r.id}`} class="flex min-h-11 items-center font-body text-base text-body underline decoration-line underline-offset-4 hover:text-accent-ink hover:decoration-accent">
                 {r.data.title}
               </a>
             </li>
@@ -112,7 +112,7 @@ const articleSchema = {
       {next ? (
         <Button href={`/articles/${next.id}`} variant="ghost" arrow>{next.data.title}</Button>
       ) : (
-        <Button href="/articles" variant="ghost" arrow>All ideas</Button>
+        <Button href="/contents/articles" variant="ghost" arrow>All ideas</Button>
       )}
     </nav>
   </Section>

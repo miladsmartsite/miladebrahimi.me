@@ -19,10 +19,12 @@ actually confirmed versus what's provisional positioning copy written for V1.
 | Item | Status | Note |
 | --- | --- | --- |
 | Name, current roles, companies, dates | CONFIRMED | From CV |
-| "Building better ways for businesses to work" | PROVISIONAL | Strategic direction, not a verified claim |
-| Hero headline / subhead | PROVISIONAL | Written for V1, may be revised |
+| "I build the systems that move organizations forward" | PROVISIONAL | Phase 3 approved core positioning line, replacing "Building better ways for businesses to work" |
+| Hero headline / subhead | PROVISIONAL | Rewritten for Phase 3, may be revised again |
 | "Multidisciplinary operator" framing | PROVISIONAL | Synthesis of CV career arc, not a CV quote |
-| Practice areas (7 themes) framing as Practice/Experience/Focus | PROVISIONAL | Framing decision made for V1 pending Milad's own evaluation per `content-brief.md` §5 |
+| Five areas of practice (Operations/Marketing/Productivity/AI/Leadership), Operations marked CORE | PROVISIONAL | Phase 3 approved replacement for the earlier seven-item PRACTICE_AREAS. "Leadership" is CV-confirmed ("business operations, leadership, marketing, and organizational development"; "Leadership & Cross-Functional Collaboration" skill) — not a new claim |
+| "The Milad Method" (Understand/Structure/Systemize/Optimize/Transform) | PROVISIONAL | An original personal working-framework framing, explicitly presented as such (not certified, not academically validated) — replaces the earlier "How I Work" five steps |
+| "9+ years experience / 5 systems / 3 books" homepage stat trio | CONFIRMED | 9+ years is CV-stated; 5 and 3 are real counts of published entries in the `projects`/`books` collections at time of writing |
 
 ## Career History
 

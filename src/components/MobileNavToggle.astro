@@ -1,0 +1,32 @@
+---
+/**
+ * The hamburger/close button — deliberately rendered as its own
+ * `position: fixed` element, as a sibling of <Nav> and <MobileNavPanel>
+ * in BaseLayout, NOT nested inside the header. A stacking context created
+ * by an ancestor (the header is `position: sticky` with its own z-index)
+ * traps every descendant's z-index inside it, no matter how high — so a
+ * button living inside the header could never visually surface above the
+ * full-screen panel (a sibling stacking context) once it's open, even
+ * with an enormous z-index. Rendering it at the body level and matching
+ * the header's own edge padding keeps it looking like part of the header
+ * bar while actually stacking correctly above the panel.
+ */
+---
+
+<button
+  id="mobile-nav-toggle"
+  type="button"
+  aria-expanded="false"
+  aria-controls="mobile-nav-panel"
+  class="fixed top-4 right-5 z-[110] flex size-11 items-center justify-center text-ink transition-colors duration-(--duration-fast) aria-expanded:text-paper md:hidden sm:right-7"
+>
+  <span class="sr-only">Toggle menu</span>
+  <span class="relative size-6" aria-hidden="true">
+    <svg id="icon-open" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="absolute inset-0 size-6 transition-all duration-(--duration-fast) [[aria-expanded=true]_&]:scale-50 [[aria-expanded=true]_&]:opacity-0">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" />
+    </svg>
+    <svg id="icon-close" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="absolute inset-0 size-6 scale-50 opacity-0 transition-all duration-(--duration-fast) [[aria-expanded=true]_&]:scale-100 [[aria-expanded=true]_&]:opacity-100">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+    </svg>
+  </span>
+</button>

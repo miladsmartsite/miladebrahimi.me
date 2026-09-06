@@ -31,7 +31,7 @@ import { SITE, CONTACT_TOPICS } from '@lib/site';
     <div class="mt-10 grid gap-6 border-t border-line pt-8 sm:grid-cols-3">
       <div>
         <p class="font-mono text-[11px] font-bold tracking-[0.16em] text-accent-ink uppercase">Email</p>
-        <a href={`mailto:${SITE.contactEmail}`} class="mt-2 block font-body text-lg text-ink hover:text-accent-ink">
+        <a href={`mailto:${SITE.contactEmail}`} class="mt-2 flex min-h-11 items-center font-body text-lg text-ink hover:text-accent-ink">
           {SITE.contactEmail}
         </a>
       </div>
@@ -41,7 +41,7 @@ import { SITE, CONTACT_TOPICS } from '@lib/site';
           href="https://www.linkedin.com/in/miladebrahimi-me"
           target="_blank"
           rel="noopener noreferrer"
-          class="mt-2 block font-body text-lg text-ink hover:text-accent-ink"
+          class="mt-2 flex min-h-11 items-center font-body text-lg text-ink hover:text-accent-ink"
         >
           in/miladebrahimi-me
         </a>
@@ -52,7 +52,7 @@ import { SITE, CONTACT_TOPICS } from '@lib/site';
           href={SITE.cvUrl}
           target="_blank"
           rel="noopener noreferrer"
-          class="mt-2 block font-body text-lg text-ink hover:text-accent-ink"
+          class="mt-2 flex min-h-11 items-center font-body text-lg text-ink hover:text-accent-ink"
         >
           Download CV
         </a>

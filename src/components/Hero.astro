@@ -36,7 +36,7 @@ const { masthead, eyebrow, title, subtitle, note, stats = [] } = Astro.props;
             {eyebrow}
           </p>
         )}
-        <h1 class="max-w-3xl font-display text-[2.75rem] leading-[1.04] font-bold tracking-[-0.04em] text-paper sm:text-6xl lg:text-[4.25rem]">
+        <h1 class="max-w-3xl font-display text-[2.75rem] leading-[1.04] font-bold tracking-[-0.04em] text-paper uppercase sm:text-6xl lg:text-[4.25rem]">
           {title}
         </h1>
         {subtitle && <p class="mt-6 max-w-lg font-body text-lg text-on-dark-muted">{subtitle}</p>}
@@ -79,6 +79,22 @@ const { masthead, eyebrow, title, subtitle, note, stats = [] } = Astro.props;
               </div>
               <span class="mb-0.5 size-1.5 shrink-0 rounded-full bg-accent" aria-hidden="true"></span>
             </div>
+          </div>
+
+          {/* A small editorial technical drawing, not a SaaS dashboard —
+              the same input→output logic every system on /projects
+              follows, reduced to its plainest form. */}
+          <div class="mt-5 flex items-center gap-1.5 font-mono text-[9px] tracking-[0.1em] text-on-dark-muted uppercase sm:text-[10px]">
+            <span>Input</span>
+            <span class="h-px flex-1 bg-on-dark-line" aria-hidden="true"></span>
+            <span class="flex items-center gap-1.5 text-accent">
+              <span class="size-1 shrink-0 rounded-full bg-accent" aria-hidden="true"></span>
+              System
+            </span>
+            <span class="h-px flex-1 bg-on-dark-line" aria-hidden="true"></span>
+            <span>Process</span>
+            <span class="h-px flex-1 bg-on-dark-line" aria-hidden="true"></span>
+            <span>Result</span>
           </div>
         </div>
       </div>

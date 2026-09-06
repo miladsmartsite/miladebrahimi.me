@@ -1,0 +1,49 @@
+---
+/**
+ * Homepage preview of the "Contents" hub (/contents) — an honest status
+ * row per category, computed from the real content collections rather
+ * than hard-coded. Articles/Books show real counts; Podcasts/Videos have
+ * no collection yet, so they say so plainly rather than pretending.
+ */
+import { getCollection } from 'astro:content';
+import Section from '@components/Section.astro';
+import Button from '@components/Button.astro';
+import { HOME } from '@lib/site';
+
+const articles = await getCollection('articles', ({ data }) => !data.draft);
+const publishedArticles = articles.filter((a) => !a.data.placeholder);
+const books = await getCollection('books', ({ data }) => !data.draft);
+
+const categories = [
+  {
+    label: 'Articles',
+    href: '/contents/articles',
+    status: publishedArticles.length > 0 ? `${publishedArticles.length} published` : 'In development',
+  },
+  { label: 'Books', href: '/contents/books', status: `${books.length} published` },
+  { label: 'Podcasts', href: '/contents/podcasts', status: 'Coming soon' },
+  { label: 'Videos', href: '/contents/videos', status: 'Coming soon' },
+  { label: 'More', href: '/contents/more', status: 'Talks & resources' },
+];
+---
+
+<Section kicker={HOME.contentsPreview.kicker} heading={HOME.contentsPreview.heading} tone="paper" width="wide" reveal>
+  <ol class="border-t border-line">
+    {categories.map((cat, i) => (
+      <li class="group border-b border-line transition-colors hover:bg-paper-dim">
+        <a href={cat.href} class="flex min-h-16 items-center justify-between gap-6 py-6">
+          <span class="flex items-center gap-6">
+            <span class="font-mono text-[11px] text-meta tabular-nums sm:w-10">{String(i + 1).padStart(2, '0')}</span>
+            <span class="font-display text-2xl font-bold tracking-[-0.02em] text-ink transition-colors group-hover:text-accent-ink sm:text-3xl">
+              {cat.label}
+            </span>
+          </span>
+          <span class="shrink-0 font-mono text-[10px] tracking-wide text-meta uppercase">{cat.status}</span>
+        </a>
+      </li>
+    ))}
+  </ol>
+  <div class="mt-10">
+    <Button href="/contents" variant="secondary" arrow>{HOME.contentsPreview.cta}</Button>
+  </div>
+</Section>

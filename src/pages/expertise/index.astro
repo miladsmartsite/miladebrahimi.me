@@ -1,0 +1,35 @@
+---
+/**
+ * Expertise — the five areas of practice as their own destination, not
+ * just a homepage section. Reuses ExpertiseAreas.astro (same accordion,
+ * same data) so this page and the homepage section never drift apart.
+ */
+import BaseLayout from '@layouts/BaseLayout.astro';
+import PageHero from '@components/PageHero.astro';
+import Section from '@components/Section.astro';
+import Button from '@components/Button.astro';
+import ExpertiseAreas from '@components/home/ExpertiseAreas.astro';
+---
+
+<BaseLayout
+  title="Expertise"
+  description="Five lenses I use to improve how organizations work — operations, marketing, productivity, AI, and leadership."
+>
+  <PageHero
+    kicker="Expertise"
+    title="Five lenses on the same underlying work."
+    subtitle="Operations is the core. Marketing, productivity, AI, and leadership are the connected areas through which organizational improvement happens."
+  />
+
+  <ExpertiseAreas showHeading={false} />
+
+  <Section reveal>
+    <div class="flex flex-col items-start gap-6 sm:flex-row sm:items-center sm:justify-between">
+      <p class="max-w-md font-body text-lg text-body">See the areas of practice applied to real, working systems.</p>
+      <div class="flex flex-wrap gap-3">
+        <Button href="/projects" variant="secondary" arrow>See selected work</Button>
+        <Button href="/resume" variant="ghost" arrow>Full core areas & career</Button>
+      </div>
+    </div>
+  </Section>
+</BaseLayout>

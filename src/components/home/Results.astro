@@ -19,10 +19,10 @@ const maxPercent = Math.max(...withBar.map((r) => r.percent), 1);
 ---
 
 <Section kicker={HOME.results.kicker} heading={HOME.results.heading} tone="dim" reveal>
-  <div class="grid gap-12 sm:grid-cols-3 sm:gap-10">
+  <div class="grid gap-12 lg:grid-cols-3 lg:gap-10">
     {withBar.map((result, i) => (
-      <div class:list={['sm:pl-10', i > 0 && 'sm:border-l sm:border-line']}>
-        <p class="font-display text-7xl leading-none font-extrabold tracking-[-0.03em] text-ink tabular-nums sm:text-8xl">
+      <div class:list={['lg:pl-10', i > 0 && 'lg:border-l lg:border-line']}>
+        <p class="font-display text-6xl leading-none font-extrabold tracking-[-0.03em] text-ink tabular-nums sm:text-7xl lg:text-8xl">
           {result.metric}
         </p>
         <span

@@ -1,0 +1,53 @@
+---
+/**
+ * "Areas of Practice" — five real lenses (Operations is CORE), presented
+ * as a native <details name="..."> exclusive accordion: one open at a
+ * time, zero JavaScript, keyboard-accessible by default (Enter/Space on
+ * the summary), and identical behavior on desktop and mobile — clicking
+ * a closed row opens it and closes whichever was open. Operations opens
+ * by default. A subtle hover tint on the still-closed rows gives pointer
+ * users a "visual response" cue before they click.
+ */
+import Section from '@components/Section.astro';
+import { EXPERTISE_AREAS, HOME } from '@lib/site';
+
+interface Props {
+  showHeading?: boolean;
+}
+
+const { showHeading = true } = Astro.props;
+---
+
+<Section
+  kicker={showHeading ? HOME.areas.kicker : undefined}
+  heading={showHeading ? HOME.areas.heading : undefined}
+  tone="dim"
+  reveal
+>
+  <div class="border-t border-line">
+    {EXPERTISE_AREAS.map((area) => (
+      <details name="expertise-areas" open={area.standing === 'Core'} class="group border-b border-line transition-colors hover:bg-paper/60">
+        <summary class="flex cursor-pointer list-none items-center gap-4 py-6 [&::-webkit-details-marker]:hidden sm:gap-6 sm:py-7">
+          <span class="font-mono text-[11px] text-meta tabular-nums sm:w-10 sm:shrink-0">{area.code}</span>
+          <span class="flex flex-1 flex-wrap items-baseline gap-3">
+            <span class="font-display text-2xl font-bold tracking-[-0.02em] text-ink transition-colors sm:text-3xl group-open:text-accent-ink">
+              {area.title}
+            </span>
+            {area.standing === 'Core' && (
+              <span class="border border-accent px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-wide text-accent-ink uppercase">
+                Core
+              </span>
+            )}
+          </span>
+          <span
+            class="font-mono text-xl leading-none text-line transition-transform duration-(--duration-fast) group-open:rotate-45"
+            aria-hidden="true"
+          >
+            +
+          </span>
+        </summary>
+        <p class="max-w-2xl pb-6 pl-14 font-body text-base text-body sm:pb-7 sm:pl-16">{area.description}</p>
+      </details>
+    ))}
+  </div>
+</Section>

@@ -1,0 +1,175 @@
+---
+/**
+ * Full-screen mobile navigation overlay. Rendered as a sibling of <Nav />
+ * in BaseLayout — deliberately NOT nested inside the header — so its
+ * `position: fixed; inset: 0` is guaranteed to resolve against the real
+ * viewport, not some ancestor's containing block. Fully opaque ink
+ * surface: nothing behind it stays readable. Covers: real 44×44px touch
+ * targets throughout, body-scroll lock, Escape-to-close, click-link-to-
+ * close, a focus trap while open, and a staggered reveal that respects
+ * prefers-reduced-motion (the global reduced-motion rule in global.css
+ * zeroes every transition/animation duration automatically).
+ */
+import { MOBILE_NAV_ITEMS, SITE, SOCIAL_LINKS } from '@lib/site';
+import Wordmark from '@components/Wordmark.astro';
+---
+
+<nav
+  id="mobile-nav-panel"
+  hidden
+  aria-label="Mobile"
+  class="fixed inset-0 z-[100] flex scale-95 flex-col bg-ink opacity-0 transition-all duration-(--duration-base) md:hidden"
+  style="padding-top:max(1.25rem, env(safe-area-inset-top)); padding-bottom:max(1.5rem, env(safe-area-inset-bottom));"
+>
+  {/* Header row — aligns with the page header's own padding so the
+      toggle button (fixed above this panel, top-right) reads as this
+      row's close control. */}
+  <div class="flex shrink-0 items-center border-b border-on-dark-line px-6 pb-5 sm:px-8">
+    <a href="/" aria-label="Home" class="flex h-11 items-center">
+      <Wordmark size="small" reversed />
+    </a>
+  </div>
+
+  <div class="flex flex-1 flex-col justify-between overflow-y-auto px-6 sm:px-8">
+    <ol class="flex flex-col">
+      {MOBILE_NAV_ITEMS.map((item, index) => (
+        <li
+          class="mobile-nav-item translate-y-2 border-b border-on-dark-line opacity-0 transition-all duration-(--duration-base)"
+          style={`transition-delay:${index * 45}ms`}
+        >
+          <a
+            href={item.href}
+            class="group/item flex min-h-16 items-center gap-4 py-3 transition-colors sm:min-h-[4.5rem]"
+          >
+            <span class="font-mono text-[13px] text-on-dark-muted tabular-nums transition-colors group-hover/item:text-accent group-active/item:text-accent">
+              {String(index + 1).padStart(2, '0')}
+            </span>
+            <span class="font-display text-3xl font-bold tracking-[-0.02em] text-paper transition-colors group-hover/item:text-accent group-active/item:text-accent sm:text-4xl">
+              {item.label}
+            </span>
+          </a>
+        </li>
+      ))}
+    </ol>
+
+    <div class="mobile-nav-item flex shrink-0 translate-y-2 flex-col gap-5 py-8 opacity-0 transition-all duration-(--duration-base)" style={`transition-delay:${MOBILE_NAV_ITEMS.length * 45}ms`}>
+      <p class="max-w-xs font-body text-base text-on-dark-muted">{SITE.positioning}</p>
+
+      <div class="flex flex-wrap items-center gap-4">
+        <a
+          href="/contact"
+          class="inline-flex min-h-11 items-center border border-accent px-5 py-2.5 font-mono text-[13px] font-medium text-accent transition-colors hover:bg-accent-tint hover:text-ink"
+        >
+          Get in touch
+        </a>
+        <a
+          href={SITE.cvUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex min-h-11 items-center font-mono text-[13px] font-medium text-on-dark-muted underline decoration-on-dark-line underline-offset-4 transition-colors hover:text-accent hover:decoration-accent"
+        >
+          Download CV
+        </a>
+      </div>
+
+      {SOCIAL_LINKS.length > 0 && (
+        <ul class="flex items-center gap-5 border-t border-on-dark-line pt-5">
+          {SOCIAL_LINKS.map((link) => (
+            <li>
+              <a
+                href={link.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="inline-flex min-h-11 items-center font-mono text-[11px] tracking-[0.12em] text-on-dark-muted uppercase transition-colors hover:text-accent"
+              >
+                {link.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  </div>
+</nav>
+
+<script>
+  const toggle = document.getElementById('mobile-nav-toggle');
+  const panel = document.getElementById('mobile-nav-panel');
+  const items = document.querySelectorAll<HTMLElement>('.mobile-nav-item');
+  let closeTimer: number | undefined;
+
+  function getFocusable(): HTMLElement[] {
+    if (!panel) return [];
+    return Array.from(panel.querySelectorAll<HTMLElement>('a[href], button:not([disabled])'));
+  }
+
+  function trapFocus(event: KeyboardEvent) {
+    if (event.key !== 'Tab') return;
+    const focusable = getFocusable();
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
+  function setOpen(isOpen: boolean) {
+    if (!toggle || !panel) return;
+    window.clearTimeout(closeTimer);
+    toggle.setAttribute('aria-expanded', String(isOpen));
+
+    if (isOpen) {
+      panel.hidden = false;
+      document.body.style.overflow = 'hidden';
+      // Force a reflow between un-hiding and the class change below, so the
+      // browser commits the "hidden" removal first and the opacity/scale/
+      // translate transitions actually animate instead of jumping straight
+      // to the end state. (More reliable across environments than
+      // requestAnimationFrame, which can be throttled.)
+      void panel.offsetHeight;
+      panel.classList.remove('opacity-0', 'scale-95');
+      panel.classList.add('opacity-100', 'scale-100');
+      items.forEach((item) => {
+        item.classList.remove('opacity-0', 'translate-y-2');
+        item.classList.add('opacity-100', 'translate-y-0');
+      });
+      document.addEventListener('keydown', trapFocus);
+      // Focus the first real nav link, not the wordmark above it.
+      (panel.querySelector<HTMLElement>('.mobile-nav-item a') ?? getFocusable()[0])?.focus();
+    } else {
+      panel.classList.remove('opacity-100', 'scale-100');
+      panel.classList.add('opacity-0', 'scale-95');
+      items.forEach((item) => {
+        item.classList.add('opacity-0', 'translate-y-2');
+        item.classList.remove('opacity-100', 'translate-y-0');
+      });
+      document.body.style.overflow = '';
+      document.removeEventListener('keydown', trapFocus);
+      closeTimer = window.setTimeout(() => {
+        panel.hidden = true;
+      }, 300);
+      toggle.focus();
+    }
+  }
+
+  toggle?.addEventListener('click', () => {
+    const isOpen = toggle.getAttribute('aria-expanded') === 'true';
+    setOpen(!isOpen);
+  });
+
+  panel?.querySelectorAll('a').forEach((link) => {
+    link.addEventListener('click', () => setOpen(false));
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && toggle?.getAttribute('aria-expanded') === 'true') {
+      setOpen(false);
+    }
+  });
+</script>

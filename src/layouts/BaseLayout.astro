@@ -2,6 +2,8 @@
 import '@styles/global.css';
 import SEO from '@components/SEO.astro';
 import Nav from '@components/Nav.astro';
+import MobileNavToggle from '@components/MobileNavToggle.astro';
+import MobileNavPanel from '@components/MobileNavPanel.astro';
 import Footer from '@components/Footer.astro';
 import { SITE, SOCIAL_LINKS } from '@lib/site';
 
@@ -63,6 +65,8 @@ const personSchema = {
       Skip to content
     </a>
     <Nav />
+    <MobileNavToggle />
+    <MobileNavPanel />
     <main id="main-content" class="flex-1">
       <slot />
     </main>

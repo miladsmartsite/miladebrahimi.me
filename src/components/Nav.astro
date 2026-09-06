@@ -1,6 +1,5 @@
 ---
 import { NAV_ITEMS } from '@lib/site';
-import MobileNav from '@components/MobileNav.astro';
 import Wordmark from '@components/Wordmark.astro';
 
 const currentPath = Astro.url.pathname;
@@ -12,23 +11,53 @@ const isActive = (href: string) => currentPath === href || currentPath.startsWit
   class="sticky top-0 z-40 border-b border-transparent bg-paper/95 backdrop-blur-sm transition-[border-color,padding] duration-(--duration-fast) data-[elevated]:border-line"
 >
   <div class="mx-auto flex max-w-(--container-wide) items-center justify-between px-6 py-5 transition-[padding] duration-(--duration-base) sm:px-8 [[data-elevated]_&]:py-3.5">
-    <a href="/" aria-label="Home">
+    <a href="/" aria-label="Home" class="flex min-h-11 items-center">
       <Wordmark size="small" />
     </a>
 
     <nav aria-label="Primary" class="hidden items-center gap-9 md:flex">
       <ul class="flex items-center gap-9">
-        {NAV_ITEMS.map((item) => (
-          <li>
-            <a
-              href={item.href}
-              aria-current={isActive(item.href) ? 'page' : undefined}
-              class="relative py-1 font-body text-[17px] text-body transition-colors duration-(--duration-fast) hover:text-ink aria-[current=page]:text-ink after:absolute after:inset-x-0 after:-bottom-0.5 after:h-px after:origin-left after:scale-x-0 after:bg-accent after:transition-transform after:duration-(--duration-fast) hover:after:scale-x-100 aria-[current=page]:after:scale-x-100"
-            >
-              {item.label}
-            </a>
-          </li>
-        ))}
+        {NAV_ITEMS.map((item) =>
+          item.children ? (
+            <li class="group/dropdown relative">
+              <a
+                href={item.href}
+                aria-current={isActive(item.href) ? 'page' : undefined}
+                aria-haspopup="true"
+                class="relative flex items-center gap-1.5 py-1 font-body text-[17px] text-body transition-colors duration-(--duration-fast) hover:text-ink aria-[current=page]:text-ink after:absolute after:inset-x-0 after:-bottom-0.5 after:h-px after:origin-left after:scale-x-0 after:bg-accent after:transition-transform after:duration-(--duration-fast) hover:after:scale-x-100 aria-[current=page]:after:scale-x-100"
+              >
+                {item.label}
+                <span class="font-mono text-[10px] text-meta transition-transform duration-(--duration-fast) group-hover/dropdown:rotate-180 group-focus-within/dropdown:rotate-180" aria-hidden="true">
+                  ▾
+                </span>
+              </a>
+              <ul
+                class="invisible absolute top-full left-0 z-10 min-w-44 -translate-y-1 border border-line bg-paper py-1 opacity-0 transition-all duration-(--duration-fast) group-hover/dropdown:visible group-hover/dropdown:translate-y-0 group-hover/dropdown:opacity-100 group-focus-within/dropdown:visible group-focus-within/dropdown:translate-y-0 group-focus-within/dropdown:opacity-100"
+              >
+                {item.children.map((child) => (
+                  <li>
+                    <a
+                      href={child.href}
+                      class="flex min-h-11 items-center px-4 font-body text-[16px] text-body transition-colors hover:bg-paper-dim hover:text-accent-ink"
+                    >
+                      {child.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </li>
+          ) : (
+            <li>
+              <a
+                href={item.href}
+                aria-current={isActive(item.href) ? 'page' : undefined}
+                class="relative py-1 font-body text-[17px] text-body transition-colors duration-(--duration-fast) hover:text-ink aria-[current=page]:text-ink after:absolute after:inset-x-0 after:-bottom-0.5 after:h-px after:origin-left after:scale-x-0 after:bg-accent after:transition-transform after:duration-(--duration-fast) hover:after:scale-x-100 aria-[current=page]:after:scale-x-100"
+              >
+                {item.label}
+              </a>
+            </li>
+          ),
+        )}
       </ul>
       <a
         href="/contact"
@@ -38,7 +67,6 @@ const isActive = (href: string) => currentPath === href || currentPath.startsWit
       </a>
     </nav>
 
-    <MobileNav />
   </div>
 </header>
 

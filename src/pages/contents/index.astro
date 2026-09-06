@@ -1,0 +1,74 @@
+---
+/**
+ * Contents hub — the parent destination for Articles/Books/Podcasts/
+ * Videos/More. Status per category is computed from the real content
+ * collections, never hard-coded, so this page can't silently drift out
+ * of sync with what's actually published.
+ */
+import { getCollection } from 'astro:content';
+import BaseLayout from '@layouts/BaseLayout.astro';
+import PageHero from '@components/PageHero.astro';
+import Section from '@components/Section.astro';
+
+const articles = await getCollection('articles', ({ data }) => !data.draft);
+const publishedArticles = articles.filter((a) => !a.data.placeholder);
+const books = await getCollection('books', ({ data }) => !data.draft);
+
+const categories = [
+  {
+    label: 'Articles',
+    href: '/contents/articles',
+    description: 'Notes on operations, systems, productivity, and where AI actually helps.',
+    status: publishedArticles.length > 0 ? `${publishedArticles.length} published` : 'In development',
+  },
+  {
+    label: 'Books',
+    href: '/contents/books',
+    description: 'Three published books, across a decade, on time, balance, and self-coaching.',
+    status: `${books.length} published`,
+  },
+  {
+    label: 'Podcasts',
+    href: '/contents/podcasts',
+    description: 'Longer-form conversations on operations, systems, and organizational improvement.',
+    status: 'Coming soon',
+  },
+  {
+    label: 'Videos',
+    href: '/contents/videos',
+    description: 'Recorded talks and walkthroughs of real systems.',
+    status: 'Coming soon',
+  },
+  {
+    label: 'More',
+    href: '/contents/more',
+    description: 'Speaking topics, practical resources, and anything else in progress.',
+    status: 'Explore',
+  },
+];
+---
+
+<BaseLayout title="Contents" description="Ideas, frameworks, and things I'm building — articles, books, podcasts, videos, and more.">
+  <PageHero kicker="Contents" title="Ideas, frameworks, and things I'm building." />
+
+  <Section reveal>
+    <ol class="border-t border-line">
+      {categories.map((cat, i) => (
+        <li class="group border-b border-line transition-colors hover:bg-paper-dim">
+          <a href={cat.href} class="flex flex-col gap-2 py-8 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+            <span class="flex items-baseline gap-6">
+              <span class="font-mono text-[11px] text-meta tabular-nums sm:w-10 sm:shrink-0">{String(i + 1).padStart(2, '0')}</span>
+              <span>
+                <span class="block font-display text-3xl font-bold tracking-[-0.02em] text-ink transition-colors group-hover:text-accent-ink sm:text-4xl">
+                  {cat.label}
+                </span>
+                <span class="mt-1.5 block max-w-lg font-body text-base text-body">{cat.description}</span>
+              </span>
+            </span>
+            <span class="ml-16 shrink-0 font-mono text-[10px] tracking-wide text-meta uppercase sm:ml-0">{cat.status}</span>
+          </a>
+        </li>
+      ))}
+    </ol>
+  </Section>
+</BaseLayout>

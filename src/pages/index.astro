@@ -1,41 +1,38 @@
 ---
+/**
+ * Homepage — Phase 3 restructure. Eight sections, in this fixed order:
+ * Hero → Five Areas → The Milad Method → Selected Work → Proof of Work →
+ * Contents → Books → Final CTA. Deliberately NOT the full resume — no
+ * career timeline, no skills/education dump; that's all on /resume.
+ */
 import { getCollection } from 'astro:content';
 import BaseLayout from '@layouts/BaseLayout.astro';
 import Hero from '@components/Hero.astro';
-import Section from '@components/Section.astro';
 import Button from '@components/Button.astro';
-import SystemDiagram from '@components/home/SystemDiagram.astro';
+import ExpertiseAreas from '@components/home/ExpertiseAreas.astro';
+import MiladMethod from '@components/home/MiladMethod.astro';
 import SystemsArchive from '@components/home/SystemsArchive.astro';
-import Positioning from '@components/home/Positioning.astro';
-import HowIWork from '@components/home/HowIWork.astro';
-import AreasOfWork from '@components/home/AreasOfWork.astro';
-import Career from '@components/home/Career.astro';
-import Results from '@components/home/Results.astro';
+import ProofOfWork from '@components/home/ProofOfWork.astro';
+import ContentsPreview from '@components/home/ContentsPreview.astro';
 import BooksShowcase from '@components/home/BooksShowcase.astro';
-import AboutTeaser from '@components/home/AboutTeaser.astro';
-import SpeakingTopics from '@components/home/SpeakingTopics.astro';
 import FinalCta from '@components/home/FinalCta.astro';
-import { SITE, HOME, PRACTICE_AREAS } from '@lib/site';
+import { SITE, HOME, EXPERTISE_AREAS } from '@lib/site';
 
 const allProjects = await getCollection('projects', ({ data }) => !data.draft);
 const systems = allProjects.sort((a, b) => a.data.order - b.data.order);
 
 const heroStats = [
-  { label: 'Practice areas', value: String(PRACTICE_AREAS.length).padStart(2, '0') },
+  { label: 'Areas of practice', value: String(EXPERTISE_AREAS.length).padStart(2, '0') },
   { label: 'Systems built', value: String(systems.length).padStart(2, '0') },
   { label: 'Base', value: 'Muscat, OM' },
 ];
-
-const allArticles = await getCollection('articles', ({ data }) => !data.draft);
-const ideas = allArticles
-  .sort((a, b) => b.data.publishDate.valueOf() - a.data.publishDate.valueOf())
-  .slice(0, 3);
 
 const allBooks = await getCollection('books', ({ data }) => !data.draft);
 const books = allBooks.sort((a, b) => a.data.order - b.data.order);
 ---
 
-<BaseLayout title={SITE.name}>
+<BaseLayout title={SITE.name} description={SITE.defaultDescription}>
+  {/* 01 — Hero */}
   <Hero
     masthead={SITE.brandName}
     eyebrow={HOME.hero.eyebrow}
@@ -46,76 +43,32 @@ const books = allBooks.sort((a, b) => a.data.order - b.data.order);
   >
     <Button href="/projects" variant="accent" arrow>{HOME.hero.primaryCta}</Button>
     <Button
-      href={SITE.cvUrl}
+      href="/resume"
       variant="secondary"
-      external
       class="!border-on-dark-line !text-paper hover:!border-accent hover:!text-accent"
     >
       {HOME.hero.secondaryCta}
     </Button>
   </Hero>
 
-  <Positioning
-    kicker={HOME.idea.kicker}
-    statement={HOME.idea.heading}
-    body={HOME.idea.body}
-  />
+  {/* 02 — Five Areas */}
+  <ExpertiseAreas />
 
-  <Section kicker={HOME.systemMap.kicker} heading={HOME.systemMap.heading} tone="dim" width="wide" reveal>
-    <div class="grid items-center gap-12 lg:grid-cols-12">
-      <p class="max-w-sm font-body text-lg text-body lg:col-span-4">{HOME.systemMap.body}</p>
-      <div class="flex justify-center lg:col-span-8">
-        <SystemDiagram />
-      </div>
-    </div>
-  </Section>
+  {/* 03 — The Milad Method */}
+  <MiladMethod />
 
+  {/* 04 — Selected Work */}
   <SystemsArchive systems={systems} />
 
-  <HowIWork />
+  {/* 05 — Proof of Work */}
+  <ProofOfWork />
 
-  <AreasOfWork />
+  {/* 06 — Contents */}
+  <ContentsPreview />
 
-  <Career />
-
-  <Results />
-
-  {ideas.length > 0 && (
-    <Section kicker={HOME.ideas.kicker} heading={HOME.ideas.heading} tone="paper" width="wide" reveal>
-      <p class="mb-10 max-w-2xl font-body text-base text-meta italic">{HOME.ideas.note}</p>
-      <div class="grid gap-12 lg:grid-cols-12 lg:gap-12">
-        <div class="lg:col-span-7">
-          <p class="mb-3 font-mono text-[11px] font-bold tracking-[0.16em] text-accent-ink uppercase">Featured</p>
-          <h3 class="font-display text-3xl leading-tight font-bold tracking-[-0.02em] text-ink sm:text-4xl">{ideas[0].data.title}</h3>
-          <p class="mt-4 max-w-xl font-body text-lg text-body">{ideas[0].data.description}</p>
-          {ideas[0].data.tags.length > 0 && (
-            <ul class="mt-5 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[10px] tracking-wide text-meta uppercase">
-              {ideas[0].data.tags.map((tag) => <li>{tag}</li>)}
-            </ul>
-          )}
-        </div>
-        {ideas.length > 1 && (
-          <ol class="divide-y divide-line border-t border-line lg:col-span-5 lg:border-t-0 lg:border-l lg:pl-12">
-            {ideas.slice(1).map((article) => (
-              <li class="py-5 first:pt-0 lg:first:pt-0">
-                <h4 class="font-display text-lg font-bold tracking-[-0.02em] text-ink">{article.data.title}</h4>
-                <p class="mt-1.5 font-body text-base text-body">{article.data.description}</p>
-              </li>
-            ))}
-          </ol>
-        )}
-      </div>
-      <div class="mt-10">
-        <Button href="/articles" variant="secondary" arrow>See all topics</Button>
-      </div>
-    </Section>
-  )}
-
+  {/* 07 — Books */}
   {books.length > 0 && <BooksShowcase books={books} />}
 
-  <AboutTeaser />
-
-  <SpeakingTopics />
-
+  {/* 08 — Final CTA */}
   <FinalCta />
 </BaseLayout>

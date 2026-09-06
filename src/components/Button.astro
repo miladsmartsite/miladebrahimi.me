@@ -36,7 +36,10 @@ const variants: Record<string, string> = {
     'px-5 py-2.5 font-mono text-[13px] font-medium tracking-wide bg-accent-tint text-ink hover:brightness-95',
   secondary:
     'px-5 py-2.5 font-mono text-[13px] font-medium tracking-wide border border-ink text-ink hover:border-accent hover:text-accent-ink',
-  ghost: 'font-body text-[17px] italic text-ink hover:text-accent-ink',
+  // min-h-11 gives the invisible tap target a real 44px height without
+  // adding any visible padding/box — the link still reads as plain
+  // italic text, it's just centered inside a taller invisible hit area.
+  ghost: 'min-h-11 font-body text-[17px] italic text-ink hover:text-accent-ink',
 };
 
 const classes = [base, variants[variant], className].join(' ');

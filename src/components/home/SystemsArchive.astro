@@ -50,7 +50,7 @@ const activeCss = systems
   .join('\n');
 ---
 
-<Section kicker={HOME.systems.kicker} heading={HOME.systems.heading} tone="paper" width="wide" reveal>
+<Section kicker={HOME.selectedWork.kicker} heading={HOME.selectedWork.heading} tone="paper" width="wide" reveal>
   <div class="systems-archive">
     {systems.map((project, index) => {
       const { title, summary, problem, outcome, evidenceNote, tools, tags, role, client, year, placeholder, redacted, previewType } =
@@ -137,7 +137,7 @@ const activeCss = systems
               </div>
 
               <span class="mt-6 inline-flex items-center gap-1.5 border-b border-ink pb-0.5 font-mono text-[13px] font-medium text-ink transition-colors group-hover/card:border-accent group-hover/card:text-accent-ink">
-                Explore system
+                [ VIEW SYSTEM ]
                 <span class="transition-transform duration-(--duration-fast) group-hover/card:translate-x-1">→</span>
               </span>
             </div>
@@ -151,7 +151,7 @@ const activeCss = systems
     })}
   </div>
 
-  <p class="mt-8 max-w-2xl font-body text-sm text-meta">{HOME.systems.note}</p>
+  <p class="mt-8 max-w-2xl font-body text-sm text-meta">{HOME.selectedWork.note}</p>
 </Section>
 
 <style set:html={activeCss}></style>
