@@ -323,7 +323,9 @@ export const CV = {
 export const HOME = {
   hero: {
     eyebrow: 'Business Operations · Systems · Strategy',
-    headline: 'I build the systems that move organizations forward.',
+    // Rendered as four explicit lines (Hero.astro splits on \n) — the
+    // approved editorial stanza break, not just a natural text wrap.
+    headline: 'I build the systems\nthat move\norganizations\nforward.',
     subhead:
       'From operational structure and business processes to productivity, AI, and growth, I design practical systems that help organizations work better.',
     note: 'A working practice, documented as it happens — not an agency, not a portfolio site.',

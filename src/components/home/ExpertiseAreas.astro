@@ -30,7 +30,7 @@ const { showHeading = true } = Astro.props;
         <summary class="flex cursor-pointer list-none items-center gap-4 py-6 [&::-webkit-details-marker]:hidden sm:gap-6 sm:py-7">
           <span class="font-mono text-[11px] text-meta tabular-nums sm:w-10 sm:shrink-0">{area.code}</span>
           <span class="flex flex-1 flex-wrap items-baseline gap-3">
-            <span class="font-display text-2xl font-bold tracking-[-0.02em] text-ink transition-colors sm:text-3xl group-open:text-accent-ink">
+            <span class="font-display text-2xl font-bold tracking-[-0.02em] text-ink transition-colors group-hover:text-accent-ink sm:text-3xl group-open:text-accent-ink">
               {area.title}
             </span>
             {area.standing === 'Core' && (

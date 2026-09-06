@@ -21,6 +21,7 @@ interface Props {
 }
 
 const { masthead, eyebrow, title, subtitle, note, stats = [] } = Astro.props;
+const titleLines = title.split('\n');
 ---
 
 <div class="field-grid relative overflow-hidden bg-ink text-paper">
@@ -36,8 +37,10 @@ const { masthead, eyebrow, title, subtitle, note, stats = [] } = Astro.props;
             {eyebrow}
           </p>
         )}
-        <h1 class="max-w-3xl font-display text-[2.75rem] leading-[1.04] font-bold tracking-[-0.04em] text-paper uppercase sm:text-6xl lg:text-[4.25rem]">
-          {title}
+        <h1 class="max-w-3xl font-display text-[2.4rem] leading-[1.04] font-bold tracking-[-0.04em] text-paper uppercase sm:text-6xl lg:text-[4.25rem]">
+          {titleLines.map((line) => (
+            <span class="block">{line}</span>
+          ))}
         </h1>
         {subtitle && <p class="mt-6 max-w-lg font-body text-lg text-on-dark-muted">{subtitle}</p>}
         <div class="mt-8 flex flex-wrap items-center gap-6">

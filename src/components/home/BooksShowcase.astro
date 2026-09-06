@@ -9,15 +9,18 @@ import type { CollectionEntry } from 'astro:content';
 import Section from '@components/Section.astro';
 import PlaceholderTag from '@components/PlaceholderTag.astro';
 import BookCover from '@components/BookCover.astro';
+import Button from '@components/Button.astro';
 import { HOME } from '@lib/site';
 
 interface Props {
   books: CollectionEntry<'books'>[];
   /** Set false when the page already has its own PageHero with equivalent copy. */
   showHeading?: boolean;
+  /** Set true on the homepage teaser — links to the real archive at /contents/books. Off by default so /contents/books itself doesn't link to itself. */
+  showCta?: boolean;
 }
 
-const { books, showHeading = true } = Astro.props;
+const { books, showHeading = true, showCta = false } = Astro.props;
 const featured = books.find((book) => book.id === 'self-coaching-blueprint') ?? books[0];
 const rest = books.filter((book) => book.id !== featured?.id);
 ---
@@ -66,6 +69,12 @@ const rest = books.filter((book) => book.id !== featured?.id);
           </div>
         </div>
       ))}
+    </div>
+  )}
+
+  {showCta && (
+    <div class="mt-10">
+      <Button href="/contents/books" variant="secondary" arrow>View All Books</Button>
     </div>
   )}
 </Section>

@@ -31,11 +31,11 @@ const base = 'group/btn inline-flex items-center justify-center gap-2 transition
 // the Crimson Pro italic link treatment used for secondary actions.
 const variants: Record<string, string> = {
   primary:
-    'px-5 py-2.5 font-mono text-[13px] font-medium tracking-wide bg-ink text-paper hover:bg-accent-tint hover:text-ink',
+    'px-5 py-2.5 font-mono text-[13px] font-medium tracking-wide uppercase bg-ink text-paper hover:bg-accent-tint hover:text-ink',
   accent:
-    'px-5 py-2.5 font-mono text-[13px] font-medium tracking-wide bg-accent-tint text-ink hover:brightness-95',
+    'px-5 py-2.5 font-mono text-[13px] font-medium tracking-wide uppercase bg-accent-tint text-ink hover:brightness-95',
   secondary:
-    'px-5 py-2.5 font-mono text-[13px] font-medium tracking-wide border border-ink text-ink hover:border-accent hover:text-accent-ink',
+    'px-5 py-2.5 font-mono text-[13px] font-medium tracking-wide uppercase border border-ink text-ink hover:border-accent hover:text-accent-ink',
   // min-h-11 gives the invisible tap target a real 44px height without
   // adding any visible padding/box — the link still reads as plain
   // italic text, it's just centered inside a taller invisible hit area.

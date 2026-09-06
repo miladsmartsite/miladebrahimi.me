@@ -67,7 +67,7 @@ const books = allBooks.sort((a, b) => a.data.order - b.data.order);
   <ContentsPreview />
 
   {/* 07 — Books */}
-  {books.length > 0 && <BooksShowcase books={books} />}
+  {books.length > 0 && <BooksShowcase books={books} showCta />}
 
   {/* 08 — Final CTA */}
   <FinalCta />
