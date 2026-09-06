@@ -1,0 +1,35 @@
+---
+/**
+ * Small mono status badge — one shared visual vocabulary for every
+ * "is this real/finished/current" marker on the site: a built system, the
+ * CORE practice area, or honestly-marked in-development content. Never
+ * decorative — every status shown here is a real field on the underlying
+ * content entry (`placeholder`, `standing`, or a system's completion),
+ * not invented.
+ */
+interface Props {
+  status: 'built' | 'core' | 'in-development' | 'active';
+  class?: string;
+}
+
+const { status, class: className = '' } = Astro.props;
+
+const labels: Record<string, string> = {
+  built: 'Built',
+  core: 'Core',
+  'in-development': 'In Development',
+  active: 'Active',
+};
+
+// "core" reads as a filled brass-tint tag (the one status worth visually
+// foregrounding); the rest stay as quiet outlined labels.
+const toneClass =
+  status === 'core'
+    ? 'border-accent bg-accent-tint text-accent-ink'
+    : 'border-accent/30 bg-accent-tint/40 text-accent-ink';
+---
+
+<span class={`inline-flex items-center gap-1.5 border px-2 py-0.5 font-mono text-[10px] font-bold tracking-[0.1em] uppercase ${toneClass} ${className}`}>
+  <span class="size-1 rounded-full bg-accent" aria-hidden="true"></span>
+  {labels[status]}
+</span>

@@ -2,13 +2,27 @@
 /**
  * Expertise — the five areas of practice as their own destination, not
  * just a homepage section. Reuses ExpertiseAreas.astro (same accordion,
- * same data) so this page and the homepage section never drift apart.
+ * same data) so this page and the homepage section never drift apart,
+ * then adds an "Expertise Matrix" — AREA / ROLE / FOCUS / APPLICATION /
+ * RELATED WORK — computed from the real EXPERTISE_AREAS + projects data,
+ * not hard-coded, so it can't silently drift out of sync. Areas with no
+ * matching project tag (Productivity/AI/Leadership) say so honestly
+ * rather than forcing a fake connection.
  */
+import { getCollection } from 'astro:content';
 import BaseLayout from '@layouts/BaseLayout.astro';
 import PageHero from '@components/PageHero.astro';
 import Section from '@components/Section.astro';
 import Button from '@components/Button.astro';
 import ExpertiseAreas from '@components/home/ExpertiseAreas.astro';
+import { EXPERTISE_AREAS } from '@lib/site';
+
+const allProjects = await getCollection('projects', ({ data }) => !data.draft);
+
+const matrix = EXPERTISE_AREAS.map((area) => {
+  const related = allProjects.filter((p) => p.data.tags.some((t) => area.relatedTags.includes(t)));
+  return { ...area, related };
+});
 ---
 
 <BaseLayout
@@ -22,6 +36,78 @@ import ExpertiseAreas from '@components/home/ExpertiseAreas.astro';
   />
 
   <ExpertiseAreas showHeading={false} />
+
+  <Section number="02" kicker="Expertise Matrix" heading="How each area connects to real work." reveal>
+    {/* Desktop/tablet: a real 5-column matrix, header row + one row per area. */}
+    <div class="hidden lg:block">
+      <div class="grid grid-cols-12 gap-4 border-b-2 border-ink pb-3 font-mono text-[10px] font-bold tracking-[0.14em] text-meta uppercase">
+        <span class="col-span-2">Area</span>
+        <span class="col-span-1">Role</span>
+        <span class="col-span-2">Focus</span>
+        <span class="col-span-3">Application</span>
+        <span class="col-span-4">Related Work</span>
+      </div>
+      {matrix.map((area) => (
+        <div class="grid grid-cols-12 items-start gap-4 border-b border-line py-5">
+          <div class="col-span-2 font-display text-lg font-bold tracking-[-0.02em] text-ink">
+            <span class="mr-2 font-mono text-xs font-normal text-meta">{area.code}</span>
+            {area.title}
+          </div>
+          <div class="col-span-1 font-mono text-[11px] tracking-wide text-accent-ink uppercase">{area.standing}</div>
+          <div class="col-span-2 font-body text-sm text-body">{area.tags.join(' · ')}</div>
+          <div class="col-span-3 font-body text-sm text-body">{area.description}</div>
+          <div class="col-span-4 font-body text-sm text-body">
+            {area.related.length > 0 ? (
+              <ul class="space-y-1">
+                {area.related.map((p) => (
+                  <li><a href={`/projects/${p.id}`} class="underline decoration-line underline-offset-4 hover:text-accent-ink hover:decoration-accent">{p.data.title}</a></li>
+                ))}
+              </ul>
+            ) : (
+              <span class="text-meta italic">General practice — no dedicated system yet</span>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+
+    {/* Mobile/tablet: the same fields, stacked as labeled rows per area. */}
+    <ol class="divide-y divide-line border-t border-line lg:hidden">
+      {matrix.map((area) => (
+        <li class="py-6">
+          <div class="flex flex-wrap items-baseline gap-3">
+            <span class="font-mono text-[11px] text-meta">{area.code}</span>
+            <span class="font-display text-xl font-bold tracking-[-0.02em] text-ink">{area.title}</span>
+            <span class="font-mono text-[10px] tracking-wide text-accent-ink uppercase">{area.standing}</span>
+          </div>
+          <dl class="mt-3 space-y-2">
+            <div>
+              <dt class="font-mono text-[10px] tracking-[0.12em] text-meta uppercase">Focus</dt>
+              <dd class="mt-0.5 font-body text-sm text-body">{area.tags.join(' · ')}</dd>
+            </div>
+            <div>
+              <dt class="font-mono text-[10px] tracking-[0.12em] text-meta uppercase">Application</dt>
+              <dd class="mt-0.5 font-body text-sm text-body">{area.description}</dd>
+            </div>
+            <div>
+              <dt class="font-mono text-[10px] tracking-[0.12em] text-meta uppercase">Related Work</dt>
+              <dd class="mt-0.5 font-body text-sm text-body">
+                {area.related.length > 0 ? (
+                  <ul class="space-y-1">
+                    {area.related.map((p) => (
+                      <li><a href={`/projects/${p.id}`} class="underline decoration-line underline-offset-4 hover:text-accent-ink hover:decoration-accent">{p.data.title}</a></li>
+                    ))}
+                  </ul>
+                ) : (
+                  <span class="text-meta italic">General practice — no dedicated system yet</span>
+                )}
+              </dd>
+            </div>
+          </dl>
+        </li>
+      ))}
+    </ol>
+  </Section>
 
   <Section reveal>
     <div class="flex flex-col items-start gap-6 sm:flex-row sm:items-center sm:justify-between">

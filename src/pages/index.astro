@@ -22,9 +22,10 @@ const allProjects = await getCollection('projects', ({ data }) => !data.draft);
 const systems = allProjects.sort((a, b) => a.data.order - b.data.order);
 
 const heroStats = [
-  { label: 'Areas of practice', value: String(EXPERTISE_AREAS.length).padStart(2, '0') },
+  { label: 'Focus', value: 'Operations' },
+  { label: 'Approach', value: 'Systems' },
+  { label: 'Areas', value: String(EXPERTISE_AREAS.length).padStart(2, '0') },
   { label: 'Systems built', value: String(systems.length).padStart(2, '0') },
-  { label: 'Base', value: 'Muscat, OM' },
 ];
 
 const allBooks = await getCollection('books', ({ data }) => !data.draft);
@@ -52,23 +53,23 @@ const books = allBooks.sort((a, b) => a.data.order - b.data.order);
   </Hero>
 
   {/* 02 — Five Areas */}
-  <ExpertiseAreas />
+  <ExpertiseAreas number="02" />
 
   {/* 03 — The Milad Method */}
-  <MiladMethod />
+  <MiladMethod number="03" />
 
   {/* 04 — Selected Work */}
-  <SystemsArchive systems={systems} />
+  <SystemsArchive systems={systems} number="04" />
 
   {/* 05 — Proof of Work */}
-  <ProofOfWork />
+  <ProofOfWork number="05" />
 
   {/* 06 — Contents */}
-  <ContentsPreview />
+  <ContentsPreview number="06" />
 
   {/* 07 — Books */}
-  {books.length > 0 && <BooksShowcase books={books} showCta />}
+  {books.length > 0 && <BooksShowcase books={books} showCta number="07" />}
 
   {/* 08 — Final CTA */}
-  <FinalCta />
+  <FinalCta number="08" />
 </BaseLayout>

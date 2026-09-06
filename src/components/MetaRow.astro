@@ -1,0 +1,25 @@
+---
+/**
+ * Inline row of small mono metadata — the site's one recurring "technical
+ * annotation" pattern (role · client · year; focus · approach · areas;
+ * etc). A thin shared primitive rather than re-typing the same utility
+ * classes at every call site.
+ */
+interface Props {
+  items: (string | undefined | false)[];
+  tone?: 'default' | 'dark';
+  class?: string;
+}
+
+const { items, tone = 'default', class: className = '' } = Astro.props;
+const colorClass = tone === 'dark' ? 'text-on-dark-muted' : 'text-meta';
+const visible = items.filter((item): item is string => Boolean(item));
+---
+
+{
+  visible.length > 0 && (
+    <ul class={`flex flex-wrap items-center gap-x-6 gap-y-1 font-mono text-[11px] tracking-wide uppercase ${colorClass} ${className}`}>
+      {visible.map((item) => <li>{item}</li>)}
+    </ul>
+  )
+}

@@ -19,7 +19,7 @@ const categories = [
     label: 'Articles',
     href: '/contents/articles',
     description: 'Notes on operations, systems, productivity, and where AI actually helps.',
-    status: publishedArticles.length > 0 ? `${publishedArticles.length} published` : 'In development',
+    status: publishedArticles.length > 0 ? `${publishedArticles.length} published` : 'Currently Building',
   },
   {
     label: 'Books',
@@ -31,13 +31,13 @@ const categories = [
     label: 'Podcasts',
     href: '/contents/podcasts',
     description: 'Longer-form conversations on operations, systems, and organizational improvement.',
-    status: 'Coming soon',
+    status: 'Currently Building',
   },
   {
     label: 'Videos',
     href: '/contents/videos',
     description: 'Recorded talks and walkthroughs of real systems.',
-    status: 'Coming soon',
+    status: 'Currently Building',
   },
   {
     label: 'More',
@@ -52,6 +52,7 @@ const categories = [
   <PageHero kicker="Contents" title="Ideas, frameworks, and things I'm building." />
 
   <Section reveal>
+    <p class="mb-5 font-mono text-[11px] font-bold tracking-[0.16em] text-accent-ink uppercase">Content Operating System</p>
     <ol class="border-t border-line">
       {categories.map((cat, i) => (
         <li class="group border-b border-line transition-colors hover:bg-paper-dim">

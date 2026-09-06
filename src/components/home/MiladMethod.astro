@@ -1,38 +1,53 @@
 ---
 /**
- * "The Milad Method" — five stages presented as a connected path: a
- * horizontal system path on desktop (sm+), a vertical one on mobile (the
- * connecting line + arrow rotates via `sm:` breakpoints rather than being
- * two separate markup trees). A navy section for rhythm contrast, with a
- * small brass node marking each step, echoing the System Map's node
- * language. Explicitly framed as a personal working method, not a
- * certified or academically validated methodology — see the note under
- * the heading.
+ * "The Milad Method" — presented as an operating model, not a generic
+ * marketing timeline: each stage shows PURPOSE / ACTION / OUTPUT, laid
+ * out as a horizontal system path on desktop (sm+) and a vertical one on
+ * mobile (the connecting line + arrow rotates via `sm:` breakpoints
+ * rather than being two separate markup trees). A navy section for
+ * rhythm contrast, with a small brass node marking each step, echoing
+ * the System Map's node language. Explicitly framed as a personal
+ * working method, not a certified or academically validated methodology
+ * — see the note under the heading.
  */
 import Section from '@components/Section.astro';
 import { MILAD_METHOD, HOME } from '@lib/site';
+
+interface Props {
+  number?: string;
+}
+
+const { number } = Astro.props;
 ---
 
-<Section kicker={HOME.method.kicker} heading={HOME.method.heading} tone="navy" reveal>
+<Section number={number} kicker={HOME.method.kicker} heading={HOME.method.heading} tone="navy" reveal>
   <p class="max-w-xl font-body text-lg text-on-dark-muted">{HOME.method.intro}</p>
 
-  <ol class="mt-12 grid gap-8 sm:grid-cols-5 sm:gap-4">
+  <ol class="mt-12 grid gap-10 sm:grid-cols-5 sm:gap-5">
     {MILAD_METHOD.map((item, i) => (
       <li class="relative">
-        <div class="flex items-start gap-4 sm:block">
-          <div class="flex flex-col items-center sm:items-start">
-            <span class="font-display text-3xl font-bold text-accent sm:text-4xl">
-              {String(i + 1).padStart(2, '0')}
-            </span>
-            {i < MILAD_METHOD.length - 1 && (
-              <span class="mt-2 flex h-8 w-px flex-1 items-stretch bg-on-dark-line sm:hidden" aria-hidden="true"></span>
-            )}
-          </div>
-          <div class="sm:mt-3">
-            <h3 class="font-display text-xl font-bold tracking-[-0.02em] text-paper">{item.step}</h3>
-            <p class="mt-1.5 font-body text-base text-on-dark-muted">{item.description}</p>
-          </div>
+        <div class="flex items-center gap-3 sm:block">
+          <span class="font-display text-3xl font-bold text-accent sm:text-4xl">
+            {String(i + 1).padStart(2, '0')}
+          </span>
+          <h3 class="font-display text-xl font-bold tracking-[-0.02em] text-paper sm:mt-3">{item.step}</h3>
         </div>
+
+        <dl class="mt-4 space-y-3 border-t border-on-dark-line pt-4 sm:mt-5">
+          <div>
+            <dt class="font-mono text-[10px] tracking-[0.14em] text-accent uppercase">Purpose</dt>
+            <dd class="mt-1 font-body text-sm text-on-dark-muted">{item.purpose}</dd>
+          </div>
+          <div>
+            <dt class="font-mono text-[10px] tracking-[0.14em] text-accent uppercase">Action</dt>
+            <dd class="mt-1 font-body text-sm text-on-dark-muted">{item.action}</dd>
+          </div>
+          <div>
+            <dt class="font-mono text-[10px] tracking-[0.14em] text-accent uppercase">Output</dt>
+            <dd class="mt-1 font-body text-sm text-on-dark-muted">{item.output}</dd>
+          </div>
+        </dl>
+
         {i < MILAD_METHOD.length - 1 && (
           <span class="mt-6 hidden h-px w-full items-center sm:flex" aria-hidden="true">
             <span class="h-px w-full bg-on-dark-line"></span>

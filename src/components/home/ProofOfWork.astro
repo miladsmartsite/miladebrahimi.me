@@ -1,15 +1,21 @@
 ---
 /**
- * "Proof of Work" — the homepage's evidence section. Two tiers: a small
- * stat trio (years/systems/books — structural facts, not outcomes) above
- * the three CV-stated percentage results (the same visual treatment as
- * the former standalone Results section). A single, prominent
- * clarification line makes explicit that the percentages are reported
- * career results, not claimed outcomes of the five systems shown above —
- * see RESULTS/PROOF_STATS in site.ts and content-status.md.
+ * "Proof of Work" — an executive scoreboard, not KPI cards: the stat trio
+ * renders as one bordered grid (both horizontal and vertical rules, like
+ * a real scoreboard/table), followed by the three CV-stated percentage
+ * results in the same large-number treatment as before. A single,
+ * prominent clarification line makes explicit that the percentages are
+ * reported career results, not claimed outcomes of the five systems shown
+ * above — see RESULTS/PROOF_STATS in site.ts and content-status.md.
  */
 import Section from '@components/Section.astro';
 import { PROOF_STATS, RESULTS, HOME } from '@lib/site';
+
+interface Props {
+  number?: string;
+}
+
+const { number } = Astro.props;
 
 const withBar = RESULTS.map((result) => ({
   ...result,
@@ -18,10 +24,11 @@ const withBar = RESULTS.map((result) => ({
 const maxPercent = Math.max(...withBar.map((r) => r.percent), 1);
 ---
 
-<Section kicker={HOME.proof.kicker} heading={HOME.proof.heading} tone="dim" reveal>
-  <dl class="grid grid-cols-3 gap-6 border-b border-line pb-10 sm:gap-10">
+<Section number={number} kicker={HOME.proof.kicker} heading={HOME.proof.heading} tone="dim" reveal>
+  <p class="mb-5 font-mono text-[11px] font-bold tracking-[0.16em] text-accent-ink uppercase">Scoreboard</p>
+  <dl class="grid grid-cols-3 divide-x divide-line border border-line">
     {PROOF_STATS.map((stat) => (
-      <div>
+      <div class="px-4 py-6 sm:px-8 sm:py-8">
         <dd class="font-display text-4xl font-extrabold tracking-[-0.02em] text-ink tabular-nums sm:text-5xl">
           {stat.value}
         </dd>
@@ -30,7 +37,8 @@ const maxPercent = Math.max(...withBar.map((r) => r.percent), 1);
     ))}
   </dl>
 
-  <div class="mt-12 grid gap-12 lg:grid-cols-3 lg:gap-10">
+  <p class="mt-14 mb-5 font-mono text-[11px] font-bold tracking-[0.16em] text-accent-ink uppercase">Career Results</p>
+  <div class="grid gap-12 lg:grid-cols-3 lg:gap-10">
     {withBar.map((result, i) => (
       <div class:list={['lg:pl-10', i > 0 && 'lg:border-l lg:border-line']}>
         <p class="font-display text-6xl leading-none font-extrabold tracking-[-0.03em] text-ink tabular-nums sm:text-7xl">
@@ -41,7 +49,7 @@ const maxPercent = Math.max(...withBar.map((r) => r.percent), 1);
           style={`width: ${Math.max(Math.round((result.percent / maxPercent) * 100), 12)}%`}
         ></span>
         <p class="mt-5 font-body text-base text-body">{result.detail}</p>
-        <p class="mt-3 font-mono text-[10px] tracking-wide text-meta uppercase">{result.source}</p>
+        <p class="mt-3 font-mono text-[10px] tracking-wide text-meta uppercase">Source: {result.source}</p>
       </div>
     ))}
   </div>

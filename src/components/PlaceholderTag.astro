@@ -2,9 +2,11 @@
 /**
  * Honest, in-UI marker for demo/placeholder content (content.placeholder
  * === true in a collection entry) — distinct from `draft`, which hides an
- * entry entirely. Keeps fabricated-looking content from ever appearing
- * unmarked.
+ * entry entirely. Thin wrapper around StatusTag so every "is this real"
+ * marker on the site shares one visual vocabulary.
  */
+import StatusTag from '@components/StatusTag.astro';
+
 interface Props {
   class?: string;
 }
@@ -12,9 +14,4 @@ interface Props {
 const { class: className = '' } = Astro.props;
 ---
 
-<span
-  class={`inline-flex items-center gap-1.5 border border-accent/30 bg-accent-tint px-2 py-0.5 font-mono text-[10px] font-bold tracking-[0.1em] text-accent-ink uppercase ${className}`}
->
-  <span class="size-1 rounded-full bg-accent" aria-hidden="true"></span>
-  In Development
-</span>
+<StatusTag status="in-development" class={className} />

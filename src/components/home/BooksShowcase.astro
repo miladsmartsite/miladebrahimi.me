@@ -1,9 +1,9 @@
 ---
 /**
- * Books, presented as an author's shelf — one featured title (large cover
- * plate + fuller description) and the rest as a smaller shelf beneath.
- * Cover art uses BookCover.astro's graceful placeholder until real cover
- * photography is added (see public/images/README.md).
+ * Books, presented as an author's archive — one featured title (large
+ * cover plate + fuller description) and the rest as a numbered shelf
+ * beneath. Cover art uses BookCover.astro's graceful placeholder until
+ * real cover photography is added (see public/images/README.md).
  */
 import type { CollectionEntry } from 'astro:content';
 import Section from '@components/Section.astro';
@@ -18,20 +18,24 @@ interface Props {
   showHeading?: boolean;
   /** Set true on the homepage teaser — links to the real archive at /contents/books. Off by default so /contents/books itself doesn't link to itself. */
   showCta?: boolean;
+  number?: string;
 }
 
-const { books, showHeading = true, showCta = false } = Astro.props;
+const { books, showHeading = true, showCta = false, number } = Astro.props;
 const featured = books.find((book) => book.id === 'self-coaching-blueprint') ?? books[0];
 const rest = books.filter((book) => book.id !== featured?.id);
+const featuredIndex = books.findIndex((b) => b.id === featured?.id);
 ---
 
 <Section
+  number={showHeading ? number : undefined}
   kicker={showHeading ? HOME.books.kicker : undefined}
   heading={showHeading ? HOME.books.heading : undefined}
   tone="dim"
   width="wide"
   reveal
 >
+  <p class="mb-8 font-mono text-[11px] font-bold tracking-[0.16em] text-accent-ink uppercase">Book Archive</p>
   {featured && (
     <div class="grid gap-8 border-b border-line pb-12 sm:grid-cols-12 sm:gap-10">
       <div class="sm:col-span-4 lg:col-span-3">
@@ -39,6 +43,7 @@ const rest = books.filter((book) => book.id !== featured?.id);
       </div>
       <div class="flex flex-col justify-center sm:col-span-8 lg:col-span-9">
         <div class="flex flex-wrap items-center gap-2">
+          <span class="font-mono text-[11px] text-meta">{String(featuredIndex + 1).padStart(2, '0')}</span>
           <span class="font-mono text-[11px] font-bold tracking-[0.16em] text-accent-ink uppercase">Featured</span>
           {featured.data.year && <span class="font-mono text-[11px] text-meta">· {featured.data.year}</span>}
           {featured.data.language && <span class="font-mono text-[11px] text-meta uppercase">· {featured.data.language}</span>}
@@ -53,22 +58,26 @@ const rest = books.filter((book) => book.id !== featured?.id);
 
   {rest.length > 0 && (
     <div class="mt-12 grid gap-6 sm:grid-cols-2">
-      {rest.map((book) => (
-        <div class="flex gap-5">
-          <div class="w-20 shrink-0 sm:w-24">
-            <BookCover src={book.data.coverImage} title={book.data.title} />
-          </div>
-          <div>
-            <div class="flex flex-wrap items-center gap-2">
-              {book.data.year && <span class="font-mono text-[11px] text-meta">{book.data.year}</span>}
-              {book.data.language && <span class="font-mono text-[11px] text-meta uppercase">· {book.data.language}</span>}
-              {book.data.placeholder && <PlaceholderTag />}
+      {rest.map((book) => {
+        const bookIndex = books.findIndex((b) => b.id === book.id);
+        return (
+          <div class="flex gap-5">
+            <div class="w-20 shrink-0 sm:w-24">
+              <BookCover src={book.data.coverImage} title={book.data.title} />
             </div>
-            <h4 class="mt-2 font-display text-xl font-bold tracking-[-0.02em] text-ink">{book.data.title}</h4>
-            <p class="mt-2 font-body text-base text-body">{book.data.description}</p>
+            <div>
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="font-mono text-[11px] text-meta">{String(bookIndex + 1).padStart(2, '0')}</span>
+                {book.data.year && <span class="font-mono text-[11px] text-meta">{book.data.year}</span>}
+                {book.data.language && <span class="font-mono text-[11px] text-meta uppercase">· {book.data.language}</span>}
+                {book.data.placeholder && <PlaceholderTag />}
+              </div>
+              <h4 class="mt-2 font-display text-xl font-bold tracking-[-0.02em] text-ink">{book.data.title}</h4>
+              <p class="mt-2 font-body text-base text-body">{book.data.description}</p>
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   )}
 

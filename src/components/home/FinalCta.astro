@@ -2,9 +2,15 @@
 import Section from '@components/Section.astro';
 import Button from '@components/Button.astro';
 import { HOME } from '@lib/site';
+
+interface Props {
+  number?: string;
+}
+
+const { number } = Astro.props;
 ---
 
-<Section tone="navy" field reveal class="!py-24 lg:!py-32">
+<Section number={number} kicker="Next Conversation" tone="navy" field reveal class="!py-24 lg:!py-32">
   <div class="flex flex-col items-start gap-8 sm:flex-row sm:items-end sm:justify-between">
     <h2 class="max-w-xl font-display text-4xl leading-[1.06] font-bold tracking-[-0.03em] text-paper text-balance uppercase sm:text-5xl">
       {HOME.finalCta.heading}

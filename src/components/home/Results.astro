@@ -9,6 +9,12 @@
 import Section from '@components/Section.astro';
 import { RESULTS, HOME } from '@lib/site';
 
+interface Props {
+  number?: string;
+}
+
+const { number } = Astro.props;
+
 const withBar = RESULTS.map((result) => ({
   ...result,
   // Extract the numeric value from a string like "+30%" for the bar width.
@@ -18,7 +24,7 @@ const withBar = RESULTS.map((result) => ({
 const maxPercent = Math.max(...withBar.map((r) => r.percent), 1);
 ---
 
-<Section kicker={HOME.results.kicker} heading={HOME.results.heading} tone="dim" reveal>
+<Section number={number} kicker={HOME.results.kicker} heading={HOME.results.heading} tone="dim" reveal>
   <div class="grid gap-12 lg:grid-cols-3 lg:gap-10">
     {withBar.map((result, i) => (
       <div class:list={['lg:pl-10', i > 0 && 'lg:border-l lg:border-line']}>

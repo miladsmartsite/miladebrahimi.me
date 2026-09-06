@@ -99,6 +99,10 @@ export type ExpertiseArea = {
   description: string;
   /** How confidently this can be claimed, given current evidence. */
   standing: 'Core' | 'Practice' | 'Experience' | 'Focus';
+  /** Short descriptor keywords shown under the title — restating the same claim, not new ones. */
+  tags: string[];
+  /** Project `tags` (see content/projects/*.md) this area's real systems are tagged with, if any — used to compute "Related Work" on /expertise without hard-coding titles that could drift. Empty where no system is tagged for this area yet (Productivity/AI/Leadership) — shown honestly, not papered over. */
+  relatedTags: string[];
 };
 
 /**
@@ -117,32 +121,59 @@ export const EXPERTISE_AREAS: ExpertiseArea[] = [
     title: 'Operations',
     standing: 'Core',
     description: 'Building the structure behind effective organizations.',
+    tags: ['Structure', 'Process', 'Systems'],
+    // Deliberately excludes 'process-improvement': it's also on the
+    // Marketing & Lead Operations System, and including it here would list
+    // that system under Operations too. 'business-operations'/'systems'/
+    // 'construction-real-estate' alone already correctly match every real
+    // operations system (each carries at least one of these).
+    relatedTags: ['business-operations', 'systems', 'construction-real-estate'],
   },
   {
     code: '02',
     title: 'Marketing',
     standing: 'Experience',
     description: 'Turning positioning, communication, and growth into repeatable systems.',
+    tags: ['Positioning', 'Growth', 'Communication'],
+    relatedTags: ['marketing'],
   },
   {
     code: '03',
     title: 'Productivity',
     standing: 'Focus',
     description: 'Designing better ways of working, prioritizing, and executing.',
+    tags: ['Workflow', 'Focus', 'Execution'],
+    relatedTags: [],
   },
   {
     code: '04',
     title: 'AI',
     standing: 'Focus',
     description: 'Applying AI and automation to improve how work gets done.',
+    tags: ['Automation', 'Intelligence', 'Digital'],
+    relatedTags: [],
   },
   {
     code: '05',
     title: 'Leadership',
     standing: 'Practice',
     description: 'Building clarity, accountability, and better ways of leading teams.',
+    tags: ['People', 'Clarity', 'Accountability'],
+    relatedTags: [],
   },
 ];
+
+/**
+ * Human-readable label for each system's `previewType` field — a
+ * presentational mapping of an existing real field, not a new one.
+ */
+export const SYSTEM_TYPE_LABELS: Record<string, string> = {
+  dashboard: 'Management System',
+  workflow: 'Workflow System',
+  reporting: 'Reporting System',
+  operations: 'Operations System',
+  marketing: 'Marketing System',
+};
 
 export type SystemMapNode = {
   key: string;
@@ -217,6 +248,9 @@ export const RESULTS: ResultItem[] = [
 export type ProcessStep = {
   step: string;
   description: string;
+  purpose: string;
+  action: string;
+  output: string;
 };
 
 /**
@@ -225,14 +259,46 @@ export type ProcessStep = {
  * /expertise and the homepage for the explicit framing ("Milad's way of
  * approaching organizational improvement"). PROVISIONAL — an original
  * framing for how the work actually proceeds, written for the site rather
- * than quoted from any source.
+ * than quoted from any source. `purpose`/`action`/`output` are the same
+ * framing broken into the three fields shown per stage — an elaboration
+ * of the approved one-line `description`, not a new claim.
  */
 export const MILAD_METHOD: ProcessStep[] = [
-  { step: 'Understand', description: 'Understand the organization, people, processes, problems, and objectives.' },
-  { step: 'Structure', description: 'Create clarity across roles, responsibilities, workflows, and priorities.' },
-  { step: 'Systemize', description: 'Turn repeatable work into practical systems, processes, and standards.' },
-  { step: 'Optimize', description: 'Measure, identify friction, and continuously improve how work gets done.' },
-  { step: 'Transform', description: 'Connect people, processes, technology, and leadership to move the organization forward.' },
+  {
+    step: 'Understand',
+    description: 'Understand the organization, people, processes, problems, and objectives.',
+    purpose: 'See how the organization actually works.',
+    action: 'Understand people, processes, problems, and objectives.',
+    output: 'A clear picture of the current state.',
+  },
+  {
+    step: 'Structure',
+    description: 'Create clarity across roles, responsibilities, workflows, and priorities.',
+    purpose: 'Remove ambiguity about who owns what.',
+    action: 'Define roles, responsibilities, workflows, and priorities.',
+    output: 'A clear structure the organization can operate on.',
+  },
+  {
+    step: 'Systemize',
+    description: 'Turn repeatable work into practical systems, processes, and standards.',
+    purpose: 'Make good work repeatable, not one-off.',
+    action: 'Turn recurring work into practical systems, processes, and standards.',
+    output: 'Working systems people actually use.',
+  },
+  {
+    step: 'Optimize',
+    description: 'Measure, identify friction, and continuously improve how work gets done.',
+    purpose: 'Keep the system honest as conditions change.',
+    action: 'Measure, identify friction, and continuously improve how work gets done.',
+    output: 'A system that keeps getting better, not just built once.',
+  },
+  {
+    step: 'Transform',
+    description: 'Connect people, processes, technology, and leadership to move the organization forward.',
+    purpose: 'Turn isolated fixes into lasting change.',
+    action: 'Connect people, processes, technology, and leadership.',
+    output: 'An organization that moves forward, not just a finished project.',
+  },
 ];
 
 export type SpeakingTopic = {

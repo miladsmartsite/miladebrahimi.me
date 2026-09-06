@@ -1,23 +1,27 @@
 ---
 /**
- * "Selected Systems" as a premium interactive archive: a three-column row
- * per system — index numeral / title+description+metadata / conceptual
- * visual — where hovering or focusing a row turns its number gold,
- * illuminates its visual (via SystemPreview's currentColor), and reveals
- * its problem/result panel and domain-tick row. Pure CSS (:has(), no JS).
- * On mobile every row's detail is open by default since there's no hover.
+ * "Selected Work" as a system register — an archive, not cards: index
+ * numeral / title+description+register metadata (PURPOSE / TYPE /
+ * STATUS, always visible) / conceptual visual, where hovering or
+ * focusing a row turns its number gold, illuminates its visual (via
+ * SystemPreview's currentColor), and reveals a deeper problem/evidence
+ * panel plus the domain-tick row. Pure CSS (:has(), no JS). On mobile
+ * every row's detail is open by default since there's no hover.
  */
 import Section from '@components/Section.astro';
 import SystemPreview from '@components/SystemPreview.astro';
 import PlaceholderTag from '@components/PlaceholderTag.astro';
-import { DOMAIN_CODES, HOME } from '@lib/site';
+import StatusTag from '@components/StatusTag.astro';
+import MetaRow from '@components/MetaRow.astro';
+import { DOMAIN_CODES, HOME, SYSTEM_TYPE_LABELS } from '@lib/site';
 import type { CollectionEntry } from 'astro:content';
 
 interface Props {
   systems: CollectionEntry<'projects'>[];
+  number?: string;
 }
 
-const { systems } = Astro.props;
+const { systems, number } = Astro.props;
 
 // Per-entry :has() rules — generated once at build time. Hand-rolled CSS
 // for five systems is simpler and more robust than a client script.
@@ -50,13 +54,16 @@ const activeCss = systems
   .join('\n');
 ---
 
-<Section kicker={HOME.selectedWork.kicker} heading={HOME.selectedWork.heading} tone="paper" width="wide" reveal>
+<Section number={number} kicker={HOME.selectedWork.kicker} heading={HOME.selectedWork.heading} tone="paper" width="wide" reveal>
+  <p class="mb-8 font-mono text-[11px] font-bold tracking-[0.16em] text-accent-ink uppercase">System Register</p>
   <div class="systems-archive">
     {systems.map((project, index) => {
-      const { title, summary, problem, outcome, evidenceNote, tools, tags, role, client, year, placeholder, redacted, previewType } =
+      const { title, summary, context, problem, outcome, evidenceNote, tools, tags, role, client, year, placeholder, redacted, previewType } =
         project.data;
       const href = project.data.externalUrl ?? `/projects/${project.id}`;
       const result = outcome ?? evidenceNote;
+      const purpose = context ?? summary;
+      const typeLabel = SYSTEM_TYPE_LABELS[previewType ?? 'dashboard'];
       return (
         <a
           id={`sys-${index}`}
@@ -78,13 +85,26 @@ const activeCss = systems
                 </h3>
                 {placeholder && <PlaceholderTag />}
               </div>
-              <p class="mt-3 max-w-2xl font-body text-lg text-body">{summary}</p>
 
-              <ul class="mt-4 flex flex-wrap gap-x-6 gap-y-1 font-mono text-[11px] tracking-wide text-meta uppercase transition-colors duration-(--duration-fast) group-hover/card:text-body">
-                {role && <li>{role}</li>}
-                {client && <li>{client}</li>}
-                {year && <li>{year}{redacted && ' · Redacted'}</li>}
-              </ul>
+              <MetaRow
+                items={[client, year && `${year}${redacted ? ' · Redacted' : ''}`, role && `Role: ${role}`]}
+                class="mt-2 transition-colors duration-(--duration-fast) group-hover/card:text-body"
+              />
+
+              <dl class="mt-5 grid grid-cols-2 gap-x-6 gap-y-3 border-t border-line pt-5 sm:grid-cols-3">
+                <div class="col-span-2 sm:col-span-1">
+                  <dt class="font-mono text-[10px] tracking-[0.14em] text-accent-ink uppercase">Purpose</dt>
+                  <dd class="mt-1 font-body text-sm text-body">{purpose}</dd>
+                </div>
+                <div>
+                  <dt class="font-mono text-[10px] tracking-[0.14em] text-accent-ink uppercase">Type</dt>
+                  <dd class="mt-1 font-body text-sm text-body">{typeLabel}</dd>
+                </div>
+                <div>
+                  <dt class="font-mono text-[10px] tracking-[0.14em] text-accent-ink uppercase">Status</dt>
+                  <dd class="mt-1"><StatusTag status="built" /></dd>
+                </div>
+              </dl>
 
               <div class="mt-5 flex items-center gap-1.5" aria-hidden="true">
                 {DOMAIN_CODES.map((domain) => (
