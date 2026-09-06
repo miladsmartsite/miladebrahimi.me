@@ -137,10 +137,18 @@ const megaMenus: typeof MEGA_MENUS = {
     trigger.addEventListener('focusin', reposition);
     megaMenuPanels.push({ panel, reposition });
   });
-  megaMenuPanels.forEach(({ reposition }) => reposition());
-  window.addEventListener(
-    'resize',
-    () => megaMenuPanels.forEach(({ reposition }) => reposition()),
-    { passive: true },
-  );
+  const repositionAll = () => megaMenuPanels.forEach(({ reposition }) => reposition());
+  repositionAll();
+  // A web-font swap after this script's first (synchronous, pre-paint)
+  // run can shift trigger positions enough to invalidate that first
+  // measurement — confirmed on production, where triggers past Expertise
+  // sat a few dozen px left of their post-swap position, leaving every
+  // panel's clamp undercorrected until the next resize/hover. Re-running
+  // once fonts have actually loaded (and once more on `load`, in case a
+  // browser lacks the Font Loading API) catches that shift with no
+  // visible effect, since it only ever tightens an already-invisible,
+  // unopened panel's position.
+  document.fonts?.ready.then(repositionAll);
+  window.addEventListener('load', repositionAll);
+  window.addEventListener('resize', repositionAll, { passive: true });
 </script>
