@@ -1,0 +1,80 @@
+---
+/**
+ * A "brand orientation system," not a decorative dropdown — used for the
+ * four grouped primary-nav items (Expertise/Work/Contents/About Me &
+ * Resume). Opens on hover OR focus-within (CSS only — no JS drives the
+ * open/close state), positioned flush against its trigger by default
+ * (`left-0`, zero gap) so the pointer path from label to panel never
+ * crosses empty space and can't accidentally "fall out" of the hover
+ * area. Because the panel's width is fixed, a trigger far enough right
+ * in the header would otherwise push it past the viewport edge at many
+ * container widths — Nav.astro's reposition script measures the real
+ * geometry on open and nudges it back in-bounds via `margin-left`,
+ * leaving the `translate-y` slide-in animation (set via Tailwind
+ * classes, not inline style) untouched. The other bit of JS on the page
+ * is Escape-to-close: it blurs the active element so `:focus-within`
+ * naturally drops, which is the only thing pure CSS can't do on its own.
+ */
+import type { MegaMenuLink } from '@lib/site';
+
+interface Props {
+  number: string;
+  label: string;
+  statement: string;
+  groups: { heading?: string; links: MegaMenuLink[] }[];
+  explore: MegaMenuLink[];
+}
+
+const { number, label, statement, groups, explore } = Astro.props;
+---
+
+<div
+  data-mega-menu
+  class="invisible absolute top-full left-0 z-10 w-[min(90vw,44rem)] -translate-y-1 border border-line bg-paper opacity-0 transition-[opacity,translate,visibility] duration-200 group-hover/dropdown:visible group-hover/dropdown:translate-y-0 group-hover/dropdown:opacity-100 group-focus-within/dropdown:visible group-focus-within/dropdown:translate-y-0 group-focus-within/dropdown:opacity-100"
+>
+  <div class="grid gap-8 p-8 sm:grid-cols-12">
+    <div class="sm:col-span-4">
+      <p class="font-mono text-[11px] font-bold tracking-[0.16em] text-accent-ink uppercase">{number} / {label}</p>
+      <p class="mt-3 max-w-[16rem] font-display text-lg leading-snug font-bold tracking-[-0.02em] text-ink uppercase">
+        {statement}
+      </p>
+    </div>
+
+    <div class="sm:col-span-8">
+      <div class:list={['grid gap-x-8 gap-y-6', groups.length > 1 ? 'sm:grid-cols-2' : 'sm:grid-cols-1']}>
+        {groups.map((group) => (
+          <div>
+            {group.heading && (
+              <p class="mb-3 font-mono text-[10px] font-bold tracking-[0.14em] text-meta uppercase">{group.heading}</p>
+            )}
+            <ul class="space-y-3 border-t border-line pt-3">
+              {group.links.map((link) => (
+                <li>
+                  <a href={link.href} class="group/link flex min-h-6 items-baseline justify-between gap-3">
+                    <span class="font-body text-base text-ink transition-colors group-hover/link:text-accent-ink">
+                      {link.label}
+                    </span>
+                    {link.status === 'in-development' ? (
+                      <span class="shrink-0 font-mono text-[9px] tracking-wide text-meta uppercase">In Dev.</span>
+                    ) : link.description ? (
+                      <span class="shrink-0 font-mono text-[10px] tracking-wide text-meta uppercase">{link.description}</span>
+                    ) : null}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+
+  <div class="flex flex-wrap items-center gap-x-8 gap-y-2 border-t border-line bg-paper-dim px-8 py-4">
+    <span class="font-mono text-[10px] font-bold tracking-[0.14em] text-meta uppercase">Explore</span>
+    {explore.map((link) => (
+      <a href={link.href} class="font-mono text-[11px] font-medium tracking-wide text-accent-ink underline decoration-line underline-offset-4 hover:decoration-accent">
+        {link.label}
+      </a>
+    ))}
+  </div>
+</div>

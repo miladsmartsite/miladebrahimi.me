@@ -9,9 +9,47 @@
  * close, a focus trap while open, and a staggered reveal that respects
  * prefers-reduced-motion (the global reduced-motion rule in global.css
  * zeroes every transition/animation duration automatically).
+ *
+ * Phase 6: the four grouped items (Expertise/Work/Contents/About Me &
+ * Resume) are no longer flat links — each is a native <details> holding
+ * the same brand-orientation content as the desktop MegaMenu (reusing
+ * MEGA_MENUS from site.ts, not a squeezed-down copy of it), so mobile
+ * gets its own full-screen expandable presentation rather than the
+ * desktop panel crammed into a small viewport. Home and Contact stay
+ * plain links, matching the desktop nav where Contact is never forced
+ * into a menu.
  */
-import { MOBILE_NAV_ITEMS, SITE, SOCIAL_LINKS } from '@lib/site';
+import { getCollection } from 'astro:content';
+import { MEGA_MENUS, SITE, SOCIAL_LINKS } from '@lib/site';
 import Wordmark from '@components/Wordmark.astro';
+
+const allProjects = await getCollection('projects', ({ data }) => !data.draft);
+const systems = allProjects.sort((a, b) => a.data.order - b.data.order);
+
+const megaMenus: typeof MEGA_MENUS = {
+  ...MEGA_MENUS,
+  Work: {
+    ...MEGA_MENUS.Work,
+    groups: [
+      {
+        heading: 'Systems',
+        links: systems.map((p) => ({ label: p.data.title, href: `/projects/${p.id}` })),
+      },
+    ],
+  },
+};
+
+// Home + the four grouped destinations + Contact, in the established
+// mobile order — built here (not read from MOBILE_NAV_ITEMS) since each
+// entry now needs to know whether it expands.
+const entries = [
+  { label: 'Home', href: '/' },
+  { label: 'Expertise', href: '/expertise', menu: megaMenus.Expertise },
+  { label: 'Work', href: '/projects', menu: megaMenus.Work },
+  { label: 'Contents', href: '/contents', menu: megaMenus.Contents },
+  { label: 'About Me & Resume', href: '/resume', menu: megaMenus['About Me & Resume'] },
+  { label: 'Contact', href: '/contact' },
+];
 ---
 
 <nav
@@ -32,27 +70,78 @@ import Wordmark from '@components/Wordmark.astro';
 
   <div class="flex flex-1 flex-col justify-between overflow-y-auto px-6 sm:px-8">
     <ol class="flex flex-col">
-      {MOBILE_NAV_ITEMS.map((item, index) => (
+      {entries.map((entry, index) => (
         <li
           class="mobile-nav-item translate-y-2 border-b border-on-dark-line opacity-0 transition-all duration-(--duration-base)"
           style={`transition-delay:${index * 45}ms`}
         >
-          <a
-            href={item.href}
-            class="group/item flex min-h-16 items-center gap-4 py-3 transition-colors sm:min-h-[4.5rem]"
-          >
-            <span class="font-mono text-[13px] text-on-dark-muted tabular-nums transition-colors group-hover/item:text-accent group-active/item:text-accent">
-              {String(index + 1).padStart(2, '0')}
-            </span>
-            <span class="font-display text-3xl font-bold tracking-[-0.02em] text-paper transition-colors group-hover/item:text-accent group-active/item:text-accent sm:text-4xl">
-              {item.label}
-            </span>
-          </a>
+          {entry.menu ? (
+            <details class="group/details">
+              <summary class="group/item flex min-h-16 cursor-pointer list-none items-center justify-between gap-4 py-3 transition-colors sm:min-h-[4.5rem]">
+                <span class="flex items-center gap-4">
+                  <span class="font-mono text-[13px] text-on-dark-muted tabular-nums transition-colors group-hover/item:text-accent">
+                    {String(index + 1).padStart(2, '0')}
+                  </span>
+                  <span class="font-display text-3xl font-bold tracking-[-0.02em] text-paper transition-colors group-hover/item:text-accent sm:text-4xl">
+                    {entry.label}
+                  </span>
+                </span>
+                <span class="flex size-11 shrink-0 items-center justify-center font-mono text-lg text-on-dark-muted transition-transform duration-(--duration-fast) group-open/details:rotate-45" aria-hidden="true">
+                  +
+                </span>
+              </summary>
+
+              <div class="pb-6 pl-11">
+                <p class="max-w-xs font-body text-base text-on-dark-muted">{entry.menu.statement}</p>
+                <div class="mt-5 space-y-6">
+                  {entry.menu.groups.map((group) => (
+                    <div>
+                      {group.heading && (
+                        <p class="mb-3 font-mono text-[11px] font-bold tracking-[0.14em] text-on-dark-muted uppercase">{group.heading}</p>
+                      )}
+                      <ul class="space-y-1">
+                        {group.links.map((link) => (
+                          <li>
+                            <a href={link.href} class="group/link flex min-h-11 items-center justify-between gap-3 py-1">
+                              <span class="font-body text-lg text-paper transition-colors group-hover/link:text-accent">{link.label}</span>
+                              {link.status === 'in-development' ? (
+                                <span class="shrink-0 font-mono text-[9px] tracking-wide text-on-dark-muted uppercase">In Dev.</span>
+                              ) : link.description ? (
+                                <span class="shrink-0 font-mono text-[10px] tracking-wide text-on-dark-muted uppercase">{link.description}</span>
+                              ) : null}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+                <a
+                  href={entry.href}
+                  class="mt-6 inline-flex min-h-11 items-center gap-1.5 font-mono text-[13px] font-medium text-accent underline decoration-on-dark-line underline-offset-4 hover:decoration-accent"
+                >
+                  View {entry.label} →
+                </a>
+              </div>
+            </details>
+          ) : (
+            <a
+              href={entry.href}
+              class="group/item flex min-h-16 items-center gap-4 py-3 transition-colors sm:min-h-[4.5rem]"
+            >
+              <span class="font-mono text-[13px] text-on-dark-muted tabular-nums transition-colors group-hover/item:text-accent group-active/item:text-accent">
+                {String(index + 1).padStart(2, '0')}
+              </span>
+              <span class="font-display text-3xl font-bold tracking-[-0.02em] text-paper transition-colors group-hover/item:text-accent group-active/item:text-accent sm:text-4xl">
+                {entry.label}
+              </span>
+            </a>
+          )}
         </li>
       ))}
     </ol>
 
-    <div class="mobile-nav-item flex shrink-0 translate-y-2 flex-col gap-5 py-8 opacity-0 transition-all duration-(--duration-base)" style={`transition-delay:${MOBILE_NAV_ITEMS.length * 45}ms`}>
+    <div class="mobile-nav-item flex shrink-0 translate-y-2 flex-col gap-5 py-8 opacity-0 transition-all duration-(--duration-base)" style={`transition-delay:${entries.length * 45}ms`}>
       <p class="max-w-xs font-body text-base text-on-dark-muted">{SITE.positioning}</p>
 
       <div class="flex flex-wrap items-center gap-4">
@@ -100,7 +189,7 @@ import Wordmark from '@components/Wordmark.astro';
 
   function getFocusable(): HTMLElement[] {
     if (!panel) return [];
-    return Array.from(panel.querySelectorAll<HTMLElement>('a[href], button:not([disabled])'));
+    return Array.from(panel.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), summary'));
   }
 
   function trapFocus(event: KeyboardEvent) {
@@ -141,7 +230,7 @@ import Wordmark from '@components/Wordmark.astro';
       });
       document.addEventListener('keydown', trapFocus);
       // Focus the first real nav link, not the wordmark above it.
-      (panel.querySelector<HTMLElement>('.mobile-nav-item a') ?? getFocusable()[0])?.focus();
+      (panel.querySelector<HTMLElement>('.mobile-nav-item a, .mobile-nav-item summary') ?? getFocusable()[0])?.focus();
     } else {
       panel.classList.remove('opacity-100', 'scale-100');
       panel.classList.add('opacity-0', 'scale-95');
@@ -153,6 +242,8 @@ import Wordmark from '@components/Wordmark.astro';
       document.removeEventListener('keydown', trapFocus);
       closeTimer = window.setTimeout(() => {
         panel.hidden = true;
+        // Collapse any expanded groups so the panel reopens fresh next time.
+        panel.querySelectorAll('details[open]').forEach((details) => details.removeAttribute('open'));
       }, 300);
       toggle.focus();
     }

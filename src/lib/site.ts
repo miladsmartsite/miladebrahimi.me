@@ -29,9 +29,9 @@ export const SITE = {
 export type NavItem = {
   label: string;
   href: string;
-  /** Dropdown children (desktop only) — currently just "Contents". */
-  children?: NavItem[];
 };
+
+export type MegaMenuLink = { label: string; href: string; description?: string; status?: 'in-development' };
 
 // Phase 3 approved primary-nav structure. /about and /cv both still exist
 // as thin redirects into /resume (the new merged "About Me & Resume"
@@ -41,31 +41,10 @@ export type NavItem = {
 // and /contents/books, the new canonical listing locations, so there is
 // one source for each listing rather than two. /speaking and /resources
 // aren't in this nav structure at all — both still exist and are linked
-// from /contents/more.
+// from /contents/more. Phase 6: Expertise/Work/Contents/About Me & Resume
+// each open a MEGA_MENUS entry (see below) instead of a plain dropdown;
+// Contact stays a direct link.
 export const NAV_ITEMS: NavItem[] = [
-  { label: 'Expertise', href: '/expertise' },
-  { label: 'Work', href: '/projects' },
-  {
-    label: 'Contents',
-    href: '/contents',
-    children: [
-      { label: 'Articles', href: '/contents/articles' },
-      { label: 'Books', href: '/contents/books' },
-      { label: 'Podcasts', href: '/contents/podcasts' },
-      { label: 'Videos', href: '/contents/videos' },
-      { label: 'More', href: '/contents/more' },
-    ],
-  },
-  { label: 'About Me & Resume', href: '/resume' },
-  { label: 'Contact', href: '/contact' },
-];
-
-// The mobile full-screen nav stays flat (no nested accordion inside the
-// already-established overlay — see MobileNavPanel.astro's "do not
-// regress" requirement) but points at the same Phase 3 destinations, plus
-// "Home" for a direct top-of-menu return.
-export const MOBILE_NAV_ITEMS: NavItem[] = [
-  { label: 'Home', href: '/' },
   { label: 'Expertise', href: '/expertise' },
   { label: 'Work', href: '/projects' },
   { label: 'Contents', href: '/contents' },
@@ -134,7 +113,7 @@ export const EXPERTISE_AREAS: ExpertiseArea[] = [
     title: 'Marketing',
     standing: 'Experience',
     description: 'Turning positioning, communication, and growth into repeatable systems.',
-    tags: ['Positioning', 'Growth', 'Communication'],
+    tags: ['Growth', 'Positioning', 'Demand'],
     relatedTags: ['marketing'],
   },
   {
@@ -142,7 +121,7 @@ export const EXPERTISE_AREAS: ExpertiseArea[] = [
     title: 'Productivity',
     standing: 'Focus',
     description: 'Designing better ways of working, prioritizing, and executing.',
-    tags: ['Workflow', 'Focus', 'Execution'],
+    tags: ['Execution', 'Focus', 'Efficiency'],
     relatedTags: [],
   },
   {
@@ -150,7 +129,7 @@ export const EXPERTISE_AREAS: ExpertiseArea[] = [
     title: 'AI',
     standing: 'Focus',
     description: 'Applying AI and automation to improve how work gets done.',
-    tags: ['Automation', 'Intelligence', 'Digital'],
+    tags: ['Applied AI', 'Automation', 'Leverage'],
     relatedTags: [],
   },
   {
@@ -158,10 +137,105 @@ export const EXPERTISE_AREAS: ExpertiseArea[] = [
     title: 'Leadership',
     standing: 'Practice',
     description: 'Building clarity, accountability, and better ways of leading teams.',
-    tags: ['People', 'Clarity', 'Accountability'],
+    tags: ['People', 'Direction', 'Change'],
     relatedTags: [],
   },
 ];
+
+/**
+ * Phase 6 mega-menu content — "brand orientation systems," not decorative
+ * dropdowns. Keyed by the matching NAV_ITEMS label so Nav.astro can look
+ * each one up directly. The Expertise group is built from EXPERTISE_AREAS
+ * itself (one source of truth, no drift risk); Work's system list is
+ * populated at render time from the real `projects` collection (see
+ * Nav.astro), not hard-coded here, so it can't drift from what's
+ * actually published.
+ */
+export const MEGA_MENUS: Record<
+  string,
+  {
+    number: string;
+    label: string;
+    statement: string;
+    groups: { heading?: string; links: MegaMenuLink[] }[];
+    explore: MegaMenuLink[];
+  }
+> = {
+  Expertise: {
+    number: '01',
+    label: 'Expertise',
+    statement: 'Areas where I work across structure, systems, people and growth.',
+    groups: [
+      {
+        links: EXPERTISE_AREAS.map((area) => ({
+          label: `${area.code} — ${area.title}`,
+          href: '/expertise',
+          description: area.tags.join(' · '),
+        })),
+      },
+    ],
+    explore: [
+      { label: 'Expertise Overview', href: '/expertise' },
+      { label: 'Expertise Matrix', href: '/expertise#matrix' },
+    ],
+  },
+  Work: {
+    number: '02',
+    label: 'Work',
+    statement: 'Systems and practical work I have built.',
+    groups: [{ heading: 'Systems', links: [] }], // populated at render time from the projects collection — see Nav.astro
+    explore: [
+      { label: 'All Work', href: '/projects' },
+      { label: 'Selected Work', href: '/#selected-work' },
+    ],
+  },
+  Contents: {
+    number: '03',
+    label: 'Contents',
+    statement: 'Ideas, frameworks and knowledge.',
+    groups: [
+      {
+        links: [
+          { label: 'Articles', href: '/contents/articles', description: 'Insights and practical frameworks' },
+          { label: 'Books', href: '/contents/books', description: 'Published and developing books' },
+          { label: 'Podcasts', href: '/contents/podcasts', description: 'Conversations and audio', status: 'in-development' },
+          { label: 'Videos', href: '/contents/videos', description: 'Video content', status: 'in-development' },
+          { label: 'More', href: '/contents/more', description: 'Additional content' },
+        ],
+      },
+    ],
+    explore: [{ label: 'Explore Contents', href: '/contents' }],
+  },
+  'About Me & Resume': {
+    number: '04',
+    label: 'About',
+    statement: 'The person, the journey and the body of work.',
+    groups: [
+      {
+        heading: 'About',
+        links: [
+          { label: 'Profile', href: '/resume#profile' },
+          { label: 'Approach', href: '/resume#practice' },
+          { label: 'Background', href: '/resume#career' },
+        ],
+      },
+      {
+        heading: 'Resume',
+        links: [
+          { label: 'Career', href: '/resume#career' },
+          { label: 'Achievements', href: '/resume#achievements' },
+          { label: 'Systems & Projects', href: '/resume#systems-projects' },
+          { label: 'Certifications', href: '/resume#certifications' },
+          { label: 'Books', href: '/resume#books' },
+          { label: 'Education', href: '/resume#education' },
+          { label: 'Tools', href: '/resume#tools' },
+          { label: 'Languages', href: '/resume#languages' },
+        ],
+      },
+    ],
+    explore: [{ label: 'View Full Resume', href: '/resume' }],
+  },
+};
 
 /**
  * Human-readable label for each system's `previewType` field — a

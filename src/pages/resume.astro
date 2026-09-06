@@ -1,13 +1,14 @@
 ---
 /**
- * Resume — the complete professional archive (Phase 3 §14 / Phase 5's
+ * Resume — the complete professional archive (Phase 3 §14 / Phase 6's
  * "professional record" framing). The homepage deliberately stays a
  * highlights reel; this page carries the full story, in the approved
  * order: Profile, Core Areas, Career, Achievements, Systems & Projects,
- * Certifications, Books, Education, Tools, Languages, Download CV. Built
- * so a new role, certification, project, or book can be added later by
- * editing the relevant content collection/data file — no page redesign
- * needed.
+ * Certifications, Books, Education, Tools, Languages, Download CV. Every
+ * section carries an anchor id matching the "About Me & Resume" mega
+ * menu's deep links (see MEGA_MENUS in site.ts). Built so a new role,
+ * certification, project, or book can be added later by editing the
+ * relevant content collection/data file — no page redesign needed.
  */
 import { getCollection } from 'astro:content';
 import BaseLayout from '@layouts/BaseLayout.astro';
@@ -40,7 +41,7 @@ const tools = [...new Set(systems.flatMap((s) => s.data.tools))];
 >
   <PageHero kicker="About Me & Resume" title={SITE.name} subtitle={CV.summary} />
 
-  <Section number="01" kicker="Profile" tone="dim" reveal>
+  <Section id="profile" number="01" kicker="Profile" tone="dim" reveal>
     <div class="grid gap-10 lg:grid-cols-12 lg:gap-12">
       <div class="lg:col-span-3">
         <Portrait class="max-w-72" />
@@ -74,7 +75,7 @@ const tools = [...new Set(systems.flatMap((s) => s.data.tools))];
     </div>
   </Section>
 
-  <Section kicker="The practice" heading="Where operations, systems, and leadership meet." tone="navy" field reveal>
+  <Section id="practice" kicker="The practice" heading="Where operations, systems, and leadership meet." tone="navy" field reveal>
     <p class="max-w-2xl font-body text-lg text-on-dark-muted">
       The throughline across all of it: understand how something actually works, find where it's
       breaking, and build the smallest system that fixes it — whether that means an operational
@@ -99,34 +100,70 @@ const tools = [...new Set(systems.flatMap((s) => s.data.tools))];
     </ol>
   </Section>
 
-  <Section number="03" kicker="Career" heading="Career history." reveal>
+  <Section id="career" number="03" kicker="Career" heading="Career history." reveal>
     <Timeline items={experience} />
   </Section>
 
-  <Results number="04" />
+  <Results id="achievements" number="04" />
 
   {systems.length > 0 && (
-    <Section number="05" kicker="Systems & projects" heading="Systems built to solve real operational problems." reveal>
-      <ol class="divide-y divide-line border-t border-line">
+    <Section id="systems-projects" number="05" kicker="Systems & projects" heading="Systems built to solve real operational problems." reveal>
+      {/* Desktop: a real 5-column register. */}
+      <div class="hidden lg:block">
+        <div class="grid grid-cols-12 gap-4 border-b-2 border-ink pb-3 font-mono text-[10px] font-bold tracking-[0.14em] text-meta uppercase">
+          <span class="col-span-4">System</span>
+          <span class="col-span-3">Type</span>
+          <span class="col-span-2">Role</span>
+          <span class="col-span-1">Status</span>
+          <span class="col-span-2">Outcome</span>
+        </div>
         {systems.map((project, i) => (
-          <li class="flex flex-wrap items-center justify-between gap-3 py-5">
-            <a href={`/projects/${project.id}`} class="flex min-h-11 items-center gap-4 font-body text-lg text-ink hover:text-accent-ink">
-              <span class="font-mono text-[11px] text-meta">{String(i + 1).padStart(2, '0')}</span>
+          <div class="grid grid-cols-12 items-start gap-4 border-b border-line py-5">
+            <a href={`/projects/${project.id}`} class="col-span-4 font-body text-lg text-ink hover:text-accent-ink">
+              <span class="mr-2 font-mono text-xs text-meta">{String(i + 1).padStart(2, '0')}</span>
               {project.data.title}
             </a>
-            <span class="flex items-center gap-4">
-              <span class="font-mono text-[11px] tracking-wide text-meta uppercase">
-                {project.data.client}{project.data.year && ` · ${project.data.year}`} · {SYSTEM_TYPE_LABELS[project.data.previewType ?? 'dashboard']}
-              </span>
-              <StatusTag status="built" />
-            </span>
+            <span class="col-span-3 font-body text-sm text-body">{SYSTEM_TYPE_LABELS[project.data.previewType ?? 'dashboard']}</span>
+            <span class="col-span-2 font-body text-sm text-body">{project.data.role}</span>
+            <span class="col-span-1"><StatusTag status="built" /></span>
+            <span class="col-span-2 font-body text-sm text-body">{project.data.outcome ?? project.data.evidenceNote}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Mobile/tablet: the same five fields, stacked as labeled rows. */}
+      <ol class="divide-y divide-line border-t border-line lg:hidden">
+        {systems.map((project, i) => (
+          <li class="py-6">
+            <a href={`/projects/${project.id}`} class="flex items-baseline gap-3 font-display text-xl font-bold tracking-[-0.02em] text-ink hover:text-accent-ink">
+              <span class="font-mono text-[11px] font-normal text-meta">{String(i + 1).padStart(2, '0')}</span>
+              {project.data.title}
+            </a>
+            <dl class="mt-3 grid grid-cols-2 gap-x-4 gap-y-2">
+              <div>
+                <dt class="font-mono text-[10px] tracking-[0.12em] text-meta uppercase">Type</dt>
+                <dd class="mt-0.5 font-body text-sm text-body">{SYSTEM_TYPE_LABELS[project.data.previewType ?? 'dashboard']}</dd>
+              </div>
+              <div>
+                <dt class="font-mono text-[10px] tracking-[0.12em] text-meta uppercase">Role</dt>
+                <dd class="mt-0.5 font-body text-sm text-body">{project.data.role}</dd>
+              </div>
+              <div>
+                <dt class="font-mono text-[10px] tracking-[0.12em] text-meta uppercase">Status</dt>
+                <dd class="mt-1"><StatusTag status="built" /></dd>
+              </div>
+              <div class="col-span-2">
+                <dt class="font-mono text-[10px] tracking-[0.12em] text-meta uppercase">Outcome</dt>
+                <dd class="mt-0.5 font-body text-sm text-body">{project.data.outcome ?? project.data.evidenceNote}</dd>
+              </div>
+            </dl>
           </li>
         ))}
       </ol>
     </Section>
   )}
 
-  <Section number="06" kicker="Certifications" heading="Certifications." tone="dim" reveal>
+  <Section id="certifications" number="06" kicker="Certifications" heading="Certifications." tone="dim" reveal>
     <ul class="space-y-3">
       {CV.certifications.map((cert) => (
         <li class="border-t border-line pt-3 font-body text-base text-body">{cert}</li>
@@ -135,7 +172,7 @@ const tools = [...new Set(systems.flatMap((s) => s.data.tools))];
   </Section>
 
   {books.length > 0 && (
-    <Section number="07" kicker="Books" heading="Published books." reveal>
+    <Section id="books" number="07" kicker="Books" heading="Published books." reveal>
       <ul class="grid gap-6 sm:grid-cols-3">
         {books.map((book, i) => (
           <li class="border border-line p-5">
@@ -147,7 +184,7 @@ const tools = [...new Set(systems.flatMap((s) => s.data.tools))];
     </Section>
   )}
 
-  <Section number="08" kicker="Education" heading="Education." tone="dim" reveal>
+  <Section id="education" number="08" kicker="Education" heading="Education." tone="dim" reveal>
     <ul class="space-y-4">
       {CV.education.map((edu) => (
         <li class="border-t border-line pt-4">
@@ -159,7 +196,7 @@ const tools = [...new Set(systems.flatMap((s) => s.data.tools))];
     </ul>
   </Section>
 
-  <Section number="09" kicker="Tools & Technologies" heading="Tools & technologies." reveal>
+  <Section id="tools" number="09" kicker="Tools & Technologies" heading="Tools & technologies." reveal>
     <ul class="flex flex-wrap gap-2">
       {tools.map((tool) => (
         <li class="border border-line px-2.5 py-1 font-mono text-[11px] tracking-wide text-body uppercase">{tool}</li>
@@ -167,7 +204,7 @@ const tools = [...new Set(systems.flatMap((s) => s.data.tools))];
     </ul>
   </Section>
 
-  <Section number="10" kicker="Languages" heading="Languages." tone="dim" reveal>
+  <Section id="languages" number="10" kicker="Languages" heading="Languages." tone="dim" reveal>
     <ul class="flex flex-wrap gap-8">
       {CV.languages.map((lang) => (
         <li>

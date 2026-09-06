@@ -2,9 +2,9 @@
 /**
  * The reusable ME mark — one wordmark system used everywhere the brand
  * signs its name (nav, footer, 404, About). `size="large"` is the full
- * block from the handoff (mark, brass rule, name, tagline); `size="small"`
- * is the compact nav-scale version. `reversed` swaps to the on-dark tokens
- * for use on the ink surface.
+ * block (mark, brass rule, name); `size="small"` is the compact nav-scale
+ * version. `reversed` swaps to the on-dark tokens for use on the ink
+ * surface.
  */
 import { SITE } from '@lib/site';
 
@@ -17,7 +17,6 @@ interface Props {
 const { size = 'small', reversed = false, class: className = '' } = Astro.props;
 const markColor = reversed ? 'text-paper' : 'text-ink';
 const nameColor = reversed ? 'text-paper' : 'text-ink';
-const taglineColor = reversed ? 'text-on-dark-muted' : 'text-accent-ink';
 ---
 
 {
@@ -31,7 +30,6 @@ const taglineColor = reversed ? 'text-on-dark-muted' : 'text-accent-ink';
       </span>
       <span class="brass-rule mt-2 h-[3px] w-[92px]" aria-hidden="true"></span>
       <span class={`mt-3 font-display text-xl font-semibold ${nameColor}`}>{SITE.name}</span>
-      <span class={`mt-1 font-body text-base italic ${taglineColor}`}>maker, mostly digital</span>
     </div>
   ) : (
     <span class={`inline-flex items-center gap-2.5 ${className}`}>

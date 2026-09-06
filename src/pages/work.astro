@@ -1,31 +1,10 @@
 ---
-/**
- * The full role-by-role experience timeline — not in the primary nav
- * (the "Work" nav label points at /projects, the systems archive). Linked
- * from About and CV for anyone who wants the complete career detail.
- */
-import { getCollection } from 'astro:content';
-import BaseLayout from '@layouts/BaseLayout.astro';
-import PageHero from '@components/PageHero.astro';
-import Section from '@components/Section.astro';
-import Timeline from '@components/Timeline.astro';
-
-const allExperience = await getCollection('experience', ({ data }) => !data.draft);
-const experience = allExperience.sort(
-  (a, b) => b.data.startDate.valueOf() - a.data.startDate.valueOf(),
-);
+// /work (the older role-by-role experience timeline) is now redundant
+// with /resume's Career section (same Timeline component, same
+// `experience` collection) — and its name collided with the nav's
+// canonical "Work" destination, /projects (the systems/case-study
+// archive). Per Phase 6 §07, /projects is the one Work destination.
+// Kept as a redirect, not a deleted route, so old links/bookmarks to
+// /work keep working.
+return Astro.redirect('/projects', 301);
 ---
-
-<BaseLayout title="Experience" description="Full career history, role by role — the detailed version behind the About page's condensed timeline.">
-  <PageHero kicker="Experience" title="The full career history." />
-  <Section reveal>
-    {experience.length > 0 ? (
-      <Timeline items={experience} />
-    ) : (
-      <p class="font-body text-lg text-body">
-        [PLACEHOLDER] No published experience entries yet. Add markdown files to
-        <code>src/content/experience/</code> and set <code>draft: false</code>.
-      </p>
-    )}
-  </Section>
-</BaseLayout>

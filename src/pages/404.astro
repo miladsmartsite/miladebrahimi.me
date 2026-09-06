@@ -9,7 +9,10 @@ import Button from '@components/Button.astro';
 ---
 
 <BaseLayout title="System Not Found" noindex>
-  <div class="field-grid relative flex min-h-[70vh] flex-col items-start justify-center overflow-hidden bg-ink px-6 py-24 text-paper sm:px-8">
+  <div class="relative flex min-h-[70vh] flex-col items-start justify-center overflow-hidden bg-ink px-6 py-24 text-paper sm:px-8">
+    {/* See Hero.astro for why `field-grid` lives on its own overlay div,
+        not directly on the element that also carries `bg-ink`. */}
+    <div class="field-grid pointer-events-none absolute inset-0" aria-hidden="true"></div>
     <p class="relative font-display text-[7rem] leading-none font-extrabold text-accent sm:text-[9rem]">404</p>
     <h1 class="relative mt-2 font-display text-3xl font-bold tracking-[-0.03em] text-paper sm:text-4xl">System not found.</h1>
     <p class="relative mt-4 max-w-md font-body text-lg text-on-dark-muted">

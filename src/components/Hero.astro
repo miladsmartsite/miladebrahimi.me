@@ -24,7 +24,16 @@ const { masthead, eyebrow, title, subtitle, note, stats = [] } = Astro.props;
 const titleLines = title.split('\n');
 ---
 
-<div class="field-grid relative overflow-hidden bg-ink text-paper">
+<div class="relative overflow-hidden bg-ink text-paper">
+  {/* A separate overlay carries the mask — `field-grid`'s radial-gradient
+      mask fades to transparent at the edges, and a CSS mask affects the
+      WHOLE element it's set on (background-color included). Applying it
+      directly to this section (as a previous version did) let the pale
+      page background bleed through at the edges — the reported white
+      halo. Keeping it on its own absolutely-positioned, background-less
+      child means only the grid-line texture fades; the solid bg-ink
+      above stays fully opaque underneath. */}
+  <div class="field-grid pointer-events-none absolute inset-0" aria-hidden="true"></div>
   <div class="relative mx-auto max-w-(--container-wide) px-6 pt-12 pb-16 sm:px-8 sm:pt-14 lg:pb-24">
     <div class="grid gap-16 lg:grid-cols-12 lg:gap-10">
       <div class="lg:col-span-7">

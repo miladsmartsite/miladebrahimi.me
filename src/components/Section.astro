@@ -14,6 +14,8 @@
  */
 interface Props {
   as?: 'section' | 'div' | 'header' | 'footer';
+  /** Anchor id — e.g. for mega-menu deep links like /resume#career. */
+  id?: string;
   /** Module number, e.g. "04" — renders as a large ghost numeral. */
   number?: string;
   kicker?: string;
@@ -30,6 +32,7 @@ interface Props {
 
 const {
   as: Tag = 'section',
+  id,
   number,
   kicker,
   heading,
@@ -59,7 +62,7 @@ const metaClass = tone === 'navy' ? 'text-on-dark-muted' : 'text-meta';
 const headerBorderClass = tone === 'navy' ? 'border-on-dark-line' : 'border-line/60';
 ---
 
-<Tag class={toneClasses[tone]} {...reveal ? { 'data-reveal': '' } : {}}>
+<Tag id={id} class={`${toneClasses[tone]}${id ? ' scroll-mt-24' : ''}`} {...reveal ? { 'data-reveal': '' } : {}}>
   {field && tone === 'navy' && (
     <div class="field-grid pointer-events-none absolute inset-0" aria-hidden="true"></div>
   )}

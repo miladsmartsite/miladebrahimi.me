@@ -1,9 +1,36 @@
 ---
-import { NAV_ITEMS } from '@lib/site';
+/**
+ * Global header — a premium executive navigation system. Four of the five
+ * primary items (Expertise/Work/Contents/About Me & Resume) open a
+ * MegaMenu "brand orientation system" on hover or keyboard focus; Contact
+ * stays a direct link, per the brief's explicit "don't force a mega menu
+ * if it makes the interaction worse." Work's mega menu is built here
+ * (not in site.ts) since its system list comes from the live `projects`
+ * collection, not a hard-coded array.
+ */
+import { getCollection } from 'astro:content';
+import { NAV_ITEMS, MEGA_MENUS } from '@lib/site';
 import Wordmark from '@components/Wordmark.astro';
+import MegaMenu from '@components/MegaMenu.astro';
 
 const currentPath = Astro.url.pathname;
 const isActive = (href: string) => currentPath === href || currentPath.startsWith(`${href}/`);
+
+const allProjects = await getCollection('projects', ({ data }) => !data.draft);
+const systems = allProjects.sort((a, b) => a.data.order - b.data.order);
+
+const megaMenus: typeof MEGA_MENUS = {
+  ...MEGA_MENUS,
+  Work: {
+    ...MEGA_MENUS.Work,
+    groups: [
+      {
+        heading: 'Systems',
+        links: systems.map((p) => ({ label: p.data.title, href: `/projects/${p.id}` })),
+      },
+    ],
+  },
+};
 ---
 
 <header
@@ -17,9 +44,10 @@ const isActive = (href: string) => currentPath === href || currentPath.startsWit
 
     <nav aria-label="Primary" class="hidden items-center gap-9 md:flex">
       <ul class="flex items-center gap-9">
-        {NAV_ITEMS.map((item) =>
-          item.children ? (
-            <li class="group/dropdown relative">
+        {NAV_ITEMS.map((item) => {
+          const menu = megaMenus[item.label];
+          return menu ? (
+            <li class="group/dropdown relative" data-mega-trigger>
               <a
                 href={item.href}
                 aria-current={isActive(item.href) ? 'page' : undefined}
@@ -31,20 +59,7 @@ const isActive = (href: string) => currentPath === href || currentPath.startsWit
                   ▾
                 </span>
               </a>
-              <ul
-                class="invisible absolute top-full left-0 z-10 min-w-44 -translate-y-1 border border-line bg-paper py-1 opacity-0 transition-all duration-(--duration-fast) group-hover/dropdown:visible group-hover/dropdown:translate-y-0 group-hover/dropdown:opacity-100 group-focus-within/dropdown:visible group-focus-within/dropdown:translate-y-0 group-focus-within/dropdown:opacity-100"
-              >
-                {item.children.map((child) => (
-                  <li>
-                    <a
-                      href={child.href}
-                      class="flex min-h-11 items-center px-4 font-body text-[16px] text-body transition-colors hover:bg-paper-dim hover:text-accent-ink"
-                    >
-                      {child.label}
-                    </a>
-                  </li>
-                ))}
-              </ul>
+              <MegaMenu number={menu.number} label={menu.label} statement={menu.statement} groups={menu.groups} explore={menu.explore} />
             </li>
           ) : (
             <li>
@@ -56,8 +71,8 @@ const isActive = (href: string) => currentPath === href || currentPath.startsWit
                 {item.label}
               </a>
             </li>
-          ),
-        )}
+          );
+        })}
       </ul>
       <a
         href="/contact"
@@ -80,4 +95,52 @@ const isActive = (href: string) => currentPath === href || currentPath.startsWit
     setElevated();
     window.addEventListener('scroll', setElevated, { passive: true });
   }
+
+  // Mega menus open purely via CSS (:hover/:focus-within) — the one thing
+  // CSS can't do on its own is close on Escape. Blurring the focused
+  // element inside an open menu makes `:focus-within` drop naturally,
+  // with no extra open/close state to track.
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    const active = document.activeElement;
+    if (active instanceof HTMLElement && active.closest('[data-mega-trigger], [data-mega-menu]')) {
+      active.blur();
+    }
+  });
+
+  // Every mega menu panel is a fixed width, but its trigger can sit
+  // anywhere across the header depending on container width — a
+  // `left-0` anchor that's safely on-screen at 1920px runs the panel
+  // off the right edge at 1280px (and a right-anchored one would run
+  // off the left edge for a trigger near the start of the nav). Rather
+  // than hand-picking a left/right anchor per breakpoint, measure each
+  // panel's actual position and nudge it back in-bounds. This has to
+  // run on load, not just on hover/focus: a `visibility:hidden` panel
+  // still counts toward the page's horizontal scroll extent even while
+  // closed, so an unclamped panel sitting off-screen would make the
+  // whole page horizontally scrollable before anyone ever opens it.
+  const EDGE_MARGIN = 16;
+  const megaMenuPanels: { panel: HTMLElement; reposition: () => void }[] = [];
+  document.querySelectorAll<HTMLElement>('[data-mega-menu]').forEach((panel) => {
+    const trigger = panel.closest('[data-mega-trigger]');
+    if (!trigger) return;
+    const reposition = () => {
+      panel.style.marginLeft = '0px';
+      const rect = panel.getBoundingClientRect();
+      if (rect.right > window.innerWidth - EDGE_MARGIN) {
+        panel.style.marginLeft = `${window.innerWidth - EDGE_MARGIN - rect.right}px`;
+      } else if (rect.left < EDGE_MARGIN) {
+        panel.style.marginLeft = `${EDGE_MARGIN - rect.left}px`;
+      }
+    };
+    trigger.addEventListener('mouseenter', reposition);
+    trigger.addEventListener('focusin', reposition);
+    megaMenuPanels.push({ panel, reposition });
+  });
+  megaMenuPanels.forEach(({ reposition }) => reposition());
+  window.addEventListener(
+    'resize',
+    () => megaMenuPanels.forEach(({ reposition }) => reposition()),
+    { passive: true },
+  );
 </script>
