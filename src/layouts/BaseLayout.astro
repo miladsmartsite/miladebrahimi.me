@@ -13,21 +13,46 @@ interface Props {
   image?: string;
   type?: 'website' | 'article';
   noindex?: boolean;
-  /** Extra JSON-LD (Article/Book/etc.) for pages beyond the sitewide Person schema. */
-  structuredData?: Record<string, unknown>;
+  /** Extra JSON-LD (Article/Book/BreadcrumbList/etc.) for pages beyond the
+   * sitewide Person + WebSite graph — one object, or several. */
+  structuredData?: Record<string, unknown> | Record<string, unknown>[];
 }
 
 const { title, description, image, type, noindex, structuredData } = Astro.props;
 
-// Minimal Person schema — structural fields only. No claimed achievements,
-// job titles, or credentials are asserted here; sameAs is populated once
-// real social profile URLs exist in src/lib/site.ts.
+// Person schema — every field here is either structural (name/url) or
+// CV-verbatim/confirmed (jobTitle, description, image, sameAs). No claimed
+// employer, awards, or credentials are asserted; sameAs is populated only
+// from real profile URLs already published elsewhere on the site.
 const personSchema = {
-  '@context': 'https://schema.org',
   '@type': 'Person',
   name: SITE.name,
   url: SITE.url,
+  jobTitle: SITE.jobTitle,
+  description: SITE.positioning,
+  image: new URL('/images/profile/milad-portrait.jpg', SITE.url).toString(),
   ...(SOCIAL_LINKS.length > 0 ? { sameAs: SOCIAL_LINKS.map((link) => link.href) } : {}),
+};
+
+// WebSite schema — the site as a whole, kept minimal and accurate. No
+// SearchAction: the site has no internal search to describe.
+const websiteSchema = {
+  '@type': 'WebSite',
+  name: SITE.name,
+  url: SITE.url,
+};
+
+// One `@graph` per page — Person and WebSite are sitewide; a page can add
+// its own Article/Book/BreadcrumbList alongside them via `structuredData`.
+// Per-page entries pass in without their own `@context` (this wrapper
+// supplies the one shared context for everything in the graph).
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    personSchema,
+    websiteSchema,
+    ...(structuredData ? (Array.isArray(structuredData) ? structuredData : [structuredData]) : []),
+  ],
 };
 ---
 
@@ -39,10 +64,7 @@ const personSchema = {
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="generator" content={Astro.generator} />
     <SEO title={title} description={description} image={image} type={type} noindex={noindex} />
-    <script type="application/ld+json" is:inline set:html={JSON.stringify(personSchema)} />
-    {structuredData && (
-      <script type="application/ld+json" is:inline set:html={JSON.stringify(structuredData)} />
-    )}
+    <script type="application/ld+json" is:inline set:html={JSON.stringify(jsonLd)} />
 
     <!-- Preload the two fonts used above the fold on every page. -->
     <link rel="preload" as="font" type="font/woff2" href="/fonts/bricolage-grotesque/bricolage-grotesque-variable.woff2" crossorigin />

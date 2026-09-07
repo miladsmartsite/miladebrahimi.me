@@ -11,6 +11,10 @@ export const SITE = {
   brandName: 'MILAD EBRAHIMI',
   // PROVISIONAL — approved core positioning line (Phase 3).
   positioning: 'I build the systems that move organizations forward.',
+  // The homepage's full <title> — the one page that states the complete
+  // positioning up front rather than "[Page] — Milad Ebrahimi"; every
+  // other page's title is built from its own name (see SEO.astro).
+  homeTitle: 'Milad Ebrahimi — Business Operations, Systems & Organizational Transformation',
   url: 'https://miladebrahimi.me',
   // CONFIRMED BY MILAD — the public contact address. Do not use any other
   // email address found in the CV or project files.
@@ -20,9 +24,17 @@ export const SITE = {
   // swapping to a local PDF later (e.g. "/cv/milad-ebrahimi-cv.pdf") never
   // requires touching a component.
   cvUrl: 'https://drive.google.com/file/d/1Y1vseED44YG041s-mfOT-2QBprFe92nq/view?usp=drive_link',
-  // Used as the fallback SEO description when a page doesn't define its own.
+  // Used as the fallback SEO description when a page doesn't define its own
+  // (currently just the homepage, which has no more specific one of its own).
   defaultDescription:
-    'Milad Ebrahimi — an operator who builds the systems behind how businesses run: operations, process, marketing, and applied AI, working together rather than as separate services.',
+    'Milad Ebrahimi builds the systems that move organizations forward — operations at the core, with marketing, productivity, AI, and leadership as connected areas.',
+  // CV-verbatim (see master-profile.md) — used as Person.jobTitle in the
+  // sitewide JSON-LD, not just page copy.
+  jobTitle: 'Operations Manager',
+  // Brand-typography fallback social-preview image (see
+  // public/images/README.md) — used whenever a page doesn't have its own
+  // more specific one (e.g. a real article/book cover, once one exists).
+  defaultOgImage: '/images/og/default.png',
   locale: 'en',
 } as const;
 

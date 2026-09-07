@@ -32,7 +32,7 @@ const allBooks = await getCollection('books', ({ data }) => !data.draft);
 const books = allBooks.sort((a, b) => a.data.order - b.data.order);
 ---
 
-<BaseLayout title={SITE.name} description={SITE.defaultDescription}>
+<BaseLayout title={SITE.homeTitle} description={SITE.defaultDescription}>
   {/* 01 — Hero */}
   <Hero
     masthead={SITE.brandName}

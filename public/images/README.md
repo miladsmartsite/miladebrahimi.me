@@ -14,6 +14,7 @@ as-is) — that's deliberate: these are drop-in assets Milad adds directly, with
 | `articles/` | Per-article header images (optional, via the `coverImage` frontmatter field) | `<article-slug>.jpg` |
 | `ui/` | Site-chrome images that aren't content (rare — favicon etc. lives in `public/` root) | — |
 | `diagrams/` | Exported diagram images, if a future diagram isn't feasible as inline SVG | `<name>.svg` preferred over `.png` |
+| `og/` | Social-preview (Open Graph/Twitter card) images | `default.png` — the sitewide fallback (brand mark + wordmark + positioning line, built from existing typography, no photo) used by every page via `SITE.defaultOgImage` until a page passes its own (e.g. a real article/book cover) |
 
 ## Book covers (not yet supplied)
 

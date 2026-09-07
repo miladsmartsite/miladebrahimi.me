@@ -8,9 +8,23 @@ import PageHero from '@components/PageHero.astro';
 import Section from '@components/Section.astro';
 import VideoFeature from '@components/VideoFeature.astro';
 import Button from '@components/Button.astro';
+import { SITE } from '@lib/site';
+
+const breadcrumbSchema = {
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: SITE.url },
+    { '@type': 'ListItem', position: 2, name: 'Contents', item: new URL('/contents', SITE.url).toString() },
+    { '@type': 'ListItem', position: 3, name: 'Videos' },
+  ],
+};
 ---
 
-<BaseLayout title="Videos" description="Recorded talks and walkthroughs of real systems — coming soon.">
+<BaseLayout
+  title="Videos"
+  description="Recorded talks and walkthroughs of real systems — coming soon."
+  structuredData={breadcrumbSchema}
+>
   <PageHero kicker="Contents · Videos" title="Videos." subtitle="Nothing recorded yet — this page is here so the destination exists before the first video does." />
 
   <Section reveal>

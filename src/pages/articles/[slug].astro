@@ -5,6 +5,8 @@
  * for comfortable reading. Related articles are derived from shared tags
  * — no manual curation needed as the archive grows.
  */
+import fs from 'node:fs';
+import path from 'node:path';
 import { getCollection, render } from 'astro:content';
 import BaseLayout from '@layouts/BaseLayout.astro';
 import Section from '@components/Section.astro';
@@ -39,22 +41,39 @@ const formattedDate = article.data.publishDate.toLocaleDateString('en-US', {
 });
 const sameTagRelated = related.filter((r) => r.data.tags.some((t) => article.data.tags.includes(t))).slice(0, 3);
 
+const pageUrl = new URL(Astro.url.pathname, SITE.url).toString();
+const coverExists = article.data.coverImage
+  ? fs.existsSync(path.join(process.cwd(), 'public', article.data.coverImage))
+  : false;
+
 const articleSchema = {
-  '@context': 'https://schema.org',
   '@type': 'Article',
   headline: article.data.title,
   description: article.data.description,
   datePublished: article.data.publishDate.toISOString(),
   ...(article.data.updatedDate ? { dateModified: article.data.updatedDate.toISOString() } : {}),
   author: { '@type': 'Person', name: SITE.name, url: SITE.url },
+  mainEntityOfPage: pageUrl,
+  ...(coverExists ? { image: new URL(article.data.coverImage!, SITE.url).toString() } : {}),
+};
+
+const breadcrumbSchema = {
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: SITE.url },
+    { '@type': 'ListItem', position: 2, name: 'Contents', item: new URL('/contents', SITE.url).toString() },
+    { '@type': 'ListItem', position: 3, name: 'Articles', item: new URL('/contents/articles', SITE.url).toString() },
+    { '@type': 'ListItem', position: 4, name: article.data.title },
+  ],
 };
 ---
 
 <BaseLayout
   title={article.data.title}
   description={article.data.description}
+  image={coverExists ? article.data.coverImage : undefined}
   type="article"
-  structuredData={articleSchema}
+  structuredData={[articleSchema, breadcrumbSchema]}
 >
   <Section>
     <div class="flex flex-wrap items-center gap-3 font-mono text-[11px] tracking-wide text-meta uppercase">

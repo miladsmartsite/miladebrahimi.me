@@ -7,6 +7,16 @@
 import BaseLayout from '@layouts/BaseLayout.astro';
 import PageHero from '@components/PageHero.astro';
 import Section from '@components/Section.astro';
+import { SITE } from '@lib/site';
+
+const breadcrumbSchema = {
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: SITE.url },
+    { '@type': 'ListItem', position: 2, name: 'Contents', item: new URL('/contents', SITE.url).toString() },
+    { '@type': 'ListItem', position: 3, name: 'More' },
+  ],
+};
 
 const more = [
   {
@@ -22,7 +32,11 @@ const more = [
 ];
 ---
 
-<BaseLayout title="More" description="Speaking topics and practical resources — the rest of what's here.">
+<BaseLayout
+  title="More"
+  description="Speaking topics and practical resources — the rest of what's here."
+  structuredData={breadcrumbSchema}
+>
   <PageHero kicker="Contents · More" title="More from Milad." subtitle="Speaking topics and practical resources — the rest of what's here." />
 
   <Section reveal>

@@ -15,13 +15,17 @@ interface Props {
 const {
   title,
   description = SITE.defaultDescription,
-  image,
+  image = SITE.defaultOgImage,
   canonicalURL = Astro.url,
   type = 'website',
   noindex = false,
 } = Astro.props;
 
-const pageTitle = title === SITE.name ? title : `${title} — ${SITE.name}`;
+// The homepage passes its full "Milad Ebrahimi — ..." title as-is; every
+// other page passes just its own name and gets " — Milad Ebrahimi"
+// appended. Checking for the name already being present (rather than
+// exact equality) keeps this working for both without a special case.
+const pageTitle = title.includes(SITE.name) ? title : `${title} — ${SITE.name}`;
 const resolvedImage = image ? new URL(image, Astro.site) : undefined;
 ---
 
