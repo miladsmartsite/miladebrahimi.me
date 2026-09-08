@@ -15,6 +15,17 @@ export default defineConfig({
 
   trailingSlash: 'ignore',
 
+  // Shiki's default theme injects inline color styles on every code block,
+  // which override the hand-written Harbour code-block CSS (.prose pre/code
+  // in global.css) since inline styles always win over classes. Disabling
+  // it — rather than fighting it with a Shiki theme config — keeps code
+  // blocks fully in Harbour's own ink/paper palette with no per-token
+  // styling library to maintain (Phase 9 §17: a highlighter isn't actually
+  // necessary here).
+  markdown: {
+    syntaxHighlight: false,
+  },
+
   vite: {
     plugins: [tailwindcss()]
   },

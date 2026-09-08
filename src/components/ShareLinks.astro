@@ -1,0 +1,56 @@
+---
+/**
+ * LinkedIn + Copy Link — the two the brief calls "sufficient initially"
+ * (Phase 9 §22). LinkedIn's share-offsite URL needs no account/API key of
+ * Milad's, and Copy Link is a few lines of clipboard JS with a text
+ * fallback if it's ever unsupported.
+ */
+interface Props {
+  url: string;
+  title: string;
+}
+
+const { url, title } = Astro.props;
+const linkedInHref = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`;
+---
+
+<div class="flex flex-wrap items-center gap-4 font-mono text-[11px] tracking-wide uppercase">
+  <span class="text-meta">Share</span>
+  <a
+    href={linkedInHref}
+    target="_blank"
+    rel="noopener noreferrer"
+    aria-label={`Share "${title}" on LinkedIn`}
+    class="inline-flex min-h-11 items-center text-body hover:text-accent-ink"
+  >
+    LinkedIn
+  </a>
+  <button
+    type="button"
+    data-copy-link={url}
+    aria-label="Copy link to this article"
+    class="inline-flex min-h-11 items-center text-body hover:text-accent-ink"
+  >
+    <span data-copy-label>Copy Link</span>
+  </button>
+</div>
+
+<script>
+  document.querySelectorAll<HTMLButtonElement>('[data-copy-link]').forEach((button) => {
+    const label = button.querySelector('[data-copy-label]');
+    if (!label) return;
+    const defaultText = label.textContent;
+    button.addEventListener('click', async () => {
+      const url = button.dataset.copyLink!;
+      try {
+        await navigator.clipboard.writeText(url);
+        label.textContent = 'Copied';
+      } catch {
+        label.textContent = 'Copy failed';
+      }
+      setTimeout(() => {
+        label.textContent = defaultText;
+      }, 2000);
+    });
+  });
+</script>

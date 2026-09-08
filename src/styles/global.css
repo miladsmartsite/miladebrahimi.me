@@ -235,4 +235,223 @@
   .brass-rule {
     background-color: var(--color-accent);
   }
+
+  /*
+   * Article-body Markdown rendering (Phase 9). There is no Tailwind
+   * Typography plugin in this project — `.prose` was previously a no-op
+   * class, so every heading/list/table/etc. inside an article rendered in
+   * plain unstyled browser defaults. Hand-rolled here instead of adding
+   * the plugin, so headings/links/quotes exactly match Harbour's fonts
+   * and palette rather than a generic prose theme's.
+   */
+  .prose {
+    color: var(--color-body);
+  }
+
+  .prose > :first-child {
+    margin-top: 0;
+  }
+
+  .prose p {
+    margin-block: 1.25em;
+    line-height: 1.7;
+  }
+
+  .prose h2 {
+    margin-top: 2.25em;
+    margin-bottom: 0.75em;
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    color: var(--color-ink);
+  }
+
+  .prose h3 {
+    margin-top: 1.9em;
+    margin-bottom: 0.6em;
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    line-height: 1.2;
+    color: var(--color-ink);
+  }
+
+  /* H4 reads as a structural label, not a fourth tier of display type —
+     "supporting detail" (Phase 9 §08), same register as the site's
+     metadata everywhere else. */
+  .prose h4 {
+    margin-top: 1.75em;
+    margin-bottom: 0.5em;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-accent-ink);
+  }
+
+  .prose strong {
+    font-weight: 700;
+    color: var(--color-ink);
+  }
+
+  .prose em {
+    font-style: italic;
+  }
+
+  .prose ul,
+  .prose ol {
+    margin-block: 1.25em;
+    padding-left: 1.5em;
+  }
+
+  .prose ul {
+    list-style: none;
+    padding-left: 1.25em;
+  }
+
+  .prose ul > li {
+    position: relative;
+  }
+
+  .prose ul > li::before {
+    content: "";
+    position: absolute;
+    left: -1.25em;
+    top: 0.7em;
+    width: 5px;
+    height: 5px;
+    background-color: var(--color-accent);
+  }
+
+  .prose ol {
+    list-style: none;
+    counter-reset: prose-ol;
+  }
+
+  .prose ol > li {
+    position: relative;
+    counter-increment: prose-ol;
+  }
+
+  .prose ol > li::before {
+    content: counter(prose-ol) ".";
+    position: absolute;
+    left: -1.75em;
+    width: 1.25em;
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    color: var(--color-accent-ink);
+  }
+
+  .prose li + li {
+    margin-top: 0.5em;
+  }
+
+  .prose li > ul,
+  .prose li > ol {
+    margin-block: 0.5em;
+  }
+
+  .prose blockquote {
+    margin-block: 1.75em;
+    padding-left: 1.25em;
+    border-left: 2px solid var(--color-accent);
+    font-family: var(--font-body);
+    font-style: italic;
+    font-size: 1.15em;
+    color: var(--color-ink);
+  }
+
+  .prose blockquote p {
+    margin-block: 0.5em;
+  }
+
+  .prose a {
+    color: var(--color-accent-ink);
+    text-decoration: underline;
+    text-decoration-color: var(--color-line);
+    text-underline-offset: 3px;
+    transition: text-decoration-color var(--duration-fast) var(--ease-out);
+  }
+
+  .prose a:hover {
+    text-decoration-color: var(--color-accent);
+  }
+
+  .prose img {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin-block: 1.75em;
+    border: 1px solid var(--color-line);
+  }
+
+  .prose hr {
+    margin-block: 2.5em;
+    border: none;
+    border-top: 1px solid var(--color-line);
+  }
+
+  /* Contained horizontal scroll only — a wide table must never push the
+     page itself out (Phase 9 §16). */
+  .prose table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    margin-block: 1.75em;
+    border-collapse: collapse;
+    font-size: 0.95em;
+  }
+
+  .prose th {
+    border-bottom: 2px solid var(--color-ink);
+    padding: 0.5em 1em 0.5em 0;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-meta);
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  .prose td {
+    border-bottom: 1px solid var(--color-line);
+    padding: 0.6em 1em 0.6em 0;
+    vertical-align: top;
+  }
+
+  /* Contained horizontal scroll only — same rule as tables (Phase 9 §17). */
+  .prose pre {
+    margin-block: 1.75em;
+    padding: 1.25em;
+    max-width: 100%;
+    overflow-x: auto;
+    background-color: var(--color-ink);
+    color: var(--color-paper);
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    line-height: 1.6;
+  }
+
+  .prose pre code {
+    background: none;
+    padding: 0;
+    color: inherit;
+    font-size: inherit;
+  }
+
+  .prose code {
+    background-color: var(--color-paper-dim);
+    border: 1px solid var(--color-line);
+    padding: 0.15em 0.4em;
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    color: var(--color-ink);
+  }
 }

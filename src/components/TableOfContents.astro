@@ -1,0 +1,76 @@
+---
+/**
+ * Auto-generated from the article's real H2/H3 headings (Astro's
+ * Markdown pipeline already assigns each heading an `id` — no plugin,
+ * no manual anchor maintenance). Only rendered by the caller when there
+ * are enough headings to be worth a map; a short article shouldn't get
+ * one at all (Phase 9 §09). A native <details> makes this compact and
+ * expandable on every screen size with zero JS for the open/close state
+ * itself — the only script here is the optional active-section highlight,
+ * which degrades to a plain link list if it never runs.
+ */
+import type { MarkdownHeading } from 'astro';
+
+interface Props {
+  headings: MarkdownHeading[];
+}
+
+const { headings } = Astro.props;
+const items = headings.filter((h) => h.depth === 2 || h.depth === 3);
+---
+
+{
+  items.length > 0 && (
+    <details class="group/toc my-8 border border-line">
+      <summary class="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-5 py-3">
+        <span class="font-mono text-[11px] font-bold tracking-[0.16em] text-accent-ink uppercase">Contents</span>
+        <span class="font-mono text-lg text-meta transition-transform duration-(--duration-fast) group-open/toc:rotate-45" aria-hidden="true">
+          +
+        </span>
+      </summary>
+      <nav aria-label="Table of contents" class="border-t border-line px-5 py-4">
+        <ol id="toc-list" class="space-y-2">
+          {items.map((h) => (
+            <li class:list={[h.depth === 3 && 'pl-4']}>
+              <a
+                href={`#${h.slug}`}
+                data-toc-link={h.slug}
+                class="inline-flex min-h-6 items-center font-body text-base text-body underline decoration-line underline-offset-4 hover:text-accent-ink hover:decoration-accent aria-[current=true]:text-accent-ink aria-[current=true]:decoration-accent"
+              >
+                {h.text}
+              </a>
+            </li>
+          ))}
+        </ol>
+      </nav>
+    </details>
+  )
+}
+
+<script>
+  // Active-section highlight only — the TOC itself is fully functional
+  // (build-time anchors, keyboard-navigable <details>) without this.
+  // IntersectionObserver is the same technique BaseLayout's scroll-reveal
+  // already uses, so this adds no new pattern to the codebase.
+  const links = document.querySelectorAll<HTMLAnchorElement>('[data-toc-link]');
+  if (links.length > 0 && 'IntersectionObserver' in window) {
+    const targets = Array.from(links)
+      .map((link) => document.getElementById(link.dataset.tocLink!))
+      .filter((el): el is HTMLElement => el !== null);
+
+    const setActive = (slug: string) => {
+      links.forEach((link) => {
+        link.setAttribute('aria-current', String(link.dataset.tocLink === slug));
+      });
+    };
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.filter((e) => e.isIntersecting);
+        if (visible.length > 0) setActive(visible[0].target.id);
+      },
+      { rootMargin: '-10% 0px -70% 0px' },
+    );
+    targets.forEach((el) => observer.observe(el));
+  }
+</script>
