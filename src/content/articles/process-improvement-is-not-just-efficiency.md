@@ -2,6 +2,7 @@
 title: "Writing: Process improvement isn't just efficiency"
 description: "A topic in development — why the goal of fixing a broken process is rarely just 'faster.'"
 publishDate: 2026-09-01
+category: "Operations"
 tags: ["process-improvement"]
 placeholder: true
 draft: false

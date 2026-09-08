@@ -1,0 +1,168 @@
+---
+/**
+ * Article detail = a reading experience. Prose is capped at
+ * --container-prose (42rem ≈ 70 characters per line at this type size)
+ * for comfortable reading. Related articles are ranked by category match,
+ * then shared tags, then recency — no manual curation needed as the
+ * archive grows (Phase 8 §14).
+ */
+import fs from 'node:fs';
+import path from 'node:path';
+import { getCollection, render } from 'astro:content';
+import BaseLayout from '@layouts/BaseLayout.astro';
+import Section from '@components/Section.astro';
+import PlaceholderTag from '@components/PlaceholderTag.astro';
+import ArticleImage from '@components/ArticleImage.astro';
+import QuoteBlock from '@components/QuoteBlock.astro';
+import VideoFeature from '@components/VideoFeature.astro';
+import Button from '@components/Button.astro';
+import { readingTime } from '@lib/reading-time';
+import { SITE } from '@lib/site';
+
+export async function getStaticPaths() {
+  const articles = await getCollection('articles', ({ data }) => !data.draft);
+  const sorted = articles.sort((a, b) => b.data.publishDate.valueOf() - a.data.publishDate.valueOf());
+  return sorted.map((article, i) => ({
+    params: { slug: article.id },
+    props: {
+      article,
+      prev: sorted[i - 1] ?? null,
+      next: sorted[i + 1] ?? null,
+      related: sorted.filter((_, j) => j !== i),
+    },
+  }));
+}
+
+const { article, prev, next, related } = Astro.props;
+const { Content } = await render(article);
+const formattedDate = article.data.publishDate.toLocaleDateString('en-US', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+});
+
+// Ranked, not just filtered: same category outranks a shared tag, more
+// shared tags outrank fewer, and recency breaks any remaining tie —
+// matching Phase 8 §14's signal priority without a recommendation engine.
+const rankedRelated = related
+  .map((r) => {
+    const sharedTags = r.data.tags.filter((t) => article.data.tags.includes(t)).length;
+    const sameCategory = r.data.category === article.data.category;
+    if (!sameCategory && sharedTags === 0) return null;
+    return { entry: r, score: (sameCategory ? 100 : 0) + sharedTags };
+  })
+  .filter((x): x is { entry: (typeof related)[number]; score: number } => x !== null)
+  .sort((a, b) => b.score - a.score || b.entry.data.publishDate.valueOf() - a.entry.data.publishDate.valueOf())
+  .slice(0, 3)
+  .map((x) => x.entry);
+
+const pageUrl = new URL(Astro.url.pathname, SITE.url).toString();
+const coverExists = article.data.coverImage
+  ? fs.existsSync(path.join(process.cwd(), 'public', article.data.coverImage))
+  : false;
+
+const articleSchema = {
+  '@type': 'Article',
+  headline: article.data.title,
+  description: article.data.description,
+  datePublished: article.data.publishDate.toISOString(),
+  ...(article.data.updatedDate ? { dateModified: article.data.updatedDate.toISOString() } : {}),
+  author: { '@type': 'Person', name: article.data.author, url: SITE.url },
+  mainEntityOfPage: pageUrl,
+  ...(coverExists ? { image: new URL(article.data.coverImage!, SITE.url).toString() } : {}),
+};
+
+const breadcrumbSchema = {
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: SITE.url },
+    { '@type': 'ListItem', position: 2, name: 'Contents', item: new URL('/contents', SITE.url).toString() },
+    { '@type': 'ListItem', position: 3, name: 'Articles', item: new URL('/contents/articles', SITE.url).toString() },
+    { '@type': 'ListItem', position: 4, name: article.data.title },
+  ],
+};
+---
+
+<BaseLayout
+  title={article.data.title}
+  description={article.data.description}
+  image={coverExists ? article.data.coverImage : undefined}
+  type="article"
+  structuredData={[articleSchema, breadcrumbSchema]}
+>
+  <Section>
+    <p class="font-mono text-[11px] tracking-wide text-meta uppercase">
+      <a href="/contents" class="hover:text-accent-ink">Contents</a>
+      <span aria-hidden="true"> / </span>
+      <a href="/contents/articles" class="hover:text-accent-ink">Articles</a>
+    </p>
+
+    <div class="mt-3 flex flex-wrap items-center gap-3 font-mono text-[11px] tracking-wide text-meta uppercase">
+      <time datetime={article.data.publishDate.toISOString()}>{formattedDate}</time>
+      <span>{readingTime(article.body ?? '')}</span>
+      <span>{article.data.category}</span>
+      <span>{article.data.author}</span>
+      {article.data.placeholder && <PlaceholderTag />}
+    </div>
+    <h1 class="mt-3 max-w-3xl font-display text-3xl font-bold tracking-[-0.03em] text-ink sm:text-4xl">{article.data.title}</h1>
+    <p class="mt-4 max-w-2xl font-body text-lg text-body">{article.data.description}</p>
+
+    {article.data.tags.length > 0 && (
+      <ul class="mt-4 flex flex-wrap gap-2">
+        {article.data.tags.map((tag) => (
+          <li class="border border-line px-2.5 py-1 font-mono text-[10px] tracking-wide text-body uppercase">{tag}</li>
+        ))}
+      </ul>
+    )}
+
+    {article.data.coverImage && (
+      <ArticleImage src={article.data.coverImage} title={article.data.title} class="mt-8 max-w-(--container-prose)" />
+    )}
+
+    <div class="prose prose-lg mt-10 max-w-(--container-prose) border-t border-line pt-8 font-body text-body">
+      <Content />
+    </div>
+
+    {article.data.quote && <QuoteBlock class="mt-10 max-w-(--container-prose)">{article.data.quote}</QuoteBlock>}
+
+    {article.data.videoUrl && (
+      <VideoFeature
+        title={`Watch: ${article.data.title}`}
+        category={article.data.category}
+        url={article.data.videoUrl}
+        class="mt-10 max-w-(--container-prose)"
+      />
+    )}
+
+    <div class="mt-10 flex flex-wrap gap-3 border-t border-line pt-8">
+      <Button href="/contents/books" variant="secondary" arrow>See the books</Button>
+      <Button href="/projects" variant="ghost" arrow>Explore the systems</Button>
+    </div>
+
+    {rankedRelated.length > 0 && (
+      <div class="mt-12 border-t border-line pt-8">
+        <h2 class="font-mono text-[11px] font-bold tracking-[0.16em] text-accent-ink uppercase">Related writing</h2>
+        <ul class="mt-4 flex flex-wrap gap-x-8 gap-y-2">
+          {rankedRelated.map((r) => (
+            <li>
+              <a href={`/contents/articles/${r.id}`} class="flex min-h-11 items-center font-body text-base text-body underline decoration-line underline-offset-4 hover:text-accent-ink hover:decoration-accent">
+                {r.data.title}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    )}
+
+    <nav aria-label="Article navigation" class="mt-10 flex items-center justify-between border-t border-line pt-8">
+      {prev ? (
+        <Button href={`/contents/articles/${prev.id}`} variant="ghost" class="-ml-5">← {prev.data.title}</Button>
+      ) : <span />}
+      {next ? (
+        <Button href={`/contents/articles/${next.id}`} variant="ghost" arrow>{next.data.title}</Button>
+      ) : (
+        <Button href="/contents/articles" variant="ghost" arrow>All ideas</Button>
+      )}
+    </nav>
+  </Section>
+</BaseLayout>

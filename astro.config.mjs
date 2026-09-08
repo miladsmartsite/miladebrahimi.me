@@ -25,10 +25,16 @@ export default defineConfig({
       // emits noindex + a canonical pointing at its real destination — see
       // the pages themselves) — excluded so the sitemap only ever lists a
       // page's one canonical URL, never the old address that forwards to
-      // it. Matched by exact pathname, not suffix, so this can't also
-      // catch a real page that merely ends the same way (e.g. the actual
-      // /contents/articles/ listing).
-      filter: (page) => !['/about/', '/cv/', '/books/', '/work/', '/articles/'].includes(new URL(page).pathname),
+      // it. `/articles/` covers both the bare listing redirect and every
+      // per-slug redirect (`/articles/<slug>/`, now that individual
+      // articles live at /contents/articles/<slug>/) — matched by prefix
+      // there, by exact pathname everywhere else, so this can't also catch
+      // the real /contents/articles/ listing.
+      filter: (page) => {
+        const { pathname } = new URL(page);
+        if (pathname.startsWith('/articles/')) return false;
+        return !['/about/', '/cv/', '/books/', '/work/'].includes(pathname);
+      },
     }),
   ]
 });

@@ -2,6 +2,7 @@
 title: "Writing: Where AI actually saves time in operations"
 description: "A topic in development — separating genuine operational leverage from novelty when applying AI to existing workflows."
 publishDate: 2026-09-01
+category: "AI"
 tags: ["ai", "productivity"]
 placeholder: true
 draft: false

@@ -1,14 +1,20 @@
 ---
+/**
+ * One archive row — the "rest" list on /contents/articles reuses this
+ * instead of repeating the same markup inline, so a future change to how
+ * an article row looks happens in one place.
+ */
 import type { CollectionEntry } from 'astro:content';
 import PlaceholderTag from '@components/PlaceholderTag.astro';
+import { readingTime } from '@lib/reading-time';
 
 interface Props {
   article: CollectionEntry<'articles'>;
 }
 
 const { article } = Astro.props;
-const { title, description, publishDate, tags, placeholder } = article.data;
-const href = article.data.externalUrl ?? `/articles/${article.id}`;
+const { title, description, publishDate, category, placeholder } = article.data;
+const href = article.data.externalUrl ?? `/contents/articles/${article.id}`;
 const formattedDate = publishDate.toLocaleDateString('en-US', {
   year: 'numeric',
   month: 'long',
@@ -16,20 +22,15 @@ const formattedDate = publishDate.toLocaleDateString('en-US', {
 });
 ---
 
-<a href={href} class="group/row block border-b border-line py-7 transition-colors first:border-t first:pt-0">
-  <div class="flex flex-wrap items-center gap-3">
-    <time datetime={publishDate.toISOString()} class="font-mono text-[11px] text-meta uppercase tracking-wide">{formattedDate}</time>
+<a href={href} class="group/row block py-6 transition-colors">
+  <div class="flex flex-wrap items-center gap-3 font-mono text-[11px] tracking-wide text-meta uppercase">
+    <time datetime={publishDate.toISOString()}>{formattedDate}</time>
+    <span>{readingTime(article.body ?? '')}</span>
+    <span>{category}</span>
     {placeholder && <PlaceholderTag />}
   </div>
-  <h3 class="mt-2 font-display text-xl font-bold tracking-[-0.02em] text-ink transition-colors group-hover/row:text-accent-ink sm:text-2xl">
+  <h3 class="mt-2 font-display text-xl font-bold tracking-[-0.02em] text-ink transition-colors group-hover/row:text-accent-ink">
     {title}
   </h3>
-  <p class="mt-2 max-w-2xl font-body text-base text-body">{description}</p>
-  {tags.length > 0 && (
-    <ul class="mt-3 flex flex-wrap gap-x-3 gap-y-1">
-      {tags.map((tag) => (
-        <li class="font-mono text-[10px] tracking-wide text-meta uppercase">{tag}</li>
-      ))}
-    </ul>
-  )}
+  <p class="mt-1.5 max-w-2xl font-body text-base text-body">{description}</p>
 </a>

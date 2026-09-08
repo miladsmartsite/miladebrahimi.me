@@ -20,6 +20,11 @@ const publishState = {
 // scanned as an entry or it'd fail schema validation at build time.
 const contentPattern = ['**/*.md', '!README.md'];
 
+// The five approved lenses (see src/lib/site.ts EXPERTISE_AREAS) doubling
+// as the article taxonomy — a controlled vocabulary so a typo'd category
+// fails the build instead of silently becoming its own orphan category.
+export const ARTICLE_CATEGORIES = ['Operations', 'Marketing', 'Productivity', 'AI', 'Leadership'] as const;
+
 const projects = defineCollection({
   loader: glob({ pattern: contentPattern, base: './src/content/projects' }),
   schema: z.object({
@@ -73,8 +78,19 @@ const articles = defineCollection({
     description: z.string(),
     publishDate: z.coerce.date(),
     updatedDate: z.coerce.date().optional(),
+    // Every piece is written by Milad today; kept as an explicit (not
+    // hard-coded) field so a real guest byline is a frontmatter value away,
+    // not a schema change, and so it can feed Article JSON-LD directly.
+    author: z.string().default('Milad Ebrahimi'),
+    // The article's one primary lens — a controlled vocabulary (see
+    // ARTICLE_CATEGORIES above), not a free-text field, so the archive's
+    // category grouping can never fragment into near-duplicate labels.
+    category: z.enum(ARTICLE_CATEGORIES),
     tags: z.array(z.string()).default([]),
     coverImage: z.string().optional(),
+    // Surfaces the piece on the homepage/archive above ones that don't —
+    // an explicit editorial choice, not inferred from recency alone.
+    featured: z.boolean().default(false),
     // A short pull-quote rendered as a large editorial statement partway
     // through the piece — optional, purely presentational, never required.
     quote: z.string().optional(),

@@ -2,6 +2,7 @@
 title: "Writing: Systems thinking for small, fast-moving teams"
 description: "A topic in development — why small teams need lightweight systems earlier than they think."
 publishDate: 2026-09-01
+category: "Operations"
 tags: ["systems", "business-operations"]
 placeholder: true
 draft: false

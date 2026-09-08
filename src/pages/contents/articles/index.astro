@@ -10,12 +10,17 @@ import PageHero from '@components/PageHero.astro';
 import Section from '@components/Section.astro';
 import PlaceholderTag from '@components/PlaceholderTag.astro';
 import ArticleImage from '@components/ArticleImage.astro';
+import ArticleCard from '@components/ArticleCard.astro';
 import { readingTime } from '@lib/reading-time';
 import { SITE } from '@lib/site';
 
 const allArticles = await getCollection('articles', ({ data }) => !data.draft);
 const articles = allArticles.sort((a, b) => b.data.publishDate.valueOf() - a.data.publishDate.valueOf());
-const [featured, ...rest] = articles;
+// An explicit `featured: true` wins the slot; otherwise the most recent
+// piece takes it — so the archive always has exactly one lead entry,
+// never zero and never a pile of equally-"featured" ones.
+const featured = articles.find((a) => a.data.featured) ?? articles[0];
+const rest = articles.filter((a) => a.id !== featured?.id);
 
 function formatDate(d: Date) {
   return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -42,10 +47,15 @@ const breadcrumbSchema = {
     subtitle="Notes on operations, systems, productivity, and where AI actually helps — published as they're ready, not on a schedule."
   />
 
-  {articles.length > 0 ? (
+  {featured ? (
     <>
       <Section reveal>
-        <p class="mb-3 font-mono text-[11px] font-bold tracking-[0.16em] text-accent-ink uppercase">Featured</p>
+        <div class="mb-3 flex items-center justify-between">
+          <p class="font-mono text-[11px] font-bold tracking-[0.16em] text-accent-ink uppercase">Featured</p>
+          <a href="/rss.xml" class="inline-flex min-h-11 items-center font-mono text-[11px] tracking-wide text-meta uppercase hover:text-accent-ink">
+            RSS →
+          </a>
+        </div>
         <div class="grid gap-8 border-b border-line pb-12 lg:grid-cols-12 lg:gap-10">
           {featured.data.coverImage && (
             <div class="lg:order-2 lg:col-span-5">
@@ -53,7 +63,7 @@ const breadcrumbSchema = {
             </div>
           )}
           <div class:list={['lg:order-1', featured.data.coverImage ? 'lg:col-span-7' : 'lg:col-span-8']}>
-            <a href={`/articles/${featured.id}`} class="group/idea block">
+            <a href={`/contents/articles/${featured.id}`} class="group/idea block">
               <h2 class="font-display text-3xl leading-tight font-bold tracking-[-0.02em] text-ink transition-colors group-hover/idea:text-accent-ink sm:text-4xl">
                 {featured.data.title}
               </h2>
@@ -62,7 +72,7 @@ const breadcrumbSchema = {
             <div class="mt-5 flex flex-wrap items-center gap-4 font-mono text-[11px] tracking-wide text-meta uppercase">
               <time datetime={featured.data.publishDate.toISOString()}>{formatDate(featured.data.publishDate)}</time>
               <span>{readingTime(featured.body ?? '')}</span>
-              {featured.data.tags[0] && <span>{featured.data.tags[0]}</span>}
+              <span>{featured.data.category}</span>
               {featured.data.placeholder && <PlaceholderTag />}
             </div>
           </div>
@@ -73,19 +83,8 @@ const breadcrumbSchema = {
         <Section kicker="Archive" heading="More writing." tone="dim" reveal>
           <ol class="divide-y divide-line border-t border-line">
             {rest.map((article) => (
-              <li class="group/row py-6">
-                <a href={`/articles/${article.id}`} class="block">
-                  <div class="flex flex-wrap items-center gap-3 font-mono text-[11px] tracking-wide text-meta uppercase">
-                    <time datetime={article.data.publishDate.toISOString()}>{formatDate(article.data.publishDate)}</time>
-                    <span>{readingTime(article.body ?? '')}</span>
-                    {article.data.tags[0] && <span>{article.data.tags[0]}</span>}
-                    {article.data.placeholder && <PlaceholderTag />}
-                  </div>
-                  <h3 class="mt-2 font-display text-xl font-bold tracking-[-0.02em] text-ink transition-colors group-hover/row:text-accent-ink">
-                    {article.data.title}
-                  </h3>
-                  <p class="mt-1.5 max-w-2xl font-body text-base text-body">{article.data.description}</p>
-                </a>
+              <li>
+                <ArticleCard article={article} />
               </li>
             ))}
           </ol>

@@ -18,14 +18,20 @@ interface Props {
 const { number } = Astro.props;
 
 const articles = await getCollection('articles', ({ data }) => !data.draft);
-const publishedArticles = articles.filter((a) => !a.data.placeholder);
+const publishedArticles = articles
+  .filter((a) => !a.data.placeholder)
+  .sort((a, b) => b.data.publishDate.valueOf() - a.data.publishDate.valueOf());
+const latestArticle = publishedArticles[0];
 const books = await getCollection('books', ({ data }) => !data.draft);
 
 const categories = [
   {
     label: 'Articles',
-    href: '/contents/articles',
-    status: publishedArticles.length > 0 ? `${publishedArticles.length} published` : 'Currently Building',
+    // Once a real (non-placeholder) article exists, link straight to it and
+    // show its title as the status — this row updates on its own the
+    // moment a new article is published, with no component edit required.
+    href: latestArticle ? `/contents/articles/${latestArticle.id}` : '/contents/articles',
+    status: latestArticle ? `Latest: ${latestArticle.data.title}` : 'Currently Building',
   },
   { label: 'Books', href: '/contents/books', status: `${books.length} published` },
   { label: 'Podcasts', href: '/contents/podcasts', status: 'Currently Building' },
@@ -46,7 +52,7 @@ const categories = [
               {cat.label}
             </span>
           </span>
-          <span class="shrink-0 font-mono text-[10px] tracking-wide text-meta uppercase">{cat.status}</span>
+          <span class="max-w-[9rem] truncate font-mono text-[10px] tracking-wide text-meta uppercase sm:max-w-xs">{cat.status}</span>
         </a>
       </li>
     ))}
