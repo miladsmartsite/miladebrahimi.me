@@ -121,6 +121,7 @@ const breadcrumbSchema = {
   description={article.data.description}
   image={coverExists ? article.data.coverImage : undefined}
   type="article"
+  noindex={article.data.placeholder}
   structuredData={[articleSchema, breadcrumbSchema]}
 >
   <ReadingProgress />

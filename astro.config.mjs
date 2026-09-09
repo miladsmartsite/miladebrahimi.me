@@ -1,9 +1,28 @@
 // @ts-check
+import fs from 'node:fs';
+import path from 'node:path';
 import { defineConfig } from 'astro/config';
 
 import tailwindcss from '@tailwindcss/vite';
 
 import sitemap from '@astrojs/sitemap';
+
+// The sitemap integration's `filter` only ever sees a URL string, not
+// content-collection data, so a placeholder article's own `placeholder:
+// true` flag can't be checked there directly. Reading each article's
+// frontmatter here (a plain regex line-check, not a new YAML-parsing
+// dependency) computes the same slugs the page itself excludes from RSS
+// (see src/pages/rss.xml.ts) — so once a real article ships (placeholder
+// removed from its frontmatter), it starts appearing in the sitemap with
+// no config change required (Phase 12 §12).
+const articlesDir = path.join(process.cwd(), 'src/content/articles');
+const placeholderArticleSlugs = new Set(
+  fs
+    .readdirSync(articlesDir)
+    .filter((file) => file.endsWith('.md') && file !== 'README.md')
+    .filter((file) => /^placeholder:\s*true\s*$/m.test(fs.readFileSync(path.join(articlesDir, file), 'utf-8')))
+    .map((file) => file.replace(/\.md$/, '')),
+);
 
 // https://astro.build/config
 export default defineConfig({
@@ -44,7 +63,11 @@ export default defineConfig({
       filter: (page) => {
         const { pathname } = new URL(page);
         if (pathname.startsWith('/articles/')) return false;
-        return !['/about/', '/cv/', '/books/', '/work/'].includes(pathname);
+        if (['/about/', '/cv/', '/books/', '/work/'].includes(pathname)) return false;
+        for (const slug of placeholderArticleSlugs) {
+          if (pathname === `/contents/articles/${slug}/`) return false;
+        }
+        return true;
       },
     }),
   ]
