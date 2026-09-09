@@ -83,6 +83,12 @@ const rankedRelated = related
   .slice(0, 3)
   .map((x) => x.entry);
 
+// Phase 11 — a one-shot "reached the end of the piece" signal rather than
+// continuous scroll tracking (§8: "do NOT implement invasive scroll
+// tracking"). Gated on the same env var as Analytics.astro so a page with
+// analytics disabled ships zero extra script for this.
+const analyticsEnabled = Boolean(import.meta.env.PUBLIC_UMAMI_WEBSITE_ID);
+
 const pageUrl = new URL(Astro.url.pathname, SITE.url).toString();
 const coverExists = article.data.coverImage
   ? fs.existsSync(path.join(process.cwd(), 'public', article.data.coverImage))
@@ -199,7 +205,7 @@ const breadcrumbSchema = {
           </div>
         )}
 
-        <div class="mt-10">
+        <div id="article-engagement-marker" class="mt-10">
           <AuthorBlock />
         </div>
       </div>
@@ -258,4 +264,24 @@ const breadcrumbSchema = {
   </article>
 
   <FinalCta />
+
+  {analyticsEnabled && (
+    <script>
+      // Reaching this marker (right after the full body, tags, and related
+      // links) stands in for "read the piece" without tracking scroll
+      // position continuously — one observer, one event, then disconnect.
+      const marker = document.getElementById('article-engagement-marker');
+      if (marker && 'IntersectionObserver' in window) {
+        const observer = new IntersectionObserver((entries) => {
+          for (const entry of entries) {
+            if (entry.isIntersecting) {
+              window.umami?.track('article_engagement', { path: location.pathname });
+              observer.disconnect();
+            }
+          }
+        }, { threshold: 0.1 });
+        observer.observe(marker);
+      }
+    </script>
+  )}
 </BaseLayout>

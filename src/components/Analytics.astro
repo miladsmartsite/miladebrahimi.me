@@ -1,0 +1,24 @@
+---
+/**
+ * Umami — chosen for zero-cookie, no-personal-data tracking (Phase 11 §5;
+ * full comparison in docs/analytics.md). Renders nothing at all when
+ * PUBLIC_UMAMI_WEBSITE_ID isn't set, so local dev and a missing production
+ * config both build and behave exactly as if this component didn't exist
+ * (Phase 11 §6 — a missing config must never break the build).
+ */
+const websiteId = import.meta.env.PUBLIC_UMAMI_WEBSITE_ID;
+---
+
+{websiteId && <script is:inline defer src="https://cloud.umami.is/script.js" data-website-id={websiteId}></script>}
+{websiteId && (
+  <script>
+    // One delegated listener reuses the existing data-cta metadata (Phase
+    // 10) instead of adding a parallel tracking attribute to every CTA —
+    // see docs/analytics.md for the event taxonomy.
+    document.addEventListener('click', (event) => {
+      const el = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-cta]') : null;
+      if (!el) return;
+      window.umami?.track('cta_click', { cta: el.dataset.cta ?? '', path: location.pathname });
+    });
+  </script>
+)}
