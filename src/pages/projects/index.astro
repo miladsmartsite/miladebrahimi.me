@@ -12,6 +12,7 @@ import BaseLayout from '@layouts/BaseLayout.astro';
 import PageHero from '@components/PageHero.astro';
 import Section from '@components/Section.astro';
 import SystemCard from '@components/SystemCard.astro';
+import Button from '@components/Button.astro';
 import { DOMAIN_CODES } from '@lib/site';
 
 const allProjects = await getCollection('projects', ({ data }) => !data.draft);
@@ -79,6 +80,18 @@ const filterCss = activeDomains
       </p>
     )}
   </Section>
+
+  {systems.length > 0 && (
+    <Section reveal>
+      <div class="flex flex-col items-start gap-6 sm:flex-row sm:items-center sm:justify-between">
+        <p class="max-w-md font-body text-lg text-body">See the practice areas these systems apply.</p>
+        <div class="flex flex-wrap gap-3">
+          <Button href="/expertise#matrix" variant="secondary" arrow data-cta="projects-explore-expertise">Explore expertise</Button>
+          <Button href="/contents/articles" variant="ghost" arrow data-cta="projects-read-writing">Read the writing</Button>
+        </div>
+      </div>
+    </Section>
+  )}
 </BaseLayout>
 
 {showFilter && <style set:html={filterCss}></style>}
