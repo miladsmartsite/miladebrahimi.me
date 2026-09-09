@@ -21,6 +21,7 @@ const linkedInHref = `https://www.linkedin.com/sharing/share-offsite/?url=${enco
     target="_blank"
     rel="noopener noreferrer"
     aria-label={`Share "${title}" on LinkedIn`}
+    data-cta="article-share-linkedin"
     class="inline-flex min-h-11 items-center text-body hover:text-accent-ink"
   >
     LinkedIn
@@ -28,6 +29,7 @@ const linkedInHref = `https://www.linkedin.com/sharing/share-offsite/?url=${enco
   <button
     type="button"
     data-copy-link={url}
+    data-cta="article-share-copy"
     aria-label="Copy link to this article"
     class="inline-flex min-h-11 items-center text-body hover:text-accent-ink"
   >

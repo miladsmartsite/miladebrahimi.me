@@ -42,18 +42,20 @@ const books = allBooks.sort((a, b) => a.data.order - b.data.order);
     note={HOME.hero.note}
     stats={heroStats}
   >
-    <Button href="/projects" variant="accent" arrow>{HOME.hero.primaryCta}</Button>
+    <Button href="/contact" variant="accent" arrow data-cta="hero-primary-contact">{HOME.hero.primaryCta}</Button>
     <Button
-      href="/resume"
+      href="/projects"
       variant="secondary"
       class="!border-on-dark-line !text-paper hover:!border-accent hover:!text-accent"
+      arrow
+      data-cta="hero-secondary-work"
     >
       {HOME.hero.secondaryCta}
     </Button>
   </Hero>
 
   {/* 02 — Five Areas */}
-  <ExpertiseAreas number="02" />
+  <ExpertiseAreas number="02" showCta />
 
   {/* 03 — The Milad Method */}
   <MiladMethod number="03" />

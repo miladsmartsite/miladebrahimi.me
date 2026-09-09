@@ -11,14 +11,18 @@
  */
 import Section from '@components/Section.astro';
 import StatusTag from '@components/StatusTag.astro';
+import Button from '@components/Button.astro';
 import { EXPERTISE_AREAS, HOME } from '@lib/site';
 
 interface Props {
   showHeading?: boolean;
+  /** Homepage only — /expertise already IS this destination, and has its
+   * own Matrix + CTA row further down, so it doesn't link to itself here. */
+  showCta?: boolean;
   number?: string;
 }
 
-const { showHeading = true, number } = Astro.props;
+const { showHeading = true, showCta = false, number } = Astro.props;
 ---
 
 <Section
@@ -55,4 +59,10 @@ const { showHeading = true, number } = Astro.props;
       </details>
     ))}
   </div>
+
+  {showCta && (
+    <div class="mt-10">
+      <Button href="/expertise" variant="secondary" arrow data-cta="five-areas-explore-expertise">Explore Expertise</Button>
+    </div>
+  )}
 </Section>

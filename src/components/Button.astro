@@ -12,6 +12,10 @@ interface Props {
   /** Opens in a new tab with rel="noopener noreferrer" — for links off-site. */
   external?: boolean;
   class?: string;
+  /** Any other attribute (data-cta, aria-*, etc.) passes straight through
+   * to the rendered element — e.g. tagging a CTA for future analytics
+   * without the component needing to know what that means. */
+  [key: `data-${string}`]: string | undefined;
 }
 
 const {
@@ -21,6 +25,7 @@ const {
   arrow = false,
   external = false,
   class: className = '',
+  ...rest
 } = Astro.props;
 
 const base = 'group/btn inline-flex items-center justify-center gap-2 transition-colors duration-(--duration-fast) focus-visible:outline-2 focus-visible:outline-offset-2';
@@ -47,7 +52,7 @@ const classes = [base, variants[variant], className].join(' ');
 
 {
   href ? (
-    <a href={href} class={classes} target={external ? '_blank' : undefined} rel={external ? 'noopener noreferrer' : undefined}>
+    <a href={href} class={classes} target={external ? '_blank' : undefined} rel={external ? 'noopener noreferrer' : undefined} {...rest}>
       <slot />
       {arrow && (
         <span aria-hidden="true" class="transition-transform duration-(--duration-fast) group-hover/btn:translate-x-0.5">
@@ -56,7 +61,7 @@ const classes = [base, variants[variant], className].join(' ');
       )}
     </a>
   ) : (
-    <button type={type} class={classes}>
+    <button type={type} class={classes} {...rest}>
       <slot />
       {arrow && (
         <span aria-hidden="true" class="transition-transform duration-(--duration-fast) group-hover/btn:translate-x-0.5">

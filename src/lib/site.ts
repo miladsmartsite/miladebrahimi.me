@@ -481,8 +481,13 @@ export const HOME = {
     subhead:
       'From operational structure and business processes to productivity, AI, and growth, I design practical systems that help organizations work better.',
     note: 'A working practice, documented as it happens — not an agency, not a portfolio site.',
-    primaryCta: 'Explore My Work',
-    secondaryCta: 'About Me & Resume',
+    // Phase 10 §05 — Contact is the sitewide primary action; Work is the
+    // secondary one. Resume drops out of the Hero's two-button row (it's
+    // already one click away in the nav on every page, and is the primary
+    // action lower down on /resume itself) rather than competing with Work
+    // for the secondary slot.
+    primaryCta: 'Work With Me',
+    secondaryCta: 'Explore My Work',
   },
   idea: {
     kicker: 'The idea',

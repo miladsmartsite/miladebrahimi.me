@@ -14,7 +14,7 @@ import Section from '@components/Section.astro';
 import PlaceholderTag from '@components/PlaceholderTag.astro';
 import SystemPreview from '@components/SystemPreview.astro';
 import Button from '@components/Button.astro';
-import { SITE } from '@lib/site';
+import { SITE, EXPERTISE_AREAS } from '@lib/site';
 
 export async function getStaticPaths() {
   const projects = await getCollection('projects', ({ data }) => !data.draft);
@@ -56,6 +56,11 @@ const {
 } = project.data;
 
 const coverExists = coverImage ? fs.existsSync(path.join(process.cwd(), 'public', coverImage)) : false;
+
+// Data-driven, not a generic link: which of the five areas this system's
+// own tags actually belong to (Phase 10 §25 — "use actual project
+// tags/data, do not invent relationships").
+const matchingAreas = EXPERTISE_AREAS.filter((area) => area.relatedTags.some((t) => tags.includes(t)));
 
 const breadcrumbSchema = {
   '@type': 'BreadcrumbList',
@@ -241,8 +246,10 @@ const evidence = [
     )}
 
     <div class="mt-10 flex flex-wrap gap-3 border-t border-line pt-8">
-      <Button href="/expertise" variant="secondary" arrow>See related expertise</Button>
-      <Button href="/contents/articles" variant="ghost" arrow>Read the writing</Button>
+      <Button href="/expertise#matrix" variant="secondary" arrow data-cta="project-related-expertise">
+        {matchingAreas.length === 1 ? `See related expertise: ${matchingAreas[0].title}` : 'See related expertise'}
+      </Button>
+      <Button href="/contents/articles" variant="ghost" arrow data-cta="project-read-writing">Read the writing</Button>
     </div>
 
     <nav aria-label="Case study navigation" class="mt-10 flex items-center justify-between border-t border-line pt-8">

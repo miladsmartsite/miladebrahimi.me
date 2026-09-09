@@ -9,6 +9,7 @@
  * above — see RESULTS/PROOF_STATS in site.ts and content-status.md.
  */
 import Section from '@components/Section.astro';
+import Button from '@components/Button.astro';
 import { PROOF_STATS, RESULTS, HOME } from '@lib/site';
 
 interface Props {
@@ -55,4 +56,8 @@ const maxPercent = Math.max(...withBar.map((r) => r.percent), 1);
   </div>
 
   <p class="mt-12 max-w-2xl border-t border-line pt-6 font-body text-sm text-meta italic">{HOME.proof.note}</p>
+
+  <div class="mt-8">
+    <Button href="/resume" variant="secondary" arrow data-cta="proof-view-resume">View Resume</Button>
+  </div>
 </Section>

@@ -24,7 +24,7 @@ import ShareLinks from '@components/ShareLinks.astro';
 import AuthorBlock from '@components/AuthorBlock.astro';
 import FinalCta from '@components/home/FinalCta.astro';
 import { readingTime } from '@lib/reading-time';
-import { SITE } from '@lib/site';
+import { SITE, EXPERTISE_AREAS } from '@lib/site';
 
 export async function getStaticPaths() {
   const articles = await getCollection('articles', ({ data }) => !data.draft);
@@ -48,6 +48,20 @@ const formattedDate = article.data.publishDate.toLocaleDateString('en-US', {
   day: 'numeric',
 });
 const minutesRead = readingTime(article.body ?? '');
+
+// Related Expertise / Related Work (Phase 10 §23) — the article's own
+// `category` field IS one of the five area titles, so this is a direct
+// lookup, not a guess; Related Work reuses that area's already-defined
+// `relatedTags` (the same relationship the Expertise Matrix itself uses)
+// rather than matching on the article's tags, which would risk pulling in
+// projects on a loose keyword coincidence.
+const relatedArea = EXPERTISE_AREAS.find((a) => a.title === article.data.category);
+const relatedProjects = relatedArea
+  ? (await getCollection('projects', ({ data }) => !data.draft))
+      .filter((p) => p.data.tags.some((t) => relatedArea.relatedTags.includes(t)))
+      .sort((a, b) => a.data.order - b.data.order)
+      .slice(0, 2)
+  : [];
 
 // A short piece with one or two headings doesn't need a map — the TOC
 // only earns its place once there's real structure to navigate (Phase 9 §09).
@@ -162,6 +176,27 @@ const breadcrumbSchema = {
               <li class="border border-line px-2.5 py-1 font-mono text-[10px] tracking-wide text-body uppercase">{tag}</li>
             ))}
           </ul>
+        )}
+
+        {relatedArea && (
+          <div class="mt-10 flex flex-wrap gap-3 border-t border-line pt-8">
+            <a
+              href="/expertise#matrix"
+              data-cta="article-related-expertise"
+              class="inline-flex min-h-11 items-center font-mono text-[13px] font-medium text-accent-ink underline decoration-line underline-offset-4 hover:decoration-accent"
+            >
+              Related expertise: {relatedArea.title} →
+            </a>
+            {relatedProjects.map((p) => (
+              <a
+                href={`/projects/${p.id}`}
+                data-cta="article-related-work"
+                class="inline-flex min-h-11 items-center font-mono text-[13px] font-medium text-accent-ink underline decoration-line underline-offset-4 hover:decoration-accent"
+              >
+                Related work: {p.data.title} →
+              </a>
+            ))}
+          </div>
         )}
 
         <div class="mt-10">

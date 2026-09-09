@@ -13,6 +13,7 @@ import SystemPreview from '@components/SystemPreview.astro';
 import PlaceholderTag from '@components/PlaceholderTag.astro';
 import StatusTag from '@components/StatusTag.astro';
 import MetaRow from '@components/MetaRow.astro';
+import Button from '@components/Button.astro';
 import { DOMAIN_CODES, HOME, SYSTEM_TYPE_LABELS } from '@lib/site';
 import type { CollectionEntry } from 'astro:content';
 
@@ -173,6 +174,10 @@ const activeCss = systems
   </div>
 
   <p class="mt-8 max-w-2xl font-body text-sm text-meta">{HOME.selectedWork.note}</p>
+
+  <div class="mt-8">
+    <Button href="/projects" variant="secondary" arrow data-cta="selected-work-view-all">View All Work</Button>
+  </div>
 </Section>
 
 <style set:html={activeCss}></style>

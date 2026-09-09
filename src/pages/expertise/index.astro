@@ -18,10 +18,15 @@ import ExpertiseAreas from '@components/home/ExpertiseAreas.astro';
 import { EXPERTISE_AREAS } from '@lib/site';
 
 const allProjects = await getCollection('projects', ({ data }) => !data.draft);
+// Published, real pieces only — a category match with articles that are
+// still placeholder stubs would look like more depth than actually exists
+// yet (Phase 10 §24: "do not create empty lists").
+const publishedArticles = await getCollection('articles', ({ data }) => !data.draft && !data.placeholder);
 
 const matrix = EXPERTISE_AREAS.map((area) => {
   const related = allProjects.filter((p) => p.data.tags.some((t) => area.relatedTags.includes(t)));
-  return { ...area, related };
+  const relatedArticles = publishedArticles.filter((a) => a.data.category === area.title);
+  return { ...area, related, relatedArticles };
 });
 ---
 
@@ -66,6 +71,17 @@ const matrix = EXPERTISE_AREAS.map((area) => {
             ) : (
               <span class="text-meta italic">General practice — no dedicated system yet</span>
             )}
+            {area.relatedArticles.length > 0 && (
+              <ul class="mt-2 space-y-1 border-t border-line pt-2">
+                {area.relatedArticles.map((a) => (
+                  <li>
+                    <a href={`/contents/articles/${a.id}`} class="font-mono text-[11px] tracking-wide text-accent-ink uppercase underline decoration-line underline-offset-4 hover:decoration-accent">
+                      Writing → {a.data.title}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
       ))}
@@ -101,6 +117,17 @@ const matrix = EXPERTISE_AREAS.map((area) => {
                 ) : (
                   <span class="text-meta italic">General practice — no dedicated system yet</span>
                 )}
+                {area.relatedArticles.length > 0 && (
+                  <ul class="mt-2 space-y-1 border-t border-line pt-2">
+                    {area.relatedArticles.map((a) => (
+                      <li>
+                        <a href={`/contents/articles/${a.id}`} class="font-mono text-[11px] tracking-wide text-accent-ink uppercase underline decoration-line underline-offset-4 hover:decoration-accent">
+                          Writing → {a.data.title}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </dd>
             </div>
           </dl>
@@ -113,8 +140,8 @@ const matrix = EXPERTISE_AREAS.map((area) => {
     <div class="flex flex-col items-start gap-6 sm:flex-row sm:items-center sm:justify-between">
       <p class="max-w-md font-body text-lg text-body">See the areas of practice applied to real, working systems.</p>
       <div class="flex flex-wrap gap-3">
-        <Button href="/projects" variant="secondary" arrow>See selected work</Button>
-        <Button href="/resume" variant="ghost" arrow>Full core areas & career</Button>
+        <Button href="/projects" variant="secondary" arrow data-cta="expertise-see-work">See selected work</Button>
+        <Button href="/resume" variant="ghost" arrow data-cta="expertise-resume">Full core areas & career</Button>
       </div>
     </div>
   </Section>

@@ -219,11 +219,12 @@ const tools = [...new Set(systems.flatMap((s) => s.data.tools))];
     <div class="flex flex-col items-start gap-6 sm:flex-row sm:items-center sm:justify-between">
       <p class="max-w-md font-body text-lg text-on-dark-muted">Want the full PDF, or to talk about any of this directly?</p>
       <div class="flex flex-wrap gap-3">
-        <Button href={SITE.cvUrl} variant="accent" external arrow>Download CV</Button>
+        <Button href={SITE.cvUrl} variant="accent" external arrow data-cta="resume-download-cv">Download CV</Button>
         <Button
           href="/contact"
           variant="secondary"
           class="!border-on-dark-line !text-paper hover:!border-accent hover:!text-accent"
+          data-cta="resume-contact"
         >
           Get in touch
         </Button>

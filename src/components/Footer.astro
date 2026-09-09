@@ -59,7 +59,7 @@ const contentsLinks = MEGA_MENUS.Contents.groups[0].links;
         <p class="font-mono text-[11px] font-bold tracking-[0.16em] text-accent uppercase">Connect</p>
         <ul class="mt-4 flex flex-col font-body text-base">
           <li>
-            <a href={`mailto:${SITE.contactEmail}`} class="flex min-h-11 items-center text-on-dark-muted transition-colors hover:text-accent">
+            <a href={`mailto:${SITE.contactEmail}`} data-cta="footer-email" class="flex min-h-11 items-center text-on-dark-muted transition-colors hover:text-accent">
               {SITE.contactEmail}
             </a>
           </li>
@@ -68,6 +68,7 @@ const contentsLinks = MEGA_MENUS.Contents.groups[0].links;
               href="https://www.linkedin.com/in/miladebrahimi-me"
               target="_blank"
               rel="noopener noreferrer"
+              data-cta="footer-linkedin"
               class="flex min-h-11 items-center text-on-dark-muted transition-colors hover:text-accent"
             >
               LinkedIn
