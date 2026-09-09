@@ -6,7 +6,7 @@ import Nav from '@components/Nav.astro';
 import MobileNavToggle from '@components/MobileNavToggle.astro';
 import MobileNavPanel from '@components/MobileNavPanel.astro';
 import Footer from '@components/Footer.astro';
-import { SITE, SOCIAL_LINKS } from '@lib/site';
+import { SITE, SOCIAL_LINKS, PERSON_ID } from '@lib/site';
 
 interface Props {
   title: string;
@@ -27,6 +27,7 @@ const { title, description, image, type, noindex, structuredData } = Astro.props
 // from real profile URLs already published elsewhere on the site.
 const personSchema = {
   '@type': 'Person',
+  '@id': PERSON_ID,
   name: SITE.name,
   url: SITE.url,
   jobTitle: SITE.jobTitle,
@@ -36,11 +37,14 @@ const personSchema = {
 };
 
 // WebSite schema — the site as a whole, kept minimal and accurate. No
-// SearchAction: the site has no internal search to describe.
+// SearchAction: the site has no internal search to describe. `author`
+// references the same Person node above (via `@id`), not a duplicate —
+// this is the one entity the whole site is written by and about.
 const websiteSchema = {
   '@type': 'WebSite',
   name: SITE.name,
   url: SITE.url,
+  author: { '@id': PERSON_ID },
 };
 
 // One `@graph` per page — Person and WebSite are sitewide; a page can add

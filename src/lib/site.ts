@@ -38,6 +38,16 @@ export const SITE = {
   locale: 'en',
 } as const;
 
+/**
+ * Stable JSON-LD `@id` for the sitewide Person node (BaseLayout.astro).
+ * Article and Book schema reference this same id via `{ '@id': PERSON_ID }`
+ * instead of re-declaring a separate anonymous Person object per page —
+ * so a crawler reads "Milad Ebrahimi, author of this article" and "Milad
+ * Ebrahimi, the site's Person entity" as the literal same node, not two
+ * same-named-but-unconnected ones (Phase 16 §3/§4).
+ */
+export const PERSON_ID = `${SITE.url}/#person`;
+
 export type NavItem = {
   label: string;
   href: string;
