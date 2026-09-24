@@ -69,7 +69,7 @@ actually confirmed versus what's provisional positioning copy written for V1.
 | Self-Coaching Blueprint subtitle + cover concept (yellow cover, "A Repeatable Plan...") | CONFIRMED | Visible in CV; no actual cover image file has been supplied to the project, so the site uses a typographic treatment, not the real cover image |
 | Time Engineering / The Balance Book covers | NEEDS VERIFICATION | No cover exists/was supplied for either |
 | All three book covers as real image files | NEEDED | `BookCover.astro` renders a graceful gold-monogram placeholder until real cover photography is added at `public/images/books/<slug>.jpg` — no cover has been supplied yet, including for Self-Coaching Blueprint |
-| Milad's portrait photo | NEEDED | `Portrait.astro` renders a graceful placeholder until a real photo is added at `public/images/profile/milad-portrait.jpg` (see `public/images/README.md` for spec) — used in the Hero and About teaser; no stock or generated photo used to fill the gap |
+| Milad's portrait photo | CONFIRMED | A real photograph is in place at `public/images/profile/milad-portrait.jpg` (used in the Hero, `/resume`, and the article Author Block, and referenced by the Person JSON-LD `image`). `Portrait.astro` still falls back to a placeholder if the file is ever removed |
 | Purchase/read links for all 3 | NEEDED | Not yet provided |
 
 ## Ideas (Articles)

@@ -75,8 +75,8 @@ piece is ever genuinely co-authored or guest-written.
 | `quote` | No | A short pull-quote, rendered as a large `QuoteBlock` statement partway down the article. Plain text, one or two sentences. |
 | `videoUrl` | No | A YouTube/Vimeo/LinkedIn video URL. Renders a `VideoFeature` block on the article page that links out to it — never an inline embed. |
 | `externalUrl` | No | Set this if the piece is published elsewhere (LinkedIn, Medium) instead of on this site — every listing link will point out to it instead of to a local page. |
-| `draft` | Yes | `true` hides the entry from every listing, the sitemap, and RSS entirely — its page still exists at the URL but is `noindex`, so nothing links to it in production. Set `false` to publish. |
-| `placeholder` | Yes | `true` shows a visible "Placeholder" badge and excludes the entry from RSS — for demo/topic-in-development entries only. Real articles should be `false`. |
+| `draft` | Yes | `true` hides the entry everywhere: no page is generated at all (no URL, so nothing to index), and it never appears in any listing, the sitemap, or RSS. Set `false` to publish — and update `publishDate` to the real publish date at the same time. |
+| `placeholder` | Yes | `true` shows a visible "Placeholder" badge, adds `noindex` to the page, and excludes the entry from RSS and the sitemap — for demo/topic-in-development entries only. Real articles should be `false`. |
 | `order` | No | Only used as a tiebreaker; `publishDate` drives the actual sort order. |
 
 ## What this does NOT require editing
