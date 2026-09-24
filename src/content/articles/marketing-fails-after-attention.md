@@ -1,12 +1,12 @@
 ---
 title: "Marketing Doesn't Fail at Getting Attention — It Fails at What Happens Next"
 description: "Most marketing problems are lead-handling problems. Attention only becomes a business result when something reliable happens to it after it arrives."
-publishDate: 2026-09-24T09:00:00
+publishDate: 2026-09-24
 category: "Marketing"
 tags: ["Growth", "Demand"]
 featured: false
 quote: "A lead nobody owns isn't a lead. It's a message waiting to be forgotten."
-draft: true
+draft: false
 placeholder: false
 order: 4
 ---
