@@ -45,11 +45,9 @@ const exists = src ? fs.existsSync(path.join(process.cwd(), 'public', src)) : fa
       <span class:list={['max-w-[9rem] font-body leading-snug text-paper', featured ? 'text-sm' : 'text-xs']}>
         {title}
       </span>
-      {featured && (
-        <p class="absolute bottom-3 max-w-[8rem] font-mono text-[9px] text-on-dark-muted">
-          Cover pending — add {src ?? '/images/books/…jpg'}
-        </p>
-      )}
+      {/* Dev-only note (not rendered): drop a real cover at `src` in
+          public/images/books/ to replace this plate automatically —
+          see public/images/README.md. Never shown to visitors. */}
     </div>
   )}
 </div>
