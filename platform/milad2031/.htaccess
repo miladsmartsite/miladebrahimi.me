@@ -1,0 +1,27 @@
+# MILAD 2031 OS — Apache/LiteSpeed rules (Hostinger)
+Options -Indexes
+DirectoryIndex index.html
+
+# Pass the Authorization header to PHP (needed on some shared hosts)
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{HTTP:Authorization} .
+  RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+</IfModule>
+
+# Never serve local config, docs or the data folder
+<FilesMatch "^(config\.local\.php|README.*|INSTALL.*)$">
+  Require all denied
+</FilesMatch>
+RedirectMatch 404 ^/.*/data/.*$
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "no-referrer"
+  Header always set X-Frame-Options "DENY"
+  <FilesMatch "^(sw\.js|index\.html|manifest\.webmanifest)$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+</IfModule>
+
+AddType application/manifest+json .webmanifest
