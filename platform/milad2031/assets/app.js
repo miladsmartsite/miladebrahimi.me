@@ -5,10 +5,10 @@
 (() => {
 'use strict';
 
-const VERSION = '2.1.1';
+const VERSION = '3.0.0';
 const API = 'api.php';
 const K = { db: 'm2031.db', out: 'm2031.outbox', tok: 'm2031.token', rev: 'm2031.rev', ui: 'm2031.ui', last: 'm2031.lastSync' };
-const COLS = ['tasks','events','projects','goals','skills','logs','evidence','decisions','notes','ielts','sessions','settings','milestones','applications','immigration'];
+const COLS = ['tasks','events','projects','goals','skills','logs','evidence','decisions','notes','ielts','sessions','settings','milestones','applications','immigration','habits','money','templates'];
 const STATES = ['To do','Doing','Waiting','Done','Cancelled'];
 const LEGACY = { 'Not Started': 'To do', 'Waiting for Me': 'To do', 'In Progress': 'Doing', 'Ready for Review': 'Doing', 'Waiting for External Input': 'Waiting', 'Blocked': 'Waiting', 'Completed & Verified': 'Done', 'Completed - Not Verified': 'Done', 'Cancelled': 'Cancelled' };
 const stOf = t => STATES.includes(t.state) ? t.state : (LEGACY[t.state] || 'To do');
@@ -134,6 +134,7 @@ async function sync() {
     }
     ls.set(K.rev, j.rev); ls.set(K.last, nowIso()); persist();
     setSyncState('ok', '');
+    try { const tz = Intl.DateTimeFormat().resolvedOptions().timeZone; if (tz && !sync.tzDone) { sync.tzDone = true; if (prefs().tz !== tz) save('settings', Object.assign({}, prefs(), { id: 'prefs', tz })); } } catch {}
     if (!j.unchanged) render();
   } catch (e) {
     if (e.message !== 'auth') setSyncState(e.message === 'offline' ? 'off' : 'pending', e.message);
@@ -213,6 +214,14 @@ function md(src) {
 
 /* ---------------- icons ---------------- */
 const I = {
+  search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg>',
+  prog: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 17l5-5 4 3 8-8"/><path d="M15 7h5v5"/></svg>',
+  journal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 3h11a2 2 0 0 1 2 2v16H7a2 2 0 0 1-2-2V4a1 1 0 0 1 1-1z"/><path d="M9 8h6M9 12h6M5 17a2 2 0 0 1 2-2h12"/></svg>',
+  tmpl: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>',
+  trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',
+  health: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 12h4l2-5 4 10 2-5h6"/></svg>',
+  money: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="6" width="18" height="13" rx="2"/><circle cx="12" cy="12.5" r="2.5"/><path d="M3 10h2M19 15h2"/></svg>',
+  timer: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2h6"/></svg>',
   jobs: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 13h18"/></svg>',
   imm: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="5" y="2.5" width="14" height="19" rx="2"/><circle cx="12" cy="10" r="3.2"/><path d="M8.8 10h6.4M12 6.8c-1.2 1.5-1.2 4.9 0 6.4M12 6.8c1.2 1.5 1.2 4.9 0 6.4M9 17h6"/></svg>',
   clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
@@ -237,8 +246,9 @@ const I = {
   left: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 6l-6 6 6 6"/></svg>',
   right: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg>'
 };
-const NAV_MAIN = [['today', 'Today', I.today], ['tasks', 'Tasks', I.tasks], ['calendar', 'Calendar', I.cal], ['plan', 'Plan', I.plan], ['more', 'More', I.more]];
-const NAV_MORE = [['jobs', 'Job search', I.jobs], ['immigration', 'Immigration', I.imm], ['learn', 'Learning', I.learn], ['evidence', 'Evidence', I.evid], ['decisions', 'Decisions', I.dec], ['notes', 'Notes & docs', I.notes], ['review', 'Review', I.review], ['settings', 'Settings', I.set]];
+const NAV_MAIN = [['today', 'Today', I.today], ['tasks', 'Tasks', I.tasks], ['calendar', 'Calendar', I.cal], ['progress', 'Progress', I.prog], ['more', 'More', I.more]];
+const NAV_MORE = [['jobs', 'Job search', I.jobs], ['immigration', 'Immigration', I.imm], ['evidence', 'Evidence', I.evid], ['notes', 'Notes', I.notes], ['journal', 'Journal', I.journal], ['templates', 'Templates', I.tmpl], ['decisions', 'Decisions', I.dec], ['review', 'Review', I.review], ['trash', 'Trash', I.trash], ['health', 'System health', I.health], ['settings', 'Settings', I.set]];
+const P_TABS = [['overview', 'Overview'], ['roadmap', 'Roadmap'], ['goals', 'Goals'], ['learning', 'Learning'], ['money', 'Money']];
 
 /* ---------------- chips ---------------- */
 function stateChip(s0) { const s = STATES.includes(s0) ? s0 : (LEGACY[s0] || 'To do'); const c = s === 'Done' ? 's-done' : s === 'Waiting' ? 's-wait' : s === 'Doing' ? 's-prog' : ''; return s === 'To do' ? '' : `<span class="chip ${c}">${esc(s)}</span>`; }
@@ -250,7 +260,7 @@ function taskRow(t, opts = {}) {
   return `<div class="row" data-act="task" data-id="${esc(t.id)}">
     <button class="check ${DONE.has(t.state) ? 'done' : ''}" data-act="complete" data-id="${esc(t.id)}" aria-label="Complete">${I.tick}</button>
     <div class="main"><div class="t" dir="auto">${esc(t.title)}</div>
-      <div class="m">${isOpen(t) && t.focusDate === today() ? '<span class="chip s-rev">★ Top 3</span>' : ''}${t.priority === 'P1' && isOpen(t) ? priChip('P1') : ''}${stOf(t) === 'Waiting' ? stateChip('Waiting') : ''}${isOpen(t) ? dueChip(t) : ''}${t.scheduled && isOpen(t) ? `<span>🕘 ${esc(fmtTime(t.scheduled))}</span>` : ''}</div>
+      <div class="m">${isOpen(t) && t.focusDate === today() ? '<span class="chip s-rev">★ Top 3</span>' : ''}${t.priority === 'P1' && isOpen(t) ? priChip('P1') : ''}${stOf(t) === 'Waiting' ? stateChip('Waiting') : ''}${isOpen(t) ? dueChip(t) : ''}${t.scheduled && isOpen(t) ? `<span>🕘 ${esc(fmtTime(t.scheduled))}</span>` : ''}${t.repeat && isOpen(t) ? '<span>↻</span>' : ''}</div>
       ${opts.na !== false && t.nextAction ? `<div class="na" dir="auto">→ ${esc(t.nextAction)}</div>` : ''}</div></div>`;
 }
 const sortTasks = arr => arr.sort((a, b) => (a.priority || 'P9').localeCompare(b.priority || 'P9') || (a.due || '9999').localeCompare(b.due || '9999') || String(a.title).localeCompare(String(b.title)));
@@ -264,6 +274,28 @@ function applyTheme() {
 }
 if (darkMq && darkMq.addEventListener) darkMq.addEventListener('change', applyTheme);
 applyTheme();
+
+/* ---------------- language (English / Persian) ---------------- */
+const FA = (window.M2031_FA || { dict: {}, rx: [] });
+function trStr(s) {
+  const t = s.trim(); if (!t || /^[\d\s.,:/+\-–%★✓↻→←·()]+$/.test(t)) return null;
+  let r = FA.dict[t]; if (r === undefined) for (const [rx, rep] of FA.rx) if (rx.test(t)) { r = t.replace(rx, rep); break; }
+  return r === undefined ? null : s.replace(t, r);
+}
+function trNode(root) {
+  if (ui.lang !== 'fa' || !root) return;
+  if (root.nodeType === 3) { const p = root.parentElement; if (p && !p.closest('[dir=auto],.mono,textarea,script,style,.ft')) { const r = trStr(root.nodeValue); if (r !== null) root.nodeValue = r; } return; }
+  if (root.nodeType !== 1 || root.closest('[dir=auto],.mono,script,style')) return;
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, { acceptNode: n => n.nodeType === 1 && n.matches('[dir=auto],.mono,textarea,script,style,svg') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT });
+  const els = [root]; let n; const texts = [];
+  while ((n = w.nextNode())) { if (n.nodeType === 3) texts.push(n); else els.push(n); }
+  for (const t of texts) { const r = trStr(t.nodeValue); if (r !== null) t.nodeValue = r; }
+  if (root.querySelectorAll) root.querySelectorAll('[placeholder]').forEach(el => { if (!els.includes(el)) els.push(el); });
+  for (const el of els) for (const at of ['placeholder', 'aria-label', 'title']) { const v = el.getAttribute && el.getAttribute(at); if (v) { const r = trStr(v); if (r !== null) el.setAttribute(at, r); } }
+}
+new MutationObserver(ms => { if (ui.lang !== 'fa') return; for (const m of ms) m.addedNodes.forEach(trNode); }).observe(document.documentElement, { childList: true, subtree: true });
+function applyLang() { const fa = ui.lang === 'fa'; const h = document.documentElement; h.lang = fa ? 'fa' : 'en'; h.dir = fa ? 'rtl' : 'ltr'; if (fa) trNode(document.body); }
+applyLang();
 
 /* ---------------- notifications (Web Push) ---------------- */
 const pushOk = () => location.protocol === 'https:' && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
@@ -285,6 +317,99 @@ async function pushRender() {
   if (!sub || Notification.permission !== 'granted') { box.innerHTML = `Get your Top 3 each morning and a reminder to close the day.${pushTimes()}<div class="btns"><button class="btn small primary" data-act="push-on">Turn on notifications</button></div>`; return; }
   box.innerHTML = `<b style="color:var(--ok)">On for this device.</b>${pushTimes()}<div class="btns"><button class="btn small primary" data-act="push-save">Save times</button><button class="btn small" data-act="push-test">Send a test</button><button class="btn small danger" data-act="push-off">Turn off</button></div><div id="croninfo" style="margin-top:12px"></div>`;
   try { const i = await api('pushinfo'); const ci = $('#croninfo'); if (ci) ci.innerHTML = `<b>One-time server setup</b> so reminders arrive on time: Hostinger hPanel → Advanced → <b>Cron Jobs</b> → Custom → every 15 minutes (*/15 * * * *) → paste this command:<div class="mono" style="word-break:break-all;margin:6px 0;padding:8px;background:var(--paper-dim);border-radius:8px">${esc(i.cronCmd)}</div><button class="btn small" data-act="copy" data-text="${esc(i.cronCmd)}">Copy command</button><div style="margin-top:6px">${i.lastCron ? 'Server check last ran ' + esc(fmtDate(i.lastCron, true) + ' ' + fmtTime(i.lastCron)) + '.' : '<span style="color:var(--warn)">The server check has not run yet.</span>'} Keep this command private.</div>`; } catch {}
+}
+
+/* ---------------- passkeys (Face ID) ---------------- */
+const pkOk = () => !!(window.PublicKeyCredential && navigator.credentials && window.isSecureContext);
+const toB64u = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+async function pkRegister() {
+  try {
+    const o = await api('wa-reg-opts');
+    const cred = await navigator.credentials.create({ publicKey: { challenge: b64uBytes(o.challenge), rp: { id: o.rpId, name: 'MILAD 2031' }, user: { id: b64uBytes(o.user), name: 'milad', displayName: 'Milad' }, pubKeyCredParams: [{ type: 'public-key', alg: -7 }], authenticatorSelection: { userVerification: 'required', residentKey: 'preferred' }, excludeCredentials: (o.exclude || []).map(id => ({ type: 'public-key', id: b64uBytes(id) })), attestation: 'none', timeout: 60000 } });
+    await api('wa-reg', { body: { id: cred.id, clientDataJSON: toB64u(cred.response.clientDataJSON), attestationObject: toB64u(cred.response.attestationObject), device: device() } });
+    ui.pkSet = true; saveUi(); toast('Face ID sign-in is ready'); render();
+  } catch (e) { toast(e.name === 'NotAllowedError' ? 'Cancelled' : e.name === 'InvalidStateError' ? 'This device already has a passkey' : 'Could not set up: ' + e.message); }
+}
+async function pkLogin(err) {
+  try {
+    const o = await api('wa-login-opts');
+    const c = await navigator.credentials.get({ publicKey: { challenge: b64uBytes(o.challenge), rpId: o.rpId, allowCredentials: o.allow.map(id => ({ type: 'public-key', id: b64uBytes(id) })), userVerification: 'required', timeout: 60000 } });
+    const j = await api('wa-login', { body: { id: c.id, clientDataJSON: toB64u(c.response.clientDataJSON), authenticatorData: toB64u(c.response.authenticatorData), signature: toB64u(c.response.signature), device: device() } });
+    ls.set(K.tok, j.token); start();
+  } catch (e) { if (err) err.textContent = e.name === 'NotAllowedError' ? 'Face ID was cancelled. Use your password.' : e.message; }
+}
+async function pkRender() {
+  const box = $('#pkbox'); if (!box) return;
+  if (!pkOk()) { box.innerHTML = 'Face ID sign-in needs HTTPS and iOS 16 or later.'; return; }
+  try { const r = await api('wa-list'); if (!$('#pkbox')) return; box.innerHTML = (r.items.length ? `<div class="list" style="margin-bottom:8px">${r.items.map(p => `<div class="row"><div class="main"><div class="t">${esc(p.device || 'Device')}</div><div class="m"><span>added ${esc(fmtDate(p.created, true))}</span>${p.used ? `<span>last used ${esc(fmtDate(p.used, true))}</span>` : ''}</div></div><button class="btn small ghost danger" data-act="pk-del" data-id="${esc(p.id)}">Remove</button></div>`).join('')}</div>` : 'Sign in with Face ID or Touch ID instead of typing the password.') + `<div class="btns" style="margin-top:8px"><button class="btn small primary" data-act="pk-add">${r.items.length ? 'Add this device' : 'Set up Face ID'}</button></div>`; } catch { box.textContent = 'Could not load passkeys.'; }
+}
+/* ---------------- trash + history ---------------- */
+const CNAME = { tasks: 'Task', events: 'Event', projects: 'Project', goals: 'Goal', skills: 'Skill', logs: 'Journal', evidence: 'Evidence', decisions: 'Decision', notes: 'Note', ielts: 'IELTS', sessions: 'Practice', milestones: 'Milestone', applications: 'Job', immigration: 'Document', habits: 'Habit', money: 'Savings', templates: 'Template' };
+const recTitle = r => r.title || r.role || r.code || (r.amount !== undefined ? fmtMoney(r.amount) : '') || r.id;
+function vTrash() {
+  const items = []; for (const c of COLS) for (const r of Object.values(db[c] || {})) if (r && r.deleted) items.push([c, r]);
+  items.sort((a, b) => String(b[1].updatedAt).localeCompare(String(a[1].updatedAt)));
+  return header('Trash', 'Deleted items stay here. Restore any of them.') + `<div class="card">${items.length ? `<div class="list">${items.slice(0, 200).map(([c, r]) => `<div class="row"><div class="main"><div class="t" dir="auto">${esc(recTitle(r))}</div><div class="m"><span class="chip">${CNAME[c] || c}</span><span>deleted ${esc(fmtDate(r.updatedAt, true))}</span></div></div><button class="btn small" data-act="restore" data-c="${c}" data-id="${esc(r.id)}">Restore</button></div>`).join('')}</div>` : '<div class="empty">Trash is empty.</div>'}</div>`;
+}
+async function historySheet(c, id) {
+  closeSheet(true); openSheet('History', '<div class="empty">Loading…</div>', '', { noFocus: true });
+  try {
+    const r = await api('history', { q: `&c=${encodeURIComponent(c)}&id=${encodeURIComponent(id)}` }); const cur = db[c][id] || {};
+    const diff = v => Object.keys(Object.assign({}, v, cur)).filter(k => !['updatedAt', 'by', 'createdAt'].includes(k) && JSON.stringify(v[k] ?? '') !== JSON.stringify(cur[k] ?? '')).slice(0, 4).join(', ');
+    sheetCtx && (sheetCtx.versions = r.versions);
+    $('.sheet-b', sheetCtx.el).innerHTML = r.versions.length ? `<div class="small" style="margin-bottom:8px">Earlier versions saved on the server (latest first).</div><div class="list">${r.versions.map((v, i) => `<div class="row"><div class="main"><div class="t" dir="auto">${esc(recTitle(v))}</div><div class="m"><span>${esc(fmtDate(v.updatedAt, true) + ' ' + fmtTime(v.updatedAt))}</span><span>${esc(v.by || '')}</span>${diff(v) ? `<span>differs: ${esc(diff(v))}</span>` : ''}</div></div><button class="btn small" data-act="hist-restore" data-c="${c}" data-i="${i}">Restore</button></div>`).join('')}</div>` : '<div class="empty">No earlier versions yet. They are kept from version 3.0 onwards.</div>';
+  } catch (e) { $('.sheet-b', sheetCtx.el).innerHTML = `<div class="empty">${esc(e.message === 'offline' ? 'History needs a connection.' : e.message)}</div>`; }
+}
+/* ---------------- health ---------------- */
+async function vHealthFill() {
+  const box = $('#hbox'); if (!box) return; const rows = [];
+  const add = (ok, t, m) => rows.push(`<div class="row"><span class="hstat ${ok === true ? 'ok' : ok === false ? 'bad' : 'warn'}">${ok === true ? '✓' : ok === false ? '!' : '•'}</span><div class="main"><div class="t">${esc(t)}</div><div class="m">${esc(m)}</div></div></div>`);
+  let h = null; try { h = await api('health'); } catch (e) { add(false, 'Server', e.message === 'offline' ? 'Offline. Checks will run when you are online.' : e.message); }
+  if (h) {
+    add(true, 'Server', `Version ${h.version} · PHP ${h.php} · revision ${h.rev}`);
+    add(h.writable, 'Data folder', h.writable ? `Writable · data ${h.storeKB} KB · history ${h.historyKB} KB${h.outsideWebroot ? ' · outside the web folder' : ''}` : 'Not writable. Saving will fail. Check folder permissions in hPanel.');
+    const bAge = h.lastBackup ? daysTo(`${h.lastBackup.slice(0, 4)}-${h.lastBackup.slice(4, 6)}-${h.lastBackup.slice(6, 8)}`) : null;
+    add(h.backups > 0 && bAge > -8, 'Server backups', h.backups ? `${h.backups} daily snapshots · latest ${fmtDate(`${h.lastBackup.slice(0, 4)}-${h.lastBackup.slice(4, 6)}-${h.lastBackup.slice(6, 8)}`, true)}` : 'None yet. One is made on the first change of each day.');
+    add(h.pushDevices ? (h.lastCron && (Date.now() - Date.parse(h.lastCron)) < 3600e3 ? true : false) : null, 'Reminder schedule (cron)', h.pushDevices ? (h.lastCron ? `Last run ${fmtDate(h.lastCron, true)} ${fmtTime(h.lastCron)}` : 'Not running yet. Add the cron job from Settings → Notifications.') : 'Notifications are off, so no cron job is needed.');
+    add(h.passkeys ? true : null, 'Face ID sign-in', h.passkeys ? `${h.passkeys} device(s)` : 'Not set up (Settings → Security).');
+  }
+  try { const r = await fetch('data/store.json', { cache: 'no-store' }); add(r.status === 403 || r.status === 404, 'Data protection', r.status === 403 || r.status === 404 ? `Private (server answers ${r.status})` : `EXPOSED: the data file is readable (HTTP ${r.status}). Re-upload .htaccess files now.`); } catch { add(null, 'Data protection', 'Could not check while offline.'); }
+  const pending = Object.keys(outbox).length, last = ls.get(K.last);
+  add(!pending, 'Sync on this device', pending ? `${pending} change(s) waiting to upload` : `Up to date · ${last ? fmtDate(last, true) + ' ' + fmtTime(last) : ''}`);
+  const lb = ui.lastBackup; add(lb && daysTo(lb) > -15 ? true : null, 'Your own backup copy', lb ? `Last downloaded ${fmtDate(lb, true)}` : 'Never downloaded. Settings → Backup.');
+  let persisted = null; try { persisted = navigator.storage && navigator.storage.persisted ? await navigator.storage.persisted() : null; } catch {}
+  add(standalone() ? true : null, 'Installed app', standalone() ? 'Running from the Home Screen' : 'Running in the browser. Add to Home Screen for notifications and full screen.');
+  if (persisted !== null) add(persisted ? true : null, 'Device storage', persisted ? 'Protected from automatic clean-up' : 'Browser may clear it if space runs low; the server copy stays safe.');
+  if ($('#hbox')) $('#hbox').innerHTML = `<div class="list">${rows.join('')}</div>`;
+}
+function vHealth() { setTimeout(vHealthFill, 0); return header('System health', 'Everything that keeps MILAD 2031 safe and running') + `<div class="card" id="hbox"><div class="empty">Checking…</div></div><div class="btns" style="margin-top:12px"><button class="btn" data-act="health-run">Check again</button><button class="btn" data-act="sync-now">Sync now</button></div>`; }
+/* ---------------- encrypted backup ---------------- */
+async function deriveKey(pass, salt) { const k = await crypto.subtle.importKey('raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveKey']); return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 210000, hash: 'SHA-256' }, k, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']); }
+async function encBackup() {
+  const p1 = prompt('Choose a backup password (8+ characters). You need it to restore this file.'); if (!p1) return; if (p1.length < 8) return toast('Use at least 8 characters');
+  if (prompt('Type the backup password again') !== p1) return toast('Passwords do not match');
+  const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
+  const data = new TextEncoder().encode(JSON.stringify({ app: 'milad2031', version: 1, exportedAt: nowIso(), collections: db }));
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await deriveKey(p1, salt), data);
+  download(JSON.stringify({ app: 'milad2031', enc: 'AES-GCM/PBKDF2-SHA256', salt: toB64u(salt), iv: toB64u(iv), data: toB64u(ct) }), `milad2031-encrypted-${today()}.json`);
+  ui.lastBackup = today(); saveUi(); toast('Encrypted backup downloaded');
+}
+async function decBackup(j) { const p = prompt('This backup is encrypted. Enter its password.'); if (!p) throw new Error('cancelled'); try { const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64uBytes(j.iv) }, await deriveKey(p, b64uBytes(j.salt)), b64uBytes(j.data)); return JSON.parse(new TextDecoder().decode(pt)); } catch { throw new Error('Wrong password or damaged file'); } }
+function download(txt, name) { const u = URL.createObjectURL(new Blob([txt], { type: 'application/json' })); const l = document.createElement('a'); l.href = u; l.download = name; document.body.appendChild(l); l.click(); l.remove(); setTimeout(() => URL.revokeObjectURL(u), 2000); }
+/* ---------------- Siri & Shortcuts ---------------- */
+async function siriSheet() {
+  openSheet('Siri & Shortcuts', '<div class="empty">Loading…</div>', '', { noFocus: true });
+  try {
+    const { key } = await api('shortkey'); const base = new URL('api.php', location.href).href; const u = (a, extra = '') => `${base}?action=${a}&k=${key}${extra}`;
+    const blk = (name, say, steps, url) => `<div class="siri"><div class="siri-h"><b>${name}</b><span>“Hey Siri, ${say}”</span></div><ol>${steps.map(s => `<li>${s}</li>`).join('')}</ol><div class="mono siri-u">${esc(url)}</div><button class="btn small" data-act="copy" data-text="${esc(url)}">Copy link</button></div>`;
+    $('.sheet-b', sheetCtx.el).innerHTML = `<div class="small" style="margin-bottom:10px">Make each one once in the <b>Shortcuts</b> app (+ → Add Action). The shortcut's name is what you say to Siri, so name it as shown or anything you like. Siri works in English. Keep these links private: anyone with them can add to your list.</div>
+    ${blk('Add task', 'add task', ['Add <b>Dictate Text</b>', 'Add <b>Get Contents of URL</b>, paste the link, open Show More: Method <b>POST</b>, Request Body <b>Form</b>, add field <b>text</b> = Dictated Text', 'Add <b>Speak Text</b> with Contents of URL', 'Name the shortcut <b>Add task</b>'], u('s-add'))}
+    <div class="small" style="margin:-4px 0 12px">Say “… tomorrow” or “… today” at the end to set the date.</div>
+    ${blk('My Top 3', 'my top three', ['Add <b>Get Contents of URL</b> with the link (method GET)', 'Add <b>Speak Text</b> with Contents of URL', 'Name it <b>My top three</b>'], u('s-top3'))}
+    ${blk('Log practice', 'log practice', ['Add <b>Ask for Input</b> (Text): “Which skill?”', 'Add <b>Ask for Input</b> (Number): “How many minutes?”', 'Add <b>Get Contents of URL</b> with the link, then tap the link text and add <b>&skill=</b>[first answer]<b>&min=</b>[second answer]', 'Add <b>Speak Text</b>, name it <b>Log practice</b>'], u('s-log'))}
+    ${blk('Save job ad', 'save this job (or from the Share button)', ['In the shortcut settings turn on <b>Show in Share Sheet</b> (accepts URLs and Safari pages)', 'Add <b>Get Contents of URL</b> with the link: method POST, Form fields <b>url</b> = Shortcut Input and <b>text</b> = Shortcut Input’s Name', 'Add <b>Show Notification</b> with Contents of URL', 'Name it <b>Save job</b>. In Safari, tap Share → Save job'], u('s-job'))}
+    <div class="btns" style="margin-top:6px"><button class="btn small danger" data-act="siri-rotate">Make new links (old ones stop working)</button></div>`;
+  } catch (e) { $('.sheet-b', sheetCtx.el).innerHTML = `<div class="empty">${esc(e.message === 'offline' ? 'Needs a connection.' : e.message)}</div>`; }
 }
 
 /* ---------------- quick capture ---------------- */
@@ -354,6 +479,7 @@ function attention() {
   if (fu) out.push(['go', 'jobs', I.jobs, `${fu} job follow-up${fu > 1 ? 's' : ''} due`, 'Applications to chase', 'warn']);
   if (ex) out.push(['go', 'immigration', I.imm, `${ex} document${ex > 1 ? 's' : ''} expiring within 6 months`, 'Check passport, test reports and certificates', 'warn']);
   if (lm) out.push(['go', 'plan', I.flag, `${lm} roadmap milestone${lm > 1 ? 's' : ''} past target`, 'Update the date or the status', 'warn']);
+  if (!ui.lastBackup ? list('tasks').length > 20 && new Date().getDay() === 0 : daysTo(ui.lastBackup) < -14) out.push(['enc-backup', '', I.health, 'Time for a backup copy', 'Encrypted file to keep in iCloud Drive', '']);
   if (wt) out.push(['filter', 'ext', I.clock, `${wt} waiting on others`, 'Nudge or keep waiting', '']);
   return out;
 }
@@ -371,10 +497,11 @@ function vToday() {
   const att = attention().filter(a => a[0] !== 'filter');
   const dl = daysTo(visionDate());
   return header(new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }), '') + `
-  <a class="vision" href="#/plan"><b>${dl.toLocaleString('en-GB')}</b> days to MILAD 2031 <span>${I.right}</span></a>
+  <a class="vision" href="#/progress" data-act="p-tab" data-t="roadmap"><b>${dl.toLocaleString('en-GB')}</b> days to MILAD 2031 <span>${I.right}</span></a>
   ${quickBar('What needs doing?')}
   <div class="card"><h2>★ Top 3 <span class="count">${doneTop.length}/${top.length + doneTop.length}</span><span style="flex:1"></span>${top.length + doneTop.length ? `<button class="btn small ghost" data-act="plan-day" data-day="${t}">Change</button>` : ''}</h2>
-    ${top.length ? `<div class="list">${top.map(x => taskRow(x)).join('')}</div>` : doneTop.length ? '<div class="empty">All done for today. 🎉</div>' : `<button class="btn primary wide" data-act="plan-day" data-day="${t}">Pick today's Top 3</button>`}</div>
+    ${top.length ? `<div class="list">${top.map(x => taskRow(x)).join('')}</div>` : doneTop.length ? '<div class="empty">All done for today. 🎉</div>' : (() => { const sg = suggestTop(t); return sg.length ? `<div class="small" style="margin-bottom:6px">Suggested for today:</div><div class="list">${sg.map(x => `<div class="row sug"><span class="dotx warn"></span><div class="main"><div class="t" dir="auto">${esc(x.title)}</div><div class="m">${dueChip(x)}${x.priority === 'P1' ? priChip('P1') : ''}</div></div></div>`).join('')}</div><div class="btns" style="margin-top:10px"><button class="btn primary" data-act="accept-top" data-ids="${esc(sg.map(x => x.id).join(','))}">Use these</button><button class="btn" data-act="plan-day" data-day="${t}">Choose myself</button></div>` : `<button class="btn primary wide" data-act="plan-day" data-day="${t}">Pick today's Top 3</button>`; })()}</div>
+  ${habitStrip()}
   ${sched.length || dueToday.length ? `<div class="card" style="margin-top:12px"><h2>Also today <span class="count">${sched.length + dueToday.length}</span></h2><div class="list">${sched.map(agendaRow).join('')}${dueToday.map(x => taskRow(x)).join('')}</div></div>` : ''}
   ${overdue.length ? `<div class="card" style="margin-top:12px"><h2>Overdue <span class="count">${overdue.length}</span><span style="flex:1"></span><button class="btn small ghost" data-act="od-today">Move all to today</button></h2><div class="list">${overdue.slice(0, 5).map(x => taskRow(x)).join('')}</div>${overdue.length > 5 ? `<a class="btn small ghost" href="#/tasks">See all ${overdue.length}</a>` : ''}</div>` : ''}
   ${att.length ? `<div class="card" style="margin-top:12px"><div class="list">${att.map(attRow).join('')}</div></div>` : ''}
@@ -393,7 +520,8 @@ function vTasks() {
   const done = arr.filter(x => !isOpen(x)).sort((a, b) => String(b.completedOn || '').localeCompare(String(a.completedOn || '')));
   return header('Tasks', `${open.length} open`) + `
   ${quickBar()}
-  <input class="search" type="search" placeholder="Search" value="${esc(ui.taskQuery)}" data-input="taskQuery" style="width:100%;margin:2px 0 12px">
+  <input class="search" type="search" placeholder="Search" value="${esc(ui.taskQuery)}" data-input="taskQuery" style="width:100%;margin:2px 0 4px">
+  <div class="qhint" style="margin-bottom:8px">Swipe a task → to finish it, ← to move it to tomorrow.</div>
   ${groups.filter(([, g]) => g.length).map(([n, g]) => `<div class="grp-h ${n === 'Overdue' ? 'bad' : ''}">${n} <span>${g.length}</span></div><div class="card tight"><div class="list">${sortTasks(g).map(x => taskRow(x)).join('')}</div></div>`).join('') || '<div class="card empty">Nothing here. Add a task above.</div>'}
   ${done.length ? `<details class="donebox"><summary>Done (${done.length})</summary><div class="card tight"><div class="list">${done.slice(0, 40).map(x => taskRow(x)).join('')}</div></div></details>` : ''}`;
 }
@@ -428,7 +556,127 @@ function vPlan() {
     ${ps.length ? `<div class="list" style="margin-top:8px">${ps.map(p => `<div class="row" data-act="project" data-id="${esc(p.id)}"><div class="main"><div class="t" dir="auto">${esc(p.title)}</div><div class="m"><span class="chip">${esc(p.status || 'Planned')}</span>${p.target ? `<span>Target ${esc(fmtDate(p.target, true))}</span>` : ''}<span>${prog(p.id)[1] - prog(p.id)[0]} open</span></div></div></div>`).join('')}</div>` : ''}</div>`; }).join('') : '<div class="card empty">No goals yet. Import your MILAD 2031 data in Settings, or add a goal.</div>'}
   ${orphan.length ? `<div class="card"><h2>Projects without a goal</h2><div class="list">${orphan.map(p => `<div class="row" data-act="project" data-id="${esc(p.id)}"><div class="main"><div class="t" dir="auto">${esc(p.title)}</div><div class="m"><span class="chip">${esc(p.status || 'Planned')}</span></div></div></div>`).join('')}</div></div>` : ''}`;
 }
-function planTabs() { const p = ui.planTab || 'roadmap'; return `<div class="seg" style="margin-bottom:12px"><button class="${p === 'roadmap' ? 'on' : ''}" data-act="plan-tab" data-t="roadmap">Roadmap 2031</button><button class="${p === 'goals' ? 'on' : ''}" data-act="plan-tab" data-t="goals">Goals & projects</button></div>`; }
+function planTabs() { return ''; }
+const stripHead = h => h.replace(/^<div class="top">[\s\S]*?<div class="spacer"[^>]*><\/div>/, '');
+function vProgress() {
+  const p = ui.pTab || 'overview';
+  const body = p === 'roadmap' ? vRoadmap() : p === 'goals' ? (ui.planTab = 'goals', vPlan()) : p === 'learning' ? vLearn() : p === 'money' ? vMoney() : vOverview();
+  return header('Progress', 'Where you are, and where you are heading') + `<div class="seg ptabs">${P_TABS.map(([k, l]) => `<button class="${p === k ? 'on' : ''}" data-act="p-tab" data-t="${k}">${l}</button>`).join('')}</div><div style="height:12px"></div>` + stripHead(body);
+}
+/* ---------- habits ---------- */
+function habitWeek(h, ws = weekStart()) { let n = 0; for (let i = 0; i < 7; i++) if ((h.done || {})[addDays(ws, i)]) n++; return n; }
+function habitStreak(h) { const d0 = h.done || {}; let d = today(); if (!d0[d]) d = addDays(d, -1); let n = 0; while (d0[d]) { n++; d = addDays(d, -1); } return n; }
+function habitStrip() {
+  const hs = list('habits').sort((a, b) => String(a.title).localeCompare(String(b.title))); const t = today();
+  if (!hs.length) return '';
+  return `<div class="habits">${hs.map(h => { const on = !!(h.done || {})[t]; return `<button class="hab ${on ? 'on' : ''}" data-act="hab" data-id="${esc(h.id)}"><span class="hk">${on ? '✓' : ''}</span><span dir="auto">${esc(h.title)}</span>${habitStreak(h) > 1 ? `<i>🔥${habitStreak(h)}</i>` : ''}</button>`; }).join('')}</div>`;
+}
+/* ---------- money ---------- */
+const money = () => list('money').filter(m => m.date && m.amount !== '' && !isNaN(Number(m.amount))).sort((a, b) => a.date.localeCompare(b.date));
+const fmtMoney = n => (prefs().currency || '') + ' ' + Math.round(Number(n)).toLocaleString('en-GB');
+function linFit(pts) { // pts [[x,y]] -> {a,b} with y = a + b x
+  const n = pts.length; if (n < 2) return null; const mx = pts.reduce((s, p) => s + p[0], 0) / n, my = pts.reduce((s, p) => s + p[1], 0) / n;
+  const sxx = pts.reduce((s, p) => s + (p[0] - mx) ** 2, 0); if (!sxx) return null; const b = pts.reduce((s, p) => s + (p[0] - mx) * (p[1] - my), 0) / sxx; return { a: my - b * mx, b };
+}
+const dayNum = d => Math.round(parseD(d).getTime() / 86400000);
+const numDay = n => dstr(new Date(n * 86400000 + 12 * 3600000));
+function forecastSavings() { const m = money(); const goal = Number(prefs().savingsGoal) || 0; if (!goal || m.length < 2) return null; const f = linFit(m.map(x => [dayNum(x.date), Number(x.amount)])); if (!f || f.b <= 0) return { stalled: true }; const last = Number(m[m.length - 1].amount); if (last >= goal) return { reached: true }; return { date: numDay(Math.ceil((goal - f.a) / f.b)) }; }
+function vMoney() {
+  const m = money(); const goal = Number(prefs().savingsGoal) || 0; const last = m.length ? Number(m[m.length - 1].amount) : 0; const fc = forecastSavings();
+  return header('Money', '') + `
+  <div class="card hero"><div class="small">Savings now</div><div class="hero-n">${m.length ? esc(fmtMoney(last)) : '—'}</div>
+    ${goal ? `<div class="bar" style="margin-top:10px"><i style="width:${Math.min(100, Math.round(100 * last / goal))}%"></i></div><div class="small" style="margin-top:6px">${Math.round(100 * last / goal)}% of ${esc(fmtMoney(goal))} goal${fc && fc.date ? ` · at this pace: ${esc(fmtDate(fc.date, true))}` : fc && fc.reached ? ' · goal reached 🎉' : fc && fc.stalled ? ' · not growing yet' : ''}</div>` : '<div class="small">Set a savings goal, for example the proof of funds you will need.</div>'}
+    <div class="btns" style="margin-top:12px"><button class="btn primary" data-act="money-add">Update balance</button><button class="btn small ghost" data-act="money-goal">${goal ? 'Change goal' : 'Set goal'}</button></div></div>
+  ${m.length > 1 ? `<div class="card" style="margin-top:12px"><h2>Trend</h2>${lineChart(m.map(x => [x.date, Number(x.amount)]), goal, v => fmtMoney(v))}</div>` : ''}
+  <div class="card" style="margin-top:12px"><h2>History <span class="count">${m.length}</span></h2>${m.length ? `<div class="list">${m.slice().reverse().map(x => `<div class="row" data-act="money-edit" data-id="${esc(x.id)}"><div class="main"><div class="t">${esc(fmtMoney(x.amount))}</div><div class="m"><span>${esc(fmtDate(x.date, true))}</span>${x.note ? `<span dir="auto">${esc(x.note)}</span>` : ''}</div></div></div>`).join('')}</div>` : '<div class="empty">No balance recorded yet.</div>'}</div>`;
+}
+function lineChart(pts, target, fmt) {
+  const W = 320, H = 130, pl = 6, pr = 6, pt = 14, pb = 18; const ys = pts.map(p => p[1]).concat(target ? [target] : []);
+  const lo = Math.min(...ys) * 0.95, hi = Math.max(...ys) * 1.05 || 1; const x0 = dayNum(pts[0][0]), x1 = Math.max(x0 + 1, dayNum(pts[pts.length - 1][0]));
+  const x = d => pl + (dayNum(d) - x0) / (x1 - x0) * (W - pl - pr), y = v => pt + (hi - v) / (hi - lo || 1) * (H - pt - pb);
+  const path = pts.map((p, i) => `${i ? 'L' : 'M'}${x(p[0]).toFixed(1)},${y(p[1]).toFixed(1)}`).join('');
+  const last = pts[pts.length - 1];
+  return `<svg viewBox="0 0 ${W} ${H}" class="bchart" role="img" aria-label="Trend, latest ${esc(fmt(last[1]))}">${target ? `<line x1="${pl}" x2="${W - pr}" y1="${y(target)}" y2="${y(target)}" class="tg"/><text x="${W - pr}" y="${y(target) - 4}" class="ax" text-anchor="end">goal ${esc(fmt(target))}</text>` : ''}<path d="${path}" class="ln"/>${pts.map(p => `<g class="pt"><circle cx="${x(p[0])}" cy="${y(p[1])}" r="10" class="hit"/><circle cx="${x(p[0])}" cy="${y(p[1])}" r="3.5" class="off"/><title>${esc(fmtDate(p[0], true))}: ${esc(fmt(p[1]))}</title></g>`).join('')}<text x="${pl}" y="${H - 3}" class="ax">${esc(fmtDate(pts[0][0]))}</text><text x="${W - pr}" y="${H - 3}" class="ax" text-anchor="end">${esc(fmtDate(last[0]))}</text></svg>`;
+}
+/* ---------- scorecard + forecasts ---------- */
+function weekScore(ws) {
+  const we = addDays(ws, 6), tasks = list('tasks');
+  const topAll = tasks.filter(t => t.focusDate && t.focusDate >= ws && t.focusDate <= we), topDone = topAll.filter(t => !isOpen(t));
+  const tgt = weekTarget(), mins = weekMinutes(ws);
+  const hs = list('habits'), hTarget = hs.reduce((n, h) => n + (Number(h.perWeek) || 7), 0), hDone = hs.reduce((n, h) => n + Math.min(Number(h.perWeek) || 7, habitWeek(h, ws)), 0);
+  const career = list('applications').filter(a => inWeek(a.appliedOn, ws) || inWeek(String(a.updatedAt || '').slice(0, 10), ws)).length + tasks.filter(t => /Career/.test(t.area || '') && inWeek(t.completedOn, ws)).length;
+  const imm = list('immigration'), immOk = imm.filter(x => ['Ready', 'Submitted', 'Not needed'].includes(x.status)).length;
+  const rows = [
+    ['Execution', topAll.length ? Math.round(100 * topDone.length / topAll.length) : null, `${topDone.length} of ${topAll.length} Top 3 items done`],
+    ['Learning', tgt ? Math.min(100, Math.round(100 * mins / tgt)) : null, `${hrs(mins)} of ${hrs(tgt)} h`],
+    ['Habits', hTarget ? Math.round(100 * hDone / hTarget) : null, `${hDone} of ${hTarget} check-ins`],
+    ['Career', Math.min(100, career * 25), `${career} job actions (4 = 100)`],
+    ['Migration', imm.length ? Math.round(100 * immOk / imm.length) : null, `${immOk} of ${imm.length} documents ready`]
+  ];
+  const vals = rows.map(r => r[1]).filter(v => v !== null);
+  return { rows, total: vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null };
+}
+function forecasts() {
+  const out = []; const vd = visionDate();
+  const ie = list('ielts').filter(e => e.skill === 'Overall' && e.date && bandOf(e) !== null).sort((a, b) => a.date.localeCompare(b.date));
+  if (ie.length >= 3) { const f = linFit(ie.map(e => [dayNum(e.date), bandOf(e)])); const last = bandOf(ie[ie.length - 1]); if (last >= 7.5) out.push(['IELTS overall', 'Target 7.5 reached in your log. Book or confirm the official test.', 'ok']); else if (f && f.b > 0) { const d = numDay(Math.ceil((7.5 - f.a) / f.b)); out.push(['IELTS overall', `At this pace, 7.5 around ${fmtDate(d, true)}`, d <= vd ? 'ok' : 'warn']); } else out.push(['IELTS overall', 'Bands are not rising yet. Look at the weakest skill.', 'warn']); }
+  else out.push(['IELTS overall', `Needs 3 overall bands to project (${ie.length} so far)`, '']);
+  const ms = list('milestones'), done = ms.filter(m => m.status === 'Done' && m.doneOn).sort((a, b) => a.doneOn.localeCompare(b.doneOn)), left = ms.filter(m => !['Done', 'Dropped'].includes(m.status)).length;
+  if (done.length >= 2 && left) { const span = Math.max(30, dayNum(today()) - dayNum(done[0].doneOn)); const rate = done.length / span; const d = numDay(dayNum(today()) + Math.ceil(left / rate)); out.push(['Roadmap', `${left} milestones left; at this pace done by ${fmtDate(d, true)}`, d <= vd ? 'ok' : 'warn']); }
+  else out.push(['Roadmap', ms.length ? `${left} milestones left. Projection starts after 2 are done.` : 'Add milestones in Roadmap to see a projection.', '']);
+  const fs = forecastSavings(); if (fs) out.push(['Savings', fs.reached ? 'Goal reached' : fs.stalled ? 'Balance is not growing yet' : `Goal reached around ${fmtDate(fs.date, true)}`, fs.reached || (fs.date && fs.date <= vd) ? 'ok' : 'warn']);
+  const w0 = weekMinutes(weekStart()), w1 = weekMinutes(addDays(weekStart(), -7)), tgt = weekTarget(); if (tgt) out.push(['Learning', `Last week ${hrs(w1)} h, this week ${hrs(w0)} h, target ${hrs(tgt)} h`, w1 >= tgt ? 'ok' : 'warn']);
+  return out;
+}
+function vOverview() {
+  const ws = weekStart(), s = weekScore(ws), p = weekScore(addDays(ws, -7)); const hs = list('habits');
+  return header('Overview', '') + `
+  <div class="card score"><div class="score-n">${s.total ?? '—'}</div><div><b>This week's score</b><div class="small">${p.total !== null && s.total !== null ? (s.total >= p.total ? '▲ ' : '▼ ') + Math.abs(s.total - p.total) + ' vs last week' : 'Average of the areas below'}</div></div></div>
+  <div class="tiles">${s.rows.map((r, i) => { const pv = p.rows[i][1]; return `<div class="tile"><div class="tl">${r[0]}</div><div class="tv">${r[1] === null ? '—' : r[1]}</div><div class="bar"><i style="width:${r[1] || 0}%"></i></div><div class="small" dir="auto">${esc(r[2])}${r[1] !== null && pv !== null && pv !== r[1] ? ` · ${r[1] > pv ? '▲' : '▼'} ${Math.abs(r[1] - pv)}` : ''}</div></div>`; }).join('')}</div>
+  <div class="card" style="margin-top:12px"><h2>Projections</h2><div class="small" style="margin-bottom:6px">Straight-line projections from your own records. Not promises.</div><div class="list">${forecasts().map(([t, m, tone]) => `<div class="row"><span class="dotx ${tone}"></span><div class="main"><div class="t">${esc(t)}</div><div class="m">${esc(m)}</div></div></div>`).join('')}</div></div>
+  <div class="card" style="margin-top:12px"><h2>Habits <span class="count">${hs.length}</span><span style="flex:1"></span><button class="btn small ghost" data-act="new-habit">${I.plus} Habit</button></h2>${hs.length ? `<div class="list">${hs.map(h => `<div class="row" data-act="habit" data-id="${esc(h.id)}"><div class="main"><div class="t" dir="auto">${esc(h.title)}</div><div class="m"><span>${habitWeek(h)} of ${Number(h.perWeek) || 7} this week</span>${habitStreak(h) ? `<span>🔥 ${habitStreak(h)} days</span>` : ''}</div></div><div class="week7">${[0, 1, 2, 3, 4, 5, 6].map(i => `<i class="${(h.done || {})[addDays(ws, i)] ? 'on' : ''}"></i>`).join('')}</div></div>`).join('')}</div>` : '<div class="empty">Small daily habits: exercise, sleep by 11, 20 min reading. Tick them on Today.</div>'}</div>
+  <div class="btns" style="margin-top:14px"><a class="btn" href="#/report">Progress report (PDF)</a><button class="btn" data-act="weekly">Weekly review</button></div>`;
+}
+/* ---------- journal ---------- */
+const MOODS = ['', '😞', '🙁', '😐', '🙂', '😄'];
+function vJournal() {
+  const logs = list('logs').filter(l => l.type === 'closeout' || l.type === 'journal').sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  const byDay = {}; logs.forEach(l => { if (!byDay[l.date]) byDay[l.date] = l; });
+  const days = []; for (let i = 111; i >= 0; i--) days.push(addDays(today(), -i));
+  return header('Journal', 'One line a day, written when you close the day') + `
+  <div class="card"><div class="heat">${days.map(d => { const l = byDay[d]; return `<i class="m${l && l.mood ? l.mood : l ? 'x' : ''}" title="${esc(fmtDate(d, true))}${l && l.mood ? ' ' + MOODS[l.mood] : ''}"></i>`; }).join('')}</div><div class="small" style="margin-top:8px">Last 16 weeks · colour = mood · ${Object.keys(byDay).length} days written</div>
+    <div class="btns" style="margin-top:10px"><button class="btn small" data-act="journal-new">${I.plus} Write for today</button></div></div>
+  <div class="card" style="margin-top:12px">${logs.length ? `<div class="list">${logs.slice(0, 120).map(l => `<div class="row" data-act="logitem" data-id="${esc(l.id)}"><div class="time">${l.mood ? MOODS[l.mood] : '·'}</div><div class="main"><div class="t">${esc(fmtDate(l.date, true))}</div>${l.done ? `<div class="na" dir="auto">${esc(l.done)}</div>` : ''}${l.notes ? `<div class="m" dir="auto">${esc(l.notes).slice(0, 160)}</div>` : ''}</div></div>`).join('')}</div>` : '<div class="empty">Nothing yet. Close the day to write your first line.</div>'}</div>`;
+}
+/* ---------- printable report ---------- */
+function vReport() {
+  const t = today(), tasks = list('tasks'), done = tasks.filter(x => stOf(x) === 'Done' && x.completedOn).sort((a, b) => b.completedOn.localeCompare(a.completedOn));
+  const ms = list('milestones').sort((a, b) => String(a.target || '9').localeCompare(String(b.target || '9')));
+  const sk = list('skills'), ie = list('ielts').sort((a, b) => String(a.date).localeCompare(String(b.date))), ev = list('evidence').sort((a, b) => String(a.code || '').localeCompare(String(b.code || ''), undefined, { numeric: true }));
+  const apps = list('applications'), s = weekScore(weekStart());
+  const tbl = (head, rows) => rows.length ? `<table><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr>${rows.map(r => `<tr>${r.map(c => `<td dir="auto">${esc(c ?? '')}</td>`).join('')}</tr>`).join('')}</table>` : '<p class="small">None recorded.</p>';
+  return `<div class="report"><div class="noprint btns" style="margin-bottom:14px"><a class="btn" href="#/progress">${I.left} Back</a><button class="btn primary" data-act="print">Save as PDF / Print</button></div>
+  <h1>MILAD 2031 · Progress report</h1><p class="small">Generated ${esc(fmtDate(t, true))} from the MILAD 2031 OS records. Estimates are labelled; only official documents count as evidence.</p>
+  <h2>Summary</h2><p>${daysTo(visionDate())} days to the ${esc(fmtDate(visionDate(), true))} target. This week's score: ${s.total ?? 'n/a'}. Milestones done: ${ms.filter(m => m.status === 'Done').length} of ${ms.filter(m => m.status !== 'Dropped').length}. Tasks completed: ${done.length}. Learning this week: ${hrs(weekMinutes(weekStart()))} h.</p>
+  <h2>Roadmap</h2>${tbl(['Milestone', 'Target', 'Status'], ms.map(m => [m.title, m.target ? fmtDate(m.target, true) : '', m.status || 'Planned']))}
+  <h2>Skills</h2>${tbl(['Skill', 'Status', 'Level', 'Hours / week'], sk.map(x => [x.title, x.status || '', `${x.current ?? '?'} → ${x.target ?? '?'}`, x.weeklyHours || '']))}
+  <h2>IELTS log</h2>${tbl(['Date', 'Skill', 'Band / score', 'Type'], ie.map(e => [fmtDate(e.date, true), e.skill, e.band, e.kind]))}
+  <h2>Evidence register</h2>${tbl(['ID', 'Document', 'Status'], ev.map(e => [e.code, e.title, e.status || 'MISSING']))}
+  <h2>Job search</h2>${tbl(['Role', 'Company', 'Stage', 'Applied'], apps.map(a => [a.role, a.company, a.stage || 'Saved', a.appliedOn ? fmtDate(a.appliedOn, true) : '']))}
+  <h2>Completed work (latest 40)</h2>${tbl(['Done', 'Task', 'Proof'], done.slice(0, 40).map(x => [fmtDate(x.completedOn, true), x.title, x.evidence || '']))}</div>`;
+}
+/* ---------- global search ---------- */
+const SEARCH_IN = [['tasks', 'Task', r => [r.title, r.nextAction, r.notes], 'task'], ['notes', 'Note', r => [r.title, r.body, r.tags], 'note'], ['applications', 'Job', r => [r.role, r.company, r.notes], 'application'], ['events', 'Event', r => [r.title, r.notes], 'event'], ['decisions', 'Decision', r => [r.title, r.decision], 'decision'], ['evidence', 'Evidence', r => [r.code, r.title, r.proves], 'evidence'], ['immigration', 'Document', r => [r.title, r.notes], 'immig'], ['milestones', 'Milestone', r => [r.title, r.notes], 'milestone'], ['skills', 'Skill', r => [r.title], 'skill'], ['goals', 'Goal', r => [r.title, r.success], 'goal'], ['logs', 'Journal', r => [r.title, r.done, r.notes], 'logitem']];
+function searchSheet() {
+  openSheet('Search everything', `<input class="search" id="gsq" type="search" placeholder="Type to search" style="width:100%" autocomplete="off" dir="auto"><div id="gsr" class="list" style="margin-top:10px"></div>`, '', {});
+  const inp = $('#gsq'); setTimeout(() => inp.focus(), 60);
+  inp.addEventListener('input', () => {
+    const q = inp.value.trim().toLowerCase(); const out = [];
+    if (q.length > 1) for (const [c, label, f, act] of SEARCH_IN) for (const r of list(c)) { const txt = f(r).filter(Boolean).join(' '); if (txt.toLowerCase().includes(q)) out.push([label, r, act, c]); if (out.length > 60) break; }
+    $('#gsr').innerHTML = q.length < 2 ? '' : out.length ? out.map(([l, r, act, c]) => `<div class="row" data-act="${act === 'note' ? 'open-note' : act}" data-id="${esc(r.id)}"><div class="main"><div class="t" dir="auto">${esc(r.title || r.role || r.code || '')}${c === 'applications' && r.company ? ' · ' + esc(r.company) : ''}</div><div class="m"><span class="chip">${l}</span>${c === 'tasks' && !isOpen(r) ? '<span>done</span>' : ''}</div></div></div>`).join('') : '<div class="empty">No matches.</div>';
+  });
+}
+
 function vRoadmap() {
   const ms = list('milestones'); const t = today(); const vd = visionDate();
   const done = ms.filter(m => m.status === 'Done').length, live = ms.filter(m => m.status !== 'Dropped').length;
@@ -473,7 +721,7 @@ function vMore() {
   return header('More', 'Everything else in MILAD 2031') + `<div class="grid two">${NAV_MORE.map(([k, l, ic]) => `<a class="card row" href="#/${k}" style="text-decoration:none;align-items:center"><span style="width:26px;color:var(--brass-ink)">${ic}</span><div class="main"><div class="t">${l}</div><div class="m">${moreHint(k)}</div></div></a>`).join('')}</div>`;
 }
 function moreHint(k) {
-  return { jobs: `${list('applications').filter(a => APP_ACTIVE.includes(a.stage || 'Saved')).length} active applications`, immigration: `${list('immigration').length} documents`, learn: `${list('skills').length} skills · ${list('sessions').length} sessions · ${list('ielts').length} IELTS entries`, evidence: `${list('evidence').length} items`, decisions: `${list('decisions').length} decisions`, notes: `${list('notes').length} documents`, review: 'Live executive review and close-out logs', settings: 'Sync, calendar feed, backup, password' }[k] || '';
+  return { journal: `${list('logs').filter(l => l.type === 'closeout').length} days written`, templates: `${TEMPLATE_STARTERS.length + list('templates').length} templates`, trash: `${COLS.reduce((n, c) => n + Object.values(db[c] || {}).filter(r => r && r.deleted).length, 0)} deleted items`, health: 'Server, backups, sync and security checks', jobs: `${list('applications').filter(a => APP_ACTIVE.includes(a.stage || 'Saved')).length} active applications`, immigration: `${list('immigration').length} documents`, learn: `${list('skills').length} skills · ${list('sessions').length} sessions · ${list('ielts').length} IELTS entries`, evidence: `${list('evidence').length} items`, decisions: `${list('decisions').length} decisions`, notes: `${list('notes').length} documents`, review: 'Live executive review and close-out logs', settings: 'Sync, calendar feed, backup, password' }[k] || '';
 }
 function vLearn() {
   const skills = list('skills').sort((a, b) => String(a.priority || 'P9').localeCompare(String(b.priority || 'P9')));
@@ -579,14 +827,18 @@ function vSettings() {
   <div class="card"><h2>${I.bell} Notifications</h2><div id="pushbox" class="small">Checking…</div></div>
   <div class="card"><h2>Install on iPhone or iPad</h2><div class="small">Open this page in Safari → Share → <b>Add to Home Screen</b>. It then opens full screen like an app and works offline; changes sync when you are online.</div></div>
   <div class="card"><h2>Backup and import</h2><div class="small">The server also keeps a daily snapshot for 30 days. Export a copy regularly.</div>
-    <div class="btns" style="margin-top:10px"><button class="btn small" data-act="export">Export JSON backup</button><label class="btn small" style="cursor:pointer">Import JSON<input type="file" accept="application/json,.json" data-change="import" hidden></label></div>
+    <div class="btns" style="margin-top:10px"><button class="btn small primary" data-act="enc-backup">Download encrypted backup</button><button class="btn small" data-act="export">Plain JSON</button><label class="btn small" style="cursor:pointer">Import JSON<input type="file" accept="application/json,.json" data-change="import" hidden></label></div>
     <div class="small mono" style="margin-top:8px">${esc(n)}</div></div>
+  <div class="card"><h2>Siri & Shortcuts</h2><div class="small">Add tasks, hear your Top 3, log practice and save job ads by voice or from Safari's Share button.</div><div class="btns" style="margin-top:10px"><button class="btn small primary" data-act="siri">Set up Siri</button></div></div>
+  <div class="card"><h2>Face ID sign-in</h2><div id="pkbox" class="small">Checking…</div></div>
+  <div class="card"><h2>Language</h2><div class="seg">${[['en', 'English'], ['fa', 'فارسی']].map(([k, l]) => `<button class="${(ui.lang || 'en') === k ? 'on' : ''}" data-act="set-lang" data-v="${k}">${l}</button>`).join('')}</div></div>
   <div class="card"><h2>Security</h2><div class="btns"><button class="btn small" data-act="password">Change password</button><button class="btn small danger" data-act="logout">Sign out on this device</button></div>
     <div class="small" style="margin-top:8px">Do not store passport numbers, ID numbers, salaries or confidential employer files here. Keep those in your private evidence vault.</div></div>
   </div>`;
 }
 function header(title, sub) {
-  return `<div class="top"><div class="top-row"><h1 dir="auto">${esc(title)}</h1>${syncHtml()}</div>${sub ? `<div class="sub" dir="auto">${esc(sub)}</div>` : ''}</div><div class="spacer" style="height:14px"></div>`;
+  if (ui.lang === 'fa') { title = trStr(title) || title; sub = sub && (trStr(sub) || sub); }
+  return `<div class="top"><div class="top-row"><h1 dir="auto">${esc(title)}</h1>${syncHtml()}<button class="icon-btn hsearch" data-act="search" aria-label="Search">${I.search}</button></div>${sub ? `<div class="sub" dir="auto">${esc(sub)}</div>` : ''}</div><div class="spacer" style="height:14px"></div>`;
 }
 
 /* ---------------- shell + router ---------------- */
@@ -594,20 +846,21 @@ function route() { const h = location.hash.replace(/^#\/?/, '') || 'today'; cons
 function render() {
   if (!ls.get(K.tok) && !document.querySelector('.shell')) return;
   const { page, arg } = route();
-  const views = { today: vToday, tasks: vTasks, calendar: vCalendar, plan: vPlan, more: vMore, learn: vLearn, evidence: vEvidence, decisions: vDecisions, notes: vNotes, note: () => vNote(arg), review: vReview, settings: vSettings, jobs: vJobs, immigration: vImmigration };
+  const views = { today: vToday, tasks: vTasks, calendar: vCalendar, plan: vPlan, more: vMore, learn: vLearn, evidence: vEvidence, decisions: vDecisions, notes: vNotes, note: () => vNote(arg), review: vReview, settings: vSettings, jobs: vJobs, immigration: vImmigration, progress: vProgress, journal: vJournal, report: vReport, templates: vTemplates, trash: vTrash, health: vHealth };
+  if (page === 'plan') { ui.pTab = ui.planTab === 'goals' ? 'goals' : 'roadmap'; views.plan = vProgress; } if (page === 'learn') { ui.pTab = 'learning'; views.learn = vProgress; }
   const html = (views[page] || vToday)();
-  const active = NAV_MAIN.some(([k]) => k === page) ? page : page === 'note' ? 'more' : NAV_MORE.some(([k]) => k === page) ? 'more' : 'today';
+  const active = NAV_MAIN.some(([k]) => k === page) ? page : ['plan', 'learn', 'report'].includes(page) ? 'progress' : page === 'note' ? 'more' : NAV_MORE.some(([k]) => k === page) ? 'more' : 'today';
   const focusKey = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.input : null;
   const sel = focusKey ? [document.activeElement.selectionStart, document.activeElement.selectionEnd] : null;
   const scrollY = window.scrollY;
   const app = $('#app');
   app.innerHTML = `<div class="shell">
-    <aside class="side"><div class="brand">MILAD<span>2031 OS</span></div>${NAV_MAIN.filter(([k]) => k !== 'more').map(([k, l, ic]) => `<a href="#/${k}" class="${page === k ? 'on' : ''}">${ic}${l}</a>`).join('')}<div class="grp">Workspace</div>${NAV_MORE.map(([k, l, ic]) => `<a href="#/${k}" class="${page === k || (k === 'notes' && page === 'note') ? 'on' : ''}">${ic}${l}</a>`).join('')}</aside>
-    <main>${html}</main>
+    <aside class="side"><div class="brand">MILAD<span>2031 OS</span></div>${NAV_MAIN.filter(([k]) => k !== 'more').map(([k, l, ic]) => `<a href="#/${k}" class="${active === k ? 'on' : ''}">${ic}${l}</a>`).join('')}<div class="grp">Workspace</div>${NAV_MORE.map(([k, l, ic]) => `<a href="#/${k}" class="${page === k || (k === 'notes' && page === 'note') ? 'on' : ''}">${ic}${l}</a>`).join('')}</aside>
+    <main class="pg-${esc(page)}">${html}</main>
     <nav class="tabs">${NAV_MAIN.map(([k, l, ic]) => `<a href="#/${k}" class="${active === k ? 'on' : ''}">${ic}<span>${l}</span></a>`).join('')}</nav>
     <button class="fab" data-act="quick" aria-label="Add">${I.plus}</button></div>`;
   if (focusKey) { const el = app.querySelector(`[data-input="${focusKey}"]`); if (el) { el.focus(); try { el.setSelectionRange(sel[0], sel[1]); } catch {} } }
-  if (page === 'settings') setTimeout(pushRender, 0);
+  if (page === 'settings') setTimeout(() => { pushRender(); pkRender(); }, 0);
   if (render.keepScroll) window.scrollTo(0, scrollY);
   render.keepScroll = true;
 }
@@ -619,6 +872,7 @@ function openSheet(title, bodyHtml, footHtml, ctx = {}) {
   closeSheet(true);
   const scrim = document.createElement('div'); scrim.className = 'scrim'; scrim.dataset.act = 'sheet-close';
   const sh = document.createElement('div'); sh.className = 'sheet'; sh.setAttribute('role', 'dialog'); sh.setAttribute('aria-modal', 'true');
+  if (ui.lang === 'fa') title = trStr(title) || title;
   sh.innerHTML = `<div class="sheet-h"><h3 dir="auto">${esc(title)}</h3><button class="icon-btn" data-act="sheet-close" aria-label="Close">${I.close}</button></div><div class="sheet-b">${bodyHtml}</div>${footHtml ? `<div class="sheet-f">${footHtml}</div>` : ''}`;
   document.body.append(scrim, sh); sheetCtx = Object.assign({ el: sh, scrim }, ctx);
   requestAnimationFrame(() => { scrim.classList.add('on'); sh.classList.add('on'); });
@@ -645,7 +899,9 @@ function readForm(fields, el) {
     if (f.type === 'check') o[f.k] = inp.checked; else if (f.type === 'datetime') o[f.k] = fromInput(inp.value); else if (f.type === 'number') o[f.k] = inp.value === '' ? '' : Number(inp.value); else o[f.k] = inp.value.trim(); }
   return o;
 }
+let formColl = null;
 function form(title, fields, rec, onSave, opts = {}) {
+  const hc = opts.coll || formColl; formColl = null; if (hc && rec && rec.id && db[hc] && db[hc][rec.id]) opts.extra = (opts.extra || '') + `<button class="btn ghost" data-act="history" data-c="${hc}" data-id="${esc(rec.id)}">History</button>`;
   const draw = fs => fs.map(f => Array.isArray(f) ? `<div class="fgrid">${f.map(x => field(x, rec[x.k])).join('')}</div>` : f.html ? f.html : field(f, rec[f.k])).join('');
   const cut = fields.indexOf('MORE');
   const main = cut < 0 ? fields : fields.slice(0, cut), extra = cut < 0 ? [] : fields.slice(cut + 1);
@@ -666,7 +922,7 @@ function taskForm(t = {}) {
     { k: 'nextAction', label: 'Note', ph: 'Next step or a short note (optional)' },
     'MORE',
     [{ k: 'state', label: 'Status', type: 'select', options: STATES, blank: false, def: 'To do' }, { k: 'priority', label: 'Priority', type: 'select', options: PRI, def: 'P2' }],
-    { k: 'focusDate', label: 'Top 3 on day', type: 'date' },
+    [{ k: 'focusDate', label: 'Top 3 on day', type: 'date' }, { k: 'repeat', label: 'Repeat', type: 'select', options: REPEATS, blank: false, def: '' }],
     [{ k: 'owner', label: 'Owner', type: 'select', options: OWNERS, def: 'Milad' }, { k: 'area', label: 'Area', type: 'select', options: AREAS }],
     [{ k: 'projectId', label: 'Project', type: 'select', options: projOpts }, { k: 'goalId', label: 'Goal', type: 'select', options: goalOpts }],
     { k: 'criterion', label: 'Done when…', type: 'textarea', ph: 'What must exist for this to count as done?' },
@@ -678,7 +934,7 @@ function taskForm(t = {}) {
     [{ k: 'completedOn', label: 'Completed on', type: 'date' }, { k: 'docLink', label: 'Document link', type: 'url' }],
     { k: 'notes', label: 'Notes', type: 'textarea' }
   ];
-  form(t.id ? 'Edit task' : 'New task', fields, t, v => {
+  formColl = 'tasks'; form(t.id ? 'Edit task' : 'New task', fields, t, v => {
     if (!v.title) return 'Give the task a title.';
     if (DONE.has(v.state) && !v.completedOn) v.completedOn = today();
     if (!DONE.has(v.state) && DONE.has(t.state || '')) v.completedOn = '';
@@ -687,11 +943,86 @@ function taskForm(t = {}) {
   }, { onDelete: t.id ? () => { if (confirm('Delete this task? It can be restored from a backup.')) { remove('tasks', t.id); closeSheet(); } } : null });
 }
 function setTask(id, patch, msg) { const t = get('tasks', id); if (!t) return; const before = Object.assign({}, t); save('tasks', Object.assign({}, t, patch)); closeSheet(); if (msg) toast(msg, 'Undo', () => save('tasks', before)); }
+const REPEATS = [['', 'Does not repeat'], ['daily', 'Every day'], ['weekdays', 'Weekdays (Mon–Fri)'], ['weekly', 'Every week'], ['monthly', 'Every month']];
+function nextDue(from, rep) {
+  const base = from && from > today() ? from : today(); let d = parseD(base);
+  if (rep === 'daily') d.setDate(d.getDate() + 1);
+  else if (rep === 'weekdays') { do { d.setDate(d.getDate() + 1); } while (d.getDay() === 0 || d.getDay() === 6); }
+  else if (rep === 'weekly') { d = parseD(from || base); do { d.setDate(d.getDate() + 7); } while (dstr(d) <= today()); }
+  else if (rep === 'monthly') { d = parseD(from || base); do { d.setMonth(d.getMonth() + 1); } while (dstr(d) <= today()); }
+  return dstr(d);
+}
 function toggleDone(id) {
   const t = get('tasks', id); if (!t) return;
   if (DONE.has(t.state)) return setTask(id, { state: 'To do', completedOn: '' }, 'Reopened');
-  setTask(id, { state: 'Done', completedOn: today() }, 'Done ✓');
+  const before = Object.assign({}, t); save('tasks', Object.assign({}, t, { state: 'Done', completedOn: today() })); closeSheet();
+  let nx = null;
+  if (t.repeat) { const d = nextDue(t.due, t.repeat); nx = save('tasks', { title: t.title, nextAction: t.nextAction || '', priority: t.priority || 'P2', owner: t.owner || 'Milad', area: t.area || '', projectId: t.projectId || '', goalId: t.goalId || '', notes: t.notes || '', repeat: t.repeat, state: 'To do', due: d, prevId: t.id }); }
+  toast(nx ? `Done ✓ · next ${rel(nx.due)}` : 'Done ✓', 'Undo', () => { save('tasks', before); if (nx) remove('tasks', nx.id); });
 }
+function repeatSheet(id) {
+  const t = get('tasks', id); if (!t) return;
+  openSheet('Repeat', `<div class="acts one">${REPEATS.map(([k, l]) => `<button class="act ${(t.repeat || '') === k ? 'pri' : ''}" data-act="t-rep" data-id="${esc(id)}" data-v="${k}"><span>${(t.repeat || '') === k ? '✓' : '↻'}</span>${l}</button>`).join('')}</div><div class="small" style="margin-top:10px">When you tick it done, the next one is created automatically.</div>`, '', { noFocus: true });
+}
+/* ---- Top 3 suggestion ---- */
+function suggestTop(day = today()) {
+  const score = t => { let s = 0; if (t.due && t.due < day) s += 100 + Math.min(30, dayNum(day) - dayNum(t.due)); else if (t.due === day) s += 80; else if (t.due && t.due <= addDays(day, 3)) s += 50; else if (t.due && t.due <= addDays(day, 7)) s += 20;
+    s += t.priority === 'P1' ? 40 : t.priority === 'P2' ? 15 : 0; if (stOf(t) === 'Doing') s += 30; if (t.goalId || t.projectId) s += 10; return s; };
+  return list('tasks').filter(t => isOpen(t) && stOf(t) !== 'Waiting').map(t => [score(t), t]).sort((a, b) => b[0] - a[0]).slice(0, 3).map(x => x[1]);
+}
+/* ---- focus timer ---- */
+let focusTick = null;
+function focusLeft() { const f = ui.focus; if (!f) return 0; const used = (f.pausedAt || Date.now()) - f.start - (f.paused || 0); return Math.max(0, f.dur * 60000 - used); }
+function focusStart(id, mins = 25) { ui.focus = { id, dur: mins, start: Date.now(), paused: 0, pausedAt: 0 }; saveUi(); closeSheet(true); focusShow(); }
+function focusShow() {
+  const f = ui.focus; let el = $('#focus'); if (!f) { if (el) el.remove(); clearInterval(focusTick); return; }
+  const t = get('tasks', f.id);
+  if (!el) { el = document.createElement('div'); el.id = 'focus'; document.body.appendChild(el); }
+  const draw = () => { if (!ui.focus) { clearInterval(focusTick); return; } const ms = focusLeft(); const m = Math.floor(ms / 60000), s = Math.floor(ms % 60000 / 1000); const tt = $('#focus .ft'); if (tt) tt.textContent = `${pad(m)}:${pad(s)}`; const ring = $('#focus .ring i'); if (ring) ring.style.setProperty('--p', (100 - 100 * ms / (f.dur * 60000)).toFixed(1)); if (ms <= 0 && !ui.focus.finished) { ui.focus.finished = true; saveUi(); focusEnd(true); } };
+  el.innerHTML = `<div class="fbox"><div class="small">Focus</div><div class="fttl" dir="auto">${esc(t ? t.title : 'Focus session')}</div><div class="ring"><i></i><div class="ft">--:--</div></div>
+    <div class="btns" style="justify-content:center">${f.pausedAt ? '<button class="btn" data-act="f-resume">Resume</button>' : '<button class="btn" data-act="f-pause">Pause</button>'}<button class="btn" data-act="f-plus">+5 min</button><button class="btn primary" data-act="f-stop">Finish</button></div>
+    <button class="btn ghost small" data-act="f-cancel" style="margin-top:10px">Cancel without saving</button></div>`;
+  clearInterval(focusTick); draw(); if (ui.focus) focusTick = setInterval(draw, 1000);
+}
+function focusEnd(auto) {
+  const f = ui.focus; if (!f) return; const mins = Math.max(1, Math.round((f.dur * 60000 - focusLeft()) / 60000)); const t = get('tasks', f.id);
+  ui.focus = null; saveUi(); clearInterval(focusTick); const el = $('#focus'); if (el) el.remove();
+  if (t) save('tasks', Object.assign({}, t, { focusMin: (Number(t.focusMin) || 0) + mins }));
+  const sk = list('skills').sort((a, b) => (Number(b.weeklyHours) || 0) - (Number(a.weeklyHours) || 0)).slice(0, 6);
+  openSheet(auto ? 'Time is up 🎉' : 'Focus finished', `<div class="closeday"><div class="big">${mins}</div><div class="small">minutes on “${esc(t ? t.title : 'focus')}”</div></div>
+    ${sk.length ? `<div class="small" style="margin:12px 0 6px">Also count it as practice for:</div><div class="pick">${sk.map(s => `<button data-act="f-skill" data-id="${esc(s.id)}" data-v="${mins}" dir="auto">${esc(s.title)}</button>`).join('')}</div>` : ''}
+    <div class="acts" style="margin-top:14px">${t && isOpen(t) ? `<button class="act pri" data-act="t-done" data-id="${esc(t.id)}"><span>✓</span>Task is done</button>` : ''}<button class="act" data-act="sheet-close"><span>→</span>Keep it open</button><button class="act" data-act="f-again" data-id="${esc(f.id)}"><span>↻</span>Another 25 min</button></div>`, '', { noFocus: true });
+}
+/* ---- templates ---- */
+const TEMPLATE_STARTERS = [
+  { id: 'st-job', title: 'Job application', lines: 'Read the ad and list the must-have skills | 0\nTailor CV to the ad | 0\nWrite a short cover letter | 1\nSubmit the application | 1\nFollow up if no reply | 8' },
+  { id: 'st-mock', title: 'IELTS mock test', lines: 'Listening test (timed) | 0\nReading test (timed) | 0\nWriting Task 1 and 2 (timed) | 1\nSpeaking recording | 1\nReview mistakes and log bands | 2' },
+  { id: 'st-sql', title: 'SQL practice session', lines: 'Warm-up: 5 queries from last session | 0\nNew topic exercises | 0\nPass check and log result | 0' },
+  { id: 'st-doc', title: 'Request a document', lines: 'Draft the request | 0\nSend the request | 1\nFollow up | 8\nFile the document and update Evidence | 15' },
+  { id: 'st-week', title: 'Weekly reset', lines: 'Weekly review | 0\nPlan next week Top 3 | 0\nTidy inbox and notes | 0' }
+];
+function parseLines(txt) { return String(txt || '').split('\n').map(l => l.trim()).filter(Boolean).map(l => { const m = l.match(/^(.*?)\s*\|\s*\+?(\d+)\s*$/); return m ? { title: m[1], off: Number(m[2]) } : { title: l, off: null }; }); }
+function useTemplate(tp) {
+  const items = parseLines(tp.lines); const made = [];
+  for (const it of items) made.push(save('tasks', { title: it.title, state: 'To do', priority: 'P2', owner: 'Milad', due: it.off === null ? '' : addDays(today(), it.off), notes: 'From template: ' + tp.title }));
+  closeSheet(); toast(`${made.length} tasks added`, 'Undo', () => made.forEach(r => remove('tasks', r.id)));
+}
+function vTemplates() {
+  const mine = list('templates').sort((a, b) => String(a.title).localeCompare(String(b.title)));
+  const card = (tp, own) => { const it = parseLines(tp.lines); return `<div class="row" data-act="tp-open" data-id="${esc(tp.id)}"><div class="main"><div class="t" dir="auto">${esc(tp.title)}</div><div class="m"><span>${it.length} tasks</span>${own ? '' : '<span class="chip">starter</span>'}</div></div><button class="btn small primary" data-act="tp-use" data-id="${esc(tp.id)}">Use</button></div>`; };
+  return header('Templates', 'One tap creates a ready set of tasks with dates') + `
+  <div class="toolbar"><button class="btn primary" data-act="tp-new">${I.plus} New template</button></div>
+  ${mine.length ? `<div class="card"><h2>Mine</h2><div class="list">${mine.map(t => card(t, true)).join('')}</div></div>` : ''}
+  <div class="card" style="margin-top:12px"><h2>Starters</h2><div class="list">${TEMPLATE_STARTERS.map(t => card(t, false)).join('')}</div></div>`;
+}
+const tplById = id => get('templates', id) || TEMPLATE_STARTERS.find(t => t.id === id);
+function tplForm(tp) {
+  const own = !!get('templates', tp.id);
+  form(own ? 'Edit template' : tp.id ? 'Copy of ' + tp.title : 'New template', [{ k: 'title', label: 'Name', req: true }, { k: 'lines', label: 'Tasks, one per line', type: 'textarea', hint: 'Add “| 3” to set the due date 3 days after you use it.', ph: 'Tailor CV | 0\nSubmit | 1\nFollow up | 8' }],
+    own ? tp : { title: tp.title || '', lines: tp.lines || '' }, v => { if (!v.title || !v.lines) return 'Add a name and at least one task.'; save('templates', Object.assign({}, own ? tp : {}, v)); toast('Template saved'); },
+    { onDelete: own ? () => { remove('templates', tp.id); closeSheet(); } : null });
+}
+
 function taskSheet(id) {
   const t = get('tasks', id); if (!t) return;
   const open = isOpen(t), top = t.focusDate === today(), wait = stOf(t) === 'Waiting';
@@ -705,6 +1036,8 @@ function taskSheet(id) {
   ${open ? b('t-week', '⇥', 'Next week') : ''}
   ${open ? `<label class="act"><span>📅</span>Pick a date<input type="date" data-change="t-date" data-id="${esc(id)}" value="${esc(t.due || '')}"></label>` : ''}
   ${open ? b('t-wait', wait ? '▶' : '⏸', wait ? 'Not waiting' : 'Waiting on someone') : ''}
+  ${open ? b('t-focus', '◷', 'Focus 25 min') : ''}
+  ${open ? b('t-repeat', '↻', t.repeat ? REPEATS.find(r => r[0] === t.repeat)[1] : 'Repeat…') : ''}
   ${b('t-edit', '✎', 'Edit details')}
   ${b('t-del', '🗑', 'Delete', 'danger')}</div>`, '', { noFocus: true });
 }
@@ -714,11 +1047,13 @@ function closeDay() {
   const doneN = list('tasks').filter(x => !isOpen(x) && x.completedOn === t).length;
   openSheet('Close the day', `<div class="closeday"><div class="big">${doneN}</div><div class="small">done today</div></div>
   ${left.length ? `<div class="small" style="margin:10px 0 6px">${left.length} still open from today. They move to tomorrow:</div><div class="list">${left.map(x => `<div class="row"><div class="main"><div class="t" dir="auto">${esc(x.title)}</div></div></div>`).join('')}</div>` : '<div class="small" style="margin:10px 0">Nothing left over. Well done.</div>'}
+  <div class="small" style="margin:14px 0 6px">How was today?</div><div class="moods">${[1, 2, 3, 4, 5].map(m => `<button data-act="mood" data-v="${m}">${MOODS[m]}</button>`).join('')}</div>
   <div class="f" style="margin-top:12px"><label>One line about today (optional)</label><input name="note" dir="auto" placeholder="e.g. CV section 2 finished"></div>`,
   `<button class="btn primary wide" data-act="form-save">${left.length ? 'Move to tomorrow and close' : 'Close the day'}</button>`, { noFocus: true, onSave: () => {
     const note = (sheetCtx.el.querySelector('[name=note]') || {}).value || '';
     for (const x of left) save('tasks', Object.assign({}, x, x.focusDate === t ? { focusDate: tm, due: x.due && x.due <= t ? tm : x.due } : { due: tm }));
-    save('logs', { type: 'closeout', date: t, title: 'Close-out ' + fmtDate(t), done: note.trim(), notes: left.length ? 'Moved to tomorrow: ' + left.map(x => x.title).join('; ') : '' });
+    const ex = list('logs').find(l => l.type === 'closeout' && l.date === t) || {};
+    save('logs', { ...ex, type: 'closeout', date: t, mood: sheetCtx.mood || ex.mood || '', title: 'Close-out ' + fmtDate(t), done: note.trim() || ex.done || '', notes: left.length ? 'Moved to tomorrow: ' + left.map(x => x.title).join('; ') : '' });
     closeSheet(); toast('Day closed. See you tomorrow.');
   } });
 }
@@ -767,7 +1102,7 @@ function eventForm(e = {}, day) {
     { k: 'taskId', label: 'Linked task', type: 'select', options: () => list('tasks').filter(isOpen).map(t => [t.id, t.title]) },
     { k: 'notes', label: 'Notes', type: 'textarea' }
   ];
-  form(e.id ? 'Edit event' : 'New event', fields, rec, v => {
+  formColl = 'events'; form(e.id ? 'Edit event' : 'New event', fields, rec, v => {
     if (!v.title || !v.start) return 'Title and start are required.';
     if (v.allDay) { v.start = v.start.slice(0, 10); v.end = v.end ? v.end.slice(0, 10) : ''; }
     else if (!v.end) { const d = new Date(v.start); if (!isNaN(d)) { d.setHours(d.getHours() + 1); v.end = fromInput(toInput(d.toISOString())); } }
@@ -778,10 +1113,11 @@ function eventForm(e = {}, day) {
   }, { onDelete: e.id ? () => { if (confirm('Delete this event?')) { remove('events', e.id); closeSheet(); } } : null });
 }
 function simpleForm(c, title, fields, rec) {
-  form((rec.id ? 'Edit ' : 'New ') + title, fields, rec, v => { const req = fields.flat().find(f => f && f.req && !v[f.k]); if (req) return `${req.label} is required.`; save(c, Object.assign({}, rec, v)); toast('Saved'); },
+  formColl = c; form((rec.id ? 'Edit ' : 'New ') + title, fields, rec, v => { const req = fields.flat().find(f => f && f.req && !v[f.k]); if (req) return `${req.label} is required.`; save(c, Object.assign({}, rec, v)); toast('Saved'); },
     { onDelete: rec.id ? () => { if (confirm('Delete this ' + title + '?')) { remove(c, rec.id); closeSheet(); } } : null });
 }
 const FORMS = {
+  habit: r => simpleForm('habits', 'habit', [{ k: 'title', label: 'Habit', req: true, ph: 'e.g. 30 min walk' }, { k: 'perWeek', label: 'Times per week', type: 'select', options: [1, 2, 3, 4, 5, 6, 7], blank: false, def: 7 }], r),
   milestone: r => simpleForm('milestones', 'milestone', [{ k: 'title', label: 'Milestone', req: true, ph: 'e.g. Official IELTS 7.5 achieved' }, [{ k: 'target', label: 'Target date', type: 'date' }, { k: 'status', label: 'Status', type: 'select', options: MS_STATES, blank: false, def: 'Planned' }], 'MORE', [{ k: 'goalId', label: 'Goal', type: 'select', options: goalOpts }, { k: 'area', label: 'Area', type: 'select', options: AREAS }], { k: 'proof', label: 'How I will know it is achieved', type: 'textarea' }, { k: 'notes', label: 'Notes', type: 'textarea' }], r),
   application: r => simpleForm('applications', 'application', [[{ k: 'company', label: 'Company', req: true }, { k: 'role', label: 'Role', req: true }], [{ k: 'stage', label: 'Stage', type: 'select', options: APP_STAGES, blank: false, def: 'Saved' }, { k: 'appliedOn', label: 'Applied on', type: 'date' }], { k: 'followUp', label: 'Follow up on', type: 'date', hint: 'Appears in Today and the calendar.' }, 'MORE', [{ k: 'location', label: 'Location' }, { k: 'source', label: 'Found via', ph: 'LinkedIn, referral…' }], { k: 'link', label: 'Job ad link', type: 'url' }, [{ k: 'cvVersion', label: 'CV version used' }, { k: 'contact', label: 'Contact person' }], { k: 'notes', label: 'Notes', type: 'textarea' }], r),
   immig: r => simpleForm('immigration', 'document', [{ k: 'title', label: 'Document', req: true }, [{ k: 'status', label: 'Status', type: 'select', options: IMM_STATES, blank: false, def: 'Not started' }, { k: 'category', label: 'Category', type: 'select', options: IMM_CATS, blank: false, def: 'Other' }], { k: 'expiry', label: 'Expiry date (if any)', type: 'date' }, 'MORE', { k: 'source', label: 'Official requirement link', type: 'url' }, { k: 'evidenceId', label: 'Linked evidence item', type: 'select', options: () => list('evidence').map(e => [e.id, (e.code ? e.code + ' · ' : '') + e.title]) }, { k: 'notes', label: 'Notes', type: 'textarea' }], r),
@@ -797,14 +1133,16 @@ const FORMS = {
   evidence: r => simpleForm('evidence', 'evidence item', [{ k: 'title', label: 'Document', req: true }, { k: 'status', label: 'Status', type: 'select', options: EVIDENCE_STATES }, 'MORE', { k: 'code', label: 'ID', ph: 'A1' }, { k: 'why', label: 'Why it is needed', type: 'textarea' }, { k: 'proves', label: 'Exact facts it can prove', type: 'textarea' }, [{ k: 'conflicts', label: 'Related conflicts', ph: 'C1, C2' }, { k: 'priority', label: 'Priority', type: 'select', options: PRI }], { k: 'source', label: 'Likely source / issuer' }, { k: 'recovery', label: 'Recovery action', type: 'textarea' }, { k: 'alternative', label: 'Alternative (proposed, not confirmed accepted)', type: 'textarea' }, [{ k: 'target', label: 'Target date', type: 'date' }, { k: 'location', label: 'Where the file is stored', ph: 'Private vault, not this app' }], { k: 'notes', label: 'Notes', type: 'textarea' }], r),
   decision: r => simpleForm('decisions', 'decision', [{ k: 'title', label: 'Decision', req: true }, { k: 'decision', label: 'What was decided', type: 'textarea' }, 'MORE', [{ k: 'status', label: 'Status', type: 'select', options: DECISION_STATES }, { k: 'date', label: 'Date', type: 'date', def: today() }], { k: 'category', label: 'Category', type: 'select', options: ['Career', 'Migration', 'Learning', 'Finance', 'Tathmeer', 'Personal', 'System'] }, { k: 'evidence', label: 'Evidence used', type: 'textarea' }, { k: 'alternatives', label: 'Alternatives considered', type: 'textarea' }, { k: 'risks', label: 'Risks and assumptions', type: 'textarea' }, [{ k: 'nextAction', label: 'Next action' }, { k: 'review', label: 'Review date', type: 'date' }]], r),
   note: r => simpleForm('notes', 'document', [{ k: 'title', label: 'Title', req: true }, { k: 'body', label: 'Content', type: 'big' }, 'MORE', [{ k: 'tags', label: 'Tags', ph: 'CV, career' }, { k: 'pinned', label: 'Pin to top', type: 'check' }], { k: 'source', label: 'Original source link', type: 'url' }], r),
-  logitem: r => simpleForm('logs', 'log', [{ k: 'date', label: 'Date', type: 'date', req: true }, { k: 'done', label: 'Done / outcome', type: 'textarea' }, 'MORE', { k: 'type', label: 'Type', type: 'select', options: ['closeout', 'weekly', 'monthly', 'session', 'note'] }, { k: 'title', label: 'Title' }, { k: 'blockers', label: 'Blockers', type: 'textarea' }, { k: 'notes', label: 'Notes', type: 'textarea' }], r)
+  logitem: r => simpleForm('logs', 'log', [{ k: 'date', label: 'Date', type: 'date', req: true }, { k: 'done', label: 'Today in one line', type: 'textarea' }, { k: 'mood', label: 'Mood', type: 'select', options: [[1, '😞'], [2, '🙁'], [3, '😐'], [4, '🙂'], [5, '😄']] }, 'MORE', { k: 'type', label: 'Type', type: 'select', options: ['closeout', 'weekly', 'monthly', 'session', 'note'] }, { k: 'title', label: 'Title' }, { k: 'blockers', label: 'Blockers', type: 'textarea' }, { k: 'notes', label: 'Notes', type: 'textarea' }], r)
 };
 
 function planDay(day, isCloseout) {
   const open = sortTasks(list('tasks').filter(isOpen));
   const chosen = new Set(open.filter(t => t.focusDate === day).map(t => t.id));
   const rows = open.map(t => `<label class="row" style="cursor:pointer"><input type="checkbox" name="pick" value="${esc(t.id)}" ${chosen.has(t.id) ? 'checked' : ''} style="width:22px;height:22px;margin-top:2px"><div class="main"><div class="t" dir="auto">${esc(t.title)}</div><div class="m">${priChip(t.priority)}${stateChip(t.state)}${dueChip(t)}</div></div></label>`).join('');
-  const head = isCloseout ? `<div class="f"><label>What got done today</label><textarea name="done" dir="auto" placeholder="Deliverables, not effort"></textarea></div><div class="f"><label>Blockers</label><textarea name="blockers" dir="auto"></textarea></div><div class="small" style="margin-bottom:8px">Choose up to three for <b>${esc(fmtDate(day))}</b>. Keep it achievable.</div>` : `<div class="small" style="margin-bottom:8px">Choose up to three for <b>${esc(fmtDate(day))}</b>.</div>`;
+  const sug = suggestTop(day).map(t => t.id);
+  const head0 = `<button class="btn small" data-act="suggest-pick" data-ids="${esc(sug.join(','))}" style="margin-bottom:10px">✨ Suggest three for me</button>`;
+  const head = head0 + (isCloseout ? `<div class="f"><label>What got done today</label><textarea name="done" dir="auto" placeholder="Deliverables, not effort"></textarea></div><div class="f"><label>Blockers</label><textarea name="blockers" dir="auto"></textarea></div><div class="small" style="margin-bottom:8px">Choose up to three for <b>${esc(fmtDate(day))}</b>. Keep it achievable.</div>` : `<div class="small" style="margin-bottom:8px">Choose up to three for <b>${esc(fmtDate(day))}</b>.</div>`);
   openSheet(isCloseout ? 'Daily close-out' : 'Top 3 for ' + fmtDate(day), head + `<div class="list">${rows || '<div class="empty">No open tasks.</div>'}</div><div class="err" id="formerr"></div>`,
     '<button class="btn" data-act="sheet-close">Cancel</button><button class="btn primary" data-act="form-save">Save</button>',
     { noFocus: true, onSave: () => {
@@ -835,12 +1173,27 @@ function weeklyReview() {
 }
 const IMM_STARTER = [['Passport', 'Identity'], ['National ID / birth certificate', 'Identity'], ['Degree certificate', 'Education'], ['Academic transcripts', 'Education'], ['Employment reference letters', 'Employment'], ['English test report (IELTS)', 'English test'], ['Police clearance certificates', 'Police & health'], ['Medical examination', 'Police & health'], ['Proof of funds', 'Finance'], ['Passport-style photos', 'Forms & fees']];
 function quickAdd() {
-  openSheet('Add', `<div class="grid two">${[['new-task', 'Task', I.tasks], ['new-event', 'Event', I.cal], ['log-time', 'Log practice', I.clock], ['new-application', 'Job application', I.jobs], ['new-note', 'Note', I.notes], ['weekly', 'Weekly review', I.review]].map(([a, l, ic]) => `<button class="card row" data-act="${a}" style="align-items:center;text-align:left"><span style="width:24px;color:var(--brass-ink)">${ic}</span><div class="main"><div class="t">${l}</div></div></button>`).join('')}</div>`, '', { noFocus: true });
+  openSheet('Add', `<div class="grid two">${[['new-task', 'Task', I.tasks], ['new-event', 'Event', I.cal], ['log-time', 'Log practice', I.clock], ['new-application', 'Job application', I.jobs], ['new-note', 'Note', I.notes], ['from-tpl', 'From template', I.tmpl], ['money-add', 'Update savings', I.money], ['weekly', 'Weekly review', I.review]].map(([a, l, ic]) => `<button class="card row" data-act="${a}" style="align-items:center;text-align:left"><span style="width:24px;color:var(--brass-ink)">${ic}</span><div class="main"><div class="t">${l}</div></div></button>`).join('')}</div>`, '', { noFocus: true });
 }
+
+/* ---------------- swipe on task rows ---------------- */
+let sw = null, swBlock = 0;
+document.addEventListener('touchstart', e => { const r = e.target.closest('.row[data-act=task]'); if (!r || e.target.closest('.check') || e.touches.length > 1) return; sw = { r, x: e.touches[0].clientX, y: e.touches[0].clientY, dx: 0, on: false }; }, { passive: true });
+document.addEventListener('touchmove', e => {
+  if (!sw) return; const dx = e.touches[0].clientX - sw.x, dy = e.touches[0].clientY - sw.y;
+  if (!sw.on) { if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) { sw = null; return; } if (Math.abs(dx) > 14) sw.on = true; else return; }
+  sw.dx = dx; sw.r.style.transform = `translateX(${dx}px)`; sw.r.classList.toggle('sw-r', dx > 0); sw.r.classList.toggle('sw-l', dx < 0); sw.r.classList.toggle('sw-go', Math.abs(dx) > 90);
+}, { passive: true });
+document.addEventListener('touchend', () => {
+  if (!sw) return; const { r, dx, on } = sw; sw = null; if (!on) return; swBlock = Date.now();
+  r.style.transition = 'transform .18s'; r.style.transform = ''; setTimeout(() => { r.style.transition = ''; r.classList.remove('sw-r', 'sw-l', 'sw-go'); }, 200);
+  const id = r.dataset.id; if (dx > 90) toggleDone(id); else if (dx < -90) { const t = get('tasks', id); if (t && isOpen(t)) setTask(id, Object.assign({ due: addDays(today(), 1) }, t.focusDate === today() ? { focusDate: addDays(today(), 1) } : {}), 'Moved to tomorrow'); }
+});
 
 /* ---------------- events (delegated) ---------------- */
 document.addEventListener('click', async e => {
   const a = e.target.closest('[data-act]'); if (!a) return;
+  if (Date.now() - swBlock < 400 && a.dataset.act === 'task') return;
   const act = a.dataset.act, id = a.dataset.id;
   if ((act !== 'task' && act !== 'event' && a.tagName !== 'A') || a.getAttribute('href') === '#' || act === 'go') e.preventDefault();
   if (act === 'complete') { e.stopPropagation(); e.preventDefault(); return toggleDone(id); }
@@ -886,7 +1239,45 @@ document.addEventListener('click', async e => {
     closeout: () => closeDay(),
     quick: () => quickAdd(),
     go: () => { location.hash = '#/' + a.dataset.to; if (a.dataset.to === 'plan') { ui.planTab = 'roadmap'; saveUi(); } },
+    't-repeat': () => { closeSheet(true); repeatSheet(id); },
+    't-rep': () => { const t = get('tasks', id); setTask(id, { repeat: a.dataset.v, due: t.due || (a.dataset.v ? today() : t.due) }, a.dataset.v ? 'Repeats ' + REPEATS.find(r => r[0] === a.dataset.v)[1].toLowerCase() : 'No longer repeats'); },
+    't-focus': () => focusStart(id, 25),
+    'f-pause': () => { ui.focus.pausedAt = Date.now(); saveUi(); focusShow(); },
+    'f-resume': () => { ui.focus.paused += Date.now() - ui.focus.pausedAt; ui.focus.pausedAt = 0; saveUi(); focusShow(); },
+    'f-plus': () => { ui.focus.dur += 5; ui.focus.finished = false; saveUi(); focusShow(); },
+    'f-stop': () => focusEnd(false),
+    'f-cancel': () => { if (!confirm('Cancel this focus session without saving the time?')) return; ui.focus = null; saveUi(); focusShow(); },
+    'f-again': () => focusStart(id, 25),
+    'f-skill': () => { const sk = get('skills', id); const m = Number(a.dataset.v); save('sessions', { title: (sk ? sk.title : 'Practice') + ' · focus ' + m + ' min', skill: id, minutes: m, date: today(), result: 'Not a check' }); a.classList.add('on'); a.disabled = true; toast(`Logged ${m} min to ${sk ? sk.title : 'practice'}`); },
+    mood: () => { sheetCtx.mood = Number(a.dataset.v); sheetCtx.el.querySelectorAll('[data-act=mood]').forEach(x => x.classList.toggle('on', x === a)); },
+    'suggest-pick': () => { const ids = (a.dataset.ids || '').split(',').filter(Boolean); sheetCtx.el.querySelectorAll('input[name=pick]').forEach(x => { x.checked = ids.includes(x.value); }); toast('Suggested. Change anything, then Save.'); },
+    'accept-top': () => { const ids = (a.dataset.ids || '').split(',').filter(Boolean); ids.forEach(i => { const t = get('tasks', i); if (t) save('tasks', Object.assign({}, t, { focusDate: today() })); }); toast('Top 3 set ★'); },
+    'tp-use': () => { e.stopPropagation(); const tp = tplById(id); if (tp) useTemplate(tp); },
+    'tp-open': () => { const tp = tplById(id); if (!tp) return; const it = parseLines(tp.lines); openSheet(tp.title, `<div class="list">${it.map(x => `<div class="row"><div class="main"><div class="t" dir="auto">${esc(x.title)}</div><div class="m">${x.off === null ? 'no date' : x.off === 0 ? 'same day' : '+' + x.off + ' days'}</div></div></div>`).join('')}</div>`, `<button class="btn" data-act="tp-edit" data-id="${esc(id)}">${get('templates', id) ? 'Edit' : 'Copy and edit'}</button><button class="btn primary" data-act="tp-use" data-id="${esc(id)}">Use template</button>`, { noFocus: true }); },
+    'tp-edit': () => { closeSheet(true); tplForm(tplById(id)); },
+    'tp-new': () => tplForm({}),
+    'from-tpl': () => { closeSheet(true); location.hash = '#/templates'; },
+    'pk-add': () => pkRegister(),
+    'pk-del': async () => { if (!confirm('Remove this passkey?')) return; try { await api('wa-del', { body: { id } }); pkRender(); } catch (err) { toast(err.message); } },
+    restore: () => { const c = a.dataset.c, r = db[c] && db[c][id]; if (r) { save(c, Object.assign({}, r, { deleted: false })); toast('Restored'); } },
+    history: () => historySheet(a.dataset.c, id),
+    'hist-restore': () => { const v = sheetCtx && sheetCtx.versions && sheetCtx.versions[Number(a.dataset.i)]; if (v) { save(a.dataset.c, Object.assign({}, v, { deleted: false })); closeSheet(); toast('Earlier version restored'); } },
+    'health-run': () => render(),
+    'enc-backup': () => encBackup(),
+    siri: () => siriSheet(),
+    'siri-rotate': async () => { if (!confirm('Make new links? Shortcuts using the old links stop working until you paste the new ones.')) return; try { await api('shortkey', { method: 'POST', q: '&rotate=1', body: {} }); closeSheet(true); siriSheet(); } catch (err) { toast(err.message); } },
+    'set-lang': () => { ui.lang = a.dataset.v; saveUi(); applyLang(); render(); },
     'od-today': () => { const od = list('tasks').filter(x => isOpen(x) && x.due && x.due < today()); od.forEach(x => save('tasks', Object.assign({}, x, { due: today() }))); toast(`${od.length} moved to today`); },
+    'p-tab': () => { ui.pTab = a.dataset.t; saveUi(); if (route().page !== 'progress') location.hash = '#/progress'; else render(); window.scrollTo(0, 0); },
+    search: () => searchSheet(),
+    'open-note': () => { closeSheet(true); location.hash = '#/note/' + encodeURIComponent(id); },
+    print: () => window.print(),
+    hab: () => { const h = get('habits', id); if (!h) return; const d = Object.assign({}, h.done || {}); const t = today(); if (d[t]) delete d[t]; else d[t] = true; save('habits', Object.assign({}, h, { done: d })); },
+    habit: () => FORMS.habit(get('habits', id) || {}), 'new-habit': () => FORMS.habit({ perWeek: 7 }),
+    'money-add': () => form('Update balance', [{ k: 'amount', label: 'Savings balance now', type: 'number', req: true }, 'MORE', { k: 'date', label: 'Date', type: 'date', def: today() }, { k: 'note', label: 'Note' }], { date: today() }, v => { if (v.amount === '') return 'Enter the amount.'; save('money', { amount: Number(v.amount), date: v.date || today(), note: v.note }); toast('Balance saved'); }),
+    'money-edit': () => { const x = get('money', id); form('Edit balance', [{ k: 'amount', label: 'Amount', type: 'number', req: true }, { k: 'date', label: 'Date', type: 'date' }, { k: 'note', label: 'Note' }], x, v => { save('money', Object.assign({}, x, v, { amount: Number(v.amount) })); }, { onDelete: () => { remove('money', id); closeSheet(); } }); },
+    'money-goal': () => form('Savings goal', [[{ k: 'savingsGoal', label: 'Goal amount', type: 'number' }, { k: 'currency', label: 'Currency', ph: 'OMR, CAD, AUD…' }]], prefs(), v => { save('settings', Object.assign({}, prefs(), { id: 'prefs', savingsGoal: v.savingsGoal, currency: v.currency })); }),
+    'journal-new': () => { const ex = list('logs').find(l => l.type === 'closeout' && l.date === today()); FORMS.logitem(ex || { type: 'journal', date: today(), title: 'Journal ' + fmtDate(today()) }); },
     'plan-tab': () => { ui.planTab = a.dataset.t; saveUi(); render(); },
     'job-filter': () => { ui.jobFilter = ui.jobFilter === a.dataset.f && a.dataset.f !== 'active' ? 'active' : a.dataset.f; saveUi(); render(); },
     milestone: () => FORMS.milestone(get('milestones', id) || {}), 'new-milestone': () => FORMS.milestone(a.dataset.year ? { target: a.dataset.year + '-12-31' } : {}),
@@ -914,13 +1305,13 @@ document.addEventListener('click', async e => {
     'push-off': async () => { const s = await pushSub(); if (s) { try { await api('pushunsub', { body: { endpoint: s.endpoint } }); } catch {} await s.unsubscribe().catch(() => {}); } toast('Notifications off'); pushRender(); },
     'sync-now': () => { toast('Syncing…'); sync().then(() => toast(syncState === 'ok' ? 'Up to date' : 'Sync failed: ' + lastError)); },
     reload: async () => { if (Object.keys(outbox).length && !confirm('Some changes have not synced yet. Reload anyway? Unsynced changes are kept and sent first.')) return; ls.del(K.rev); await sync(); render(); toast('Reloaded'); },
-    export: () => { const blob = new Blob([JSON.stringify({ app: 'milad2031', version: 1, exportedAt: nowIso(), collections: db }, null, 2)], { type: 'application/json' }); const u = URL.createObjectURL(blob); const l = document.createElement('a'); l.href = u; l.download = `milad2031-backup-${today()}.json`; document.body.appendChild(l); l.click(); l.remove(); setTimeout(() => URL.revokeObjectURL(u), 2000); },
+    export: () => { const blob = new Blob([JSON.stringify({ app: 'milad2031', version: 1, exportedAt: nowIso(), collections: db }, null, 2)], { type: 'application/json' }); const u = URL.createObjectURL(blob); const l = document.createElement('a'); l.href = u; l.download = `milad2031-backup-${today()}.json`; ui.lastBackup = today(); saveUi(); document.body.appendChild(l); l.click(); l.remove(); setTimeout(() => URL.revokeObjectURL(u), 2000); },
     ics: async () => { try { const j = await api('icskey'); const url = new URL(`${API}?action=ics&k=${j.key}`, location.href).href; $('#icsbox').innerHTML = `<div class="mono" style="word-break:break-all;margin-bottom:8px">${esc(url)}</div><div class="btns"><button class="btn small" data-act="copy" data-text="${esc(url)}">Copy link</button><a class="btn small" href="${esc(url.replace(/^https?:/, 'webcal:'))}">Subscribe now</a></div><div style="margin-top:8px">iPhone/iPad: tap <b>Subscribe now</b>, or Settings → Calendar → Accounts → Add Account → Other → Add Subscribed Calendar, and paste the link. Keep this link private.</div>`; } catch (err) { toast(err.message === 'offline' ? 'You are offline' : err.message); } },
     copy: async () => { try { await navigator.clipboard.writeText(a.dataset.text); toast('Copied'); } catch { prompt('Copy this link', a.dataset.text); } },
     password: () => form('Change password', [{ k: 'current', label: 'Current password', type: 'password', req: true }, { k: 'next', label: 'New password (10+ characters)', type: 'password', req: true }], {}, v => { api('password', { body: v }).then(j => { ls.set(K.tok, j.token); toast('Password changed. Other devices must sign in again.'); }).catch(err => toast(err.message)); }),
     logout: async () => { if (!confirm('Sign out on this device? Data stays on the server.')) return; if (Object.keys(outbox).length) await sync(); try { await api('logout', { method: 'POST' }); } catch {} ls.del(K.tok); ls.del(K.db); ls.del(K.out); ls.del(K.rev); db = blankDb(); outbox = {}; showAuth(); }
   };
-  if (map[act]) { if (act !== 'sheet-close' && act !== 'form-save' && act !== 'form-del' && sheetCtx && ['new-task', 'new-event', 'new-note', 'new-decision', 'new-evidence', 'new-session', 'closeout', 'log-time', 'new-application', 'new-milestone', 'new-immig', 'weekly'].includes(act)) closeSheet(true); map[act](); }
+  if (map[act]) { if (act !== 'sheet-close' && act !== 'form-save' && act !== 'form-del' && sheetCtx && ['new-task', 'new-event', 'new-note', 'new-decision', 'new-evidence', 'new-session', 'closeout', 'log-time', 'new-application', 'new-milestone', 'new-immig', 'weekly', 'money-add', 'from-tpl'].includes(act)) closeSheet(true); map[act](); }
 });
 document.addEventListener('input', e => { const k = e.target.dataset && e.target.dataset.input; if (k) { ui[k] = e.target.value; saveUi(); if (e.target.dataset.norender) return; clearTimeout(render.t); render.t = setTimeout(render, 180); } });
 document.addEventListener('change', e => {
@@ -929,13 +1320,17 @@ document.addEventListener('change', e => {
     const file = e.target.files[0]; if (!file) return;
     file.text().then(txt => {
       let j; try { j = JSON.parse(txt); } catch { return toast('Not a valid JSON file'); }
-      const cols = j.collections || j; let n = 0, skipped = 0;
-      for (const c of COLS) { const src = cols[c]; if (!src) continue; for (const r of Array.isArray(src) ? src : Object.values(src)) { if (!r || !r.id) continue; const cur = db[c][r.id]; if (cur && String(cur.updatedAt) >= String(r.updatedAt || '')) { skipped++; continue; } const rec = Object.assign({ createdAt: nowIso() }, r, { updatedAt: r.updatedAt || nowIso() }); db[c][r.id] = rec; outbox[c + ':' + r.id] = rec; n++; } }
-      migrate(); persist(); render(); queueSync(200); toast(`Imported ${n} records${skipped ? `, kept ${skipped} newer local records` : ''}`);
+      if (j.enc) { decBackup(j).then(d => { importData(d); }).catch(err => toast(err.message)); return; }
+      importData(j);
     });
     e.target.value = '';
   }
 });
+function importData(j) {
+      const cols = j.collections || j; let n = 0, skipped = 0;
+      for (const c of COLS) { const src = cols[c]; if (!src) continue; for (const r of Array.isArray(src) ? src : Object.values(src)) { if (!r || !r.id) continue; const cur = db[c][r.id]; if (cur && String(cur.updatedAt) >= String(r.updatedAt || '')) { skipped++; continue; } const rec = Object.assign({ createdAt: nowIso() }, r, { updatedAt: r.updatedAt || nowIso() }); db[c][r.id] = rec; outbox[c + ':' + r.id] = rec; n++; } }
+      migrate(); persist(); render(); queueSync(200); toast(`Imported ${n} records${skipped ? `, kept ${skipped} newer local records` : ''}`);
+}
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && sheetCtx && sheetCtx.onSave) sheetCtx.onSave(); });
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { sync(); render(); } });
 window.addEventListener('online', () => sync());
@@ -946,8 +1341,10 @@ setInterval(() => { if (document.visibilityState === 'visible') sync(); }, 45000
 async function showAuth(msg) {
   closeSheet(true);
   let setup = true;
-  try { const s = await api('status'); setup = s.setup; if (s.authed && s.token) { ls.set(K.tok, s.token); return start(); } } catch (e) { if (e.message === 'offline' && ls.get(K.tok)) return start(); }
+  let pk = false;
+  try { const s = await api('status'); setup = s.setup; pk = !!s.passkey && pkOk(); if (s.authed && s.token) { ls.set(K.tok, s.token); return start(); } } catch (e) { if (e.message === 'offline' && ls.get(K.tok)) return start(); }
   $('#app').innerHTML = `<div class="login"><form class="box" id="authform"><h1>MILAD 2031</h1><p>${setup ? 'Sign in to your personal operating system.' : 'First run: create the owner password for this platform. Use a long password you do not use elsewhere.'}</p>
+    ${pk ? '<button type="button" class="btn primary" id="pkbtn" style="width:100%;justify-content:center;margin-bottom:14px">Sign in with Face ID</button><div class="small" style="text-align:center;margin-bottom:10px">or use your password</div>' : ''}
     <div class="f"><label for="pw">${setup ? 'Password' : 'New password (10+ characters)'}</label><input id="pw" type="password" autocomplete="${setup ? 'current-password' : 'new-password'}" required></div>
     ${setup ? '' : '<div class="f"><label for="pw2">Repeat password</label><input id="pw2" type="password" autocomplete="new-password" required></div>'}
     <div class="err" id="autherr">${esc(msg || '')}</div><button class="btn primary" style="width:100%;justify-content:center" type="submit">${setup ? 'Sign in' : 'Create password and open'}</button></form></div>`;
@@ -955,10 +1352,12 @@ async function showAuth(msg) {
     ev.preventDefault(); const pw = $('#pw').value; const err = $('#autherr');
     if (!setup && pw !== $('#pw2').value) { err.textContent = 'The passwords do not match.'; return; }
     err.textContent = '…';
-    try { const j = await api(setup ? 'login' : 'setup', { body: { password: pw, device: device() } }); ls.set(K.tok, j.token); ls.del(K.rev); err.textContent = ''; start(); }
+    try { const j = await api(setup ? 'login' : 'setup', { body: { password: pw, device: device() } }); ls.set(K.tok, j.token); ls.del(K.rev); err.textContent = ''; start(); if (pkOk() && !ui.pkSet) setTimeout(() => toast('Use Face ID next time?', 'Set up', pkRegister), 1500); }
     catch (e2) { err.textContent = e2.message === 'offline' ? 'No connection to the server.' : e2.message; }
   });
-  setTimeout(() => { const p = $('#pw'); if (p) p.focus(); }, 50);
+  const pb = $('#pkbtn'); if (pb) pb.addEventListener('click', () => pkLogin($('#autherr')));
+  setTimeout(() => { const p = $('#pw'); if (p && !pb) p.focus(); }, 50);
+  applyLang();
 }
 function migrate() {
   let n = 0;
@@ -970,10 +1369,10 @@ function migrate() {
   }
   if (n) { persist(); queueSync(); }
 }
-function start() { db = normalise(ls.get(K.db, null)); outbox = ls.get(K.out, {}) || {}; migrate(); render.keepScroll = false; render(); sync(); }
+function start() { db = normalise(ls.get(K.db, null)); outbox = ls.get(K.out, {}) || {}; migrate(); render.keepScroll = false; render(); sync(); if (ui.focus) focusShow(); }
 
 /* ---------------- boot ---------------- */
-if ('serviceWorker' in navigator && location.protocol === 'https:') { navigator.serviceWorker.register('sw.js').catch(() => {}); }
+if ('serviceWorker' in navigator && location.protocol === 'https:') { const had = !!navigator.serviceWorker.controller; navigator.serviceWorker.register('sw.js').catch(() => {}); navigator.serviceWorker.addEventListener('controllerchange', () => { if (had) toast('MILAD 2031 was updated', 'Reload', () => location.reload()); }); }
 try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch {}
 if (ls.get(K.tok)) start(); else showAuth();
 })();

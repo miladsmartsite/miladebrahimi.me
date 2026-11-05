@@ -21,6 +21,12 @@
 2. Set the morning (Top 3) and evening (close the day) times, then **Send a test**.
 3. One-time server setup, so reminders arrive on time: hPanel → Advanced → **Cron Jobs** → Custom, every 15 minutes (`*/15 * * * *`). Paste the command shown in Settings → Notifications. Keep it private.
 
+### Version 3 extras (optional, all set up inside the app)
+- **Face ID sign-in:** Settings → Face ID sign-in → Set up Face ID (once per device).
+- **Siri and Safari Share:** Settings → Siri & Shortcuts. Follow the steps shown; each shortcut takes about two minutes to make.
+- **System health:** More → System health shows server, backups, cron, data protection and sync status.
+- **Updating:** extract the new zip over the old folder. Never delete the folder. The app shows "MILAD 2031 was updated" when a new version is ready.
+
 ### Updating the app later
 - Replace these files: `index.html`, `assets/`, `icons/`, `sw.js`, `api.php`, `manifest.webmanifest`.
 - Never replace or delete `data/`.
@@ -46,3 +52,5 @@
 ۱. برنامه را از آیکون Home Screen باز کنید و به **Settings → Notifications → Turn on notifications** بروید و اجازه بدهید.
 ۲. ساعت صبح (Top 3) و ساعت شب (بستن روز) را تنظیم کنید و **Send a test** را بزنید.
 ۳. یک بار روی سرور: hPanel → Advanced → **Cron Jobs** → Custom، هر ۱۵ دقیقه (`*/15 * * * *`). دستوری را که در Settings → Notifications نشان داده می‌شود paste کنید. این دستور را با کسی به اشتراک نگذارید.
+
+**امکانات نسخه ۳ (اختیاری، همه داخل خود برنامه):** ورود با Face ID از Settings → Face ID sign-in؛ Siri و دکمه Share در Safari از Settings → Siri & Shortcuts؛ وضعیت سرور، پشتیبان‌ها و امنیت از More → System health. برای به‌روزرسانی، zip جدید را روی همان پوشه Extract کنید و هرگز پوشه را پاک نکنید.

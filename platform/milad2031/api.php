@@ -7,11 +7,12 @@
  */
 declare(strict_types=1);
 
-const APP_VERSION = '2.1.1';
+const APP_VERSION = '3.0.0';
 const TOKEN_DAYS = 180;
 const MAX_BODY = 8 * 1024 * 1024;          // 8 MB per request
 const BACKUPS_KEEP = 30;                   // daily snapshots kept
-const COLLECTIONS = ['tasks','events','projects','goals','skills','logs','evidence','decisions','notes','ielts','sessions','settings','milestones','applications','immigration'];
+const COLLECTIONS = ['tasks','events','projects','goals','skills','logs','evidence','decisions','notes','ielts','sessions','settings','milestones','applications','immigration','habits','money','templates'];
+const HISTORY_KEEP = 15;
 const DONE_STATES = ['Done', 'Cancelled', 'Completed & Verified', 'Completed - Not Verified'];
 
 if (is_file(__DIR__ . '/config.local.php')) { require __DIR__ . '/config.local.php'; }
@@ -140,6 +141,12 @@ function load_store(): array {
     foreach (COLLECTIONS as $n) { if (!isset($s['collections'][$n]) || !is_array($s['collections'][$n])) { $s['collections'][$n] = []; } }
     return $s;
 }
+function save_history(): void {
+    if (empty($GLOBALS['HIST'])) { return; }
+    $h = read_json('history.json', []);
+    foreach ($GLOBALS['HIST'] as $k => $vers) { foreach ($vers as $v) { $h[$k][] = $v; } $h[$k] = array_slice($h[$k], -HISTORY_KEEP); }
+    write_json('history.json', $h); $GLOBALS['HIST'] = [];
+}
 function backup_store(): void {
     $src = path('store.json'); if (!is_file($src)) { return; }
     $dst = path('backups/store-' . gmdate('Ymd') . '.json');
@@ -157,7 +164,7 @@ function merge_changes(array &$store, array $changes): int {
         if (!in_array($c, COLLECTIONS, true) || !is_array($r) || !valid_id($r['id'] ?? null)) { continue; }
         $id = $r['id']; $cur = $store['collections'][$c][$id] ?? null;
         $newTs = (string)($r['updatedAt'] ?? ''); $curTs = is_array($cur) ? (string)($cur['updatedAt'] ?? '') : '';
-        if ($cur === null || strcmp($newTs, $curTs) > 0) { $store['collections'][$c][$id] = $r; $applied++; }
+        if ($cur === null || strcmp($newTs, $curTs) > 0) { if (is_array($cur)) { $GLOBALS['HIST'][$c . ':' . $id][] = $cur; } $store['collections'][$c][$id] = $r; $applied++; }
     }
     return $applied;
 }
@@ -201,6 +208,13 @@ function ics_feed(array $store): string {
             $add('td-' . $t['id'], 'DUE: ' . (string)($t['title'] ?? 'Task'), (string)$t['due'], null, true, (string)($t['nextAction'] ?? ''), null, [], 0);
         }
     }
+    $tops = [];
+    foreach ($store['collections']['tasks'] as $t) {
+        if (!is_array($t) || !empty($t['deleted']) || empty($t['focusDate']) || in_array((string)($t['state'] ?? ''), DONE_STATES, true)) { continue; }
+        if ($t['focusDate'] < gmdate('Y-m-d', time() - 86400 * 2)) { continue; }
+        $tops[$t['focusDate']][] = (string)($t['title'] ?? '');
+    }
+    foreach ($tops as $day => $titles) { $add('top3-' . $day, '★ ' . implode(' · ', array_slice($titles, 0, 3)), $day, null, true, "Top 3 for today:\n" . implode("\n", $titles), null, [], 0); }
     foreach ($store['collections']['applications'] ?? [] as $ap) {
         if (!is_array($ap) || !empty($ap['deleted']) || empty($ap['followUp'])) { continue; }
         if (!in_array((string)($ap['stage'] ?? 'Saved'), ['Saved', 'Applied', 'Screening', 'Interview', 'Offer'], true)) { continue; }
@@ -330,6 +344,70 @@ function run_cron(): array {
     return ['sent' => $sent, 'removed' => count($drop), 'devices' => count($p['subs'])];
 }
 
+/* ---------- Siri / Shortcuts helpers ---------- */
+function prefs_of(array $store): array { $p = $store['collections']['settings']['prefs'] ?? []; return is_array($p) ? $p : []; }
+function local_day(array $store, int $plus = 0): string { $n = local_now((string)(prefs_of($store)['tz'] ?? 'UTC')); if ($plus) { $n->modify("+$plus day"); } return $n->format('Y-m-d'); }
+function now_ms(): string { $t = microtime(true); return gmdate('Y-m-d\TH:i:s', (int)$t) . sprintf('.%03dZ', (int)(($t - floor($t)) * 1000)); }
+function new_id(string $p): string { return $p . '-' . base_convert((string)(int)(microtime(true) * 1000), 10, 36) . bin2hex(random_bytes(3)); }
+function word_date(string $w, array $store): string {
+    $w = strtolower($w); $t = local_day($store);
+    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $w)) { return $w; }
+    if ($w === 'today') { return $t; } if ($w === 'tomorrow' || $w === 'tmr') { return local_day($store, 1); }
+    $days = ['mon' => 1, 'tue' => 2, 'wed' => 3, 'thu' => 4, 'fri' => 5, 'sat' => 6, 'sun' => 7];
+    $k = substr($w, 0, 3); if (isset($days[$k])) { $d = new DateTime($t); $cur = (int)$d->format('N'); $add = ($days[$k] - $cur + 7) % 7 ?: 7; $d->modify("+$add day"); return $d->format('Y-m-d'); }
+    return '';
+}
+function shortcut_text(): string {
+    $v = $_GET['text'] ?? $_POST['text'] ?? '';
+    if ($v === '') { $raw = file_get_contents('php://input', false, null, 0, 20000) ?: ''; $j = json_decode($raw, true); $v = is_array($j) ? (string)($j['text'] ?? '') : $raw; }
+    return trim(mb_substr((string)$v, 0, 500));
+}
+function store_put(string $c, array $rec): void {
+    with_lock(function () use ($c, $rec) { $s = load_store(); backup_store(); $s['collections'][$c][$rec['id']] = $rec; $s['rev'] = (int)$s['rev'] + 1; $s['updatedAt'] = gmdate('c'); write_json('store.json', $s); });
+}
+function plain(string $txt): void { header('Content-Type: text/plain; charset=utf-8'); echo $txt; exit; }
+function shortcut_auth(): void {
+    $c = config(); $k = (string)($_GET['k'] ?? ($_SERVER['HTTP_X_KEY'] ?? ''));
+    if ($k === '' || empty($c['shortKey']) || !hash_equals((string)$c['shortKey'], $k)) { http_response_code(404); plain('Not found'); }
+}
+
+/* ---------- WebAuthn (Face ID / Touch ID passkeys) ---------- */
+function cbor_decode(string $d, int &$o) {
+    $b = ord($d[$o++]); $mt = $b >> 5; $ai = $b & 31;
+    if ($ai < 24) { $len = $ai; } elseif ($ai === 24) { $len = ord($d[$o]); $o += 1; } elseif ($ai === 25) { $len = unpack('n', substr($d, $o, 2))[1]; $o += 2; }
+    elseif ($ai === 26) { $len = unpack('N', substr($d, $o, 4))[1]; $o += 4; } elseif ($ai === 27) { $len = unpack('J', substr($d, $o, 8))[1]; $o += 8; } else { throw new RuntimeException('CBOR: indefinite length'); }
+    switch ($mt) {
+        case 0: return $len; case 1: return -1 - $len;
+        case 2: case 3: $v = substr($d, $o, $len); $o += $len; return $v;
+        case 4: $a = []; for ($i = 0; $i < $len; $i++) { $a[] = cbor_decode($d, $o); } return $a;
+        case 5: $m = []; for ($i = 0; $i < $len; $i++) { $k = cbor_decode($d, $o); $m[$k] = cbor_decode($d, $o); } return $m;
+        case 7: return $ai === 20 ? false : ($ai === 21 ? true : null);
+    }
+    throw new RuntimeException('CBOR: unsupported type');
+}
+function wa_state(): array { return read_json('webauthn.json', ['creds' => [], 'chal' => []]); }
+function wa_origin(): string { return (is_https() ? 'https://' : 'http://') . (string)($_SERVER['HTTP_HOST'] ?? ''); }
+function wa_rpid(): string { return preg_replace('/:\d+$/', '', (string)($_SERVER['HTTP_HOST'] ?? 'localhost')); }
+function wa_challenge(string $purpose): string {
+    $ch = random_bytes(32);
+    with_lock(function () use ($ch, $purpose) { $w = wa_state(); $now = time(); foreach ($w['chal'] as $k => $v) { if (($v['exp'] ?? 0) < $now) { unset($w['chal'][$k]); } } $w['chal'][b64u($ch)] = ['exp' => $now + 180, 'p' => $purpose]; write_json('webauthn.json', $w); });
+    return b64u($ch);
+}
+function wa_client(string $cdjB64, string $type): array {
+    $cdj = b64u_dec($cdjB64); $c = json_decode($cdj, true);
+    if (!is_array($c) || ($c['type'] ?? '') !== $type) { fail(400, 'Passkey: wrong type'); }
+    if (($c['origin'] ?? '') !== wa_origin()) { fail(400, 'Passkey: wrong origin'); }
+    $ok = with_lock(function () use ($c, $type) { $w = wa_state(); $k = (string)($c['challenge'] ?? ''); $v = $w['chal'][$k] ?? null; unset($w['chal'][$k]); write_json('webauthn.json', $w); return $v && $v['exp'] >= time() && $v['p'] === $type; });
+    if (!$ok) { fail(400, 'Passkey: challenge expired, try again'); }
+    return [$cdj, $c];
+}
+function wa_authdata(string $ad): array {
+    if (strlen($ad) < 37) { fail(400, 'Passkey: bad data'); }
+    if (!hash_equals(hash('sha256', wa_rpid(), true), substr($ad, 0, 32))) { fail(400, 'Passkey: wrong site'); }
+    $flags = ord($ad[32]); if (!($flags & 1)) { fail(400, 'Passkey: user not present'); }
+    return ['flags' => $flags, 'count' => unpack('N', substr($ad, 33, 4))[1]];
+}
+
 /* ---------- router ---------- */
 if (defined('M2031_LIB')) { return; }
 ensure_dir();
@@ -340,7 +418,7 @@ $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 switch ($action) {
     case 'status':
         $tk = bearer(); $authed = token_valid($tk);
-        out(200, ['ok' => true, 'setup' => is_setup(), 'authed' => $authed, 'token' => $authed ? $tk : null, 'version' => APP_VERSION, 'time' => gmdate('c')]);
+        out(200, ['ok' => true, 'setup' => is_setup(), 'passkey' => count(wa_state()['creds']) > 0, 'authed' => $authed, 'token' => $authed ? $tk : null, 'version' => APP_VERSION, 'time' => gmdate('c')]);
 
     case 'setup':
         if ($method !== 'POST') { fail(405, 'POST only'); }
@@ -384,7 +462,7 @@ switch ($action) {
         if (!is_array($changes) || count($changes) > 5000) { fail(400, 'Bad changes'); }
         $res = with_lock(function () use ($changes) {
             $s = load_store(); $n = merge_changes($s, $changes);
-            if ($n > 0) { backup_store(); $s['rev'] = (int)$s['rev'] + 1; $s['updatedAt'] = gmdate('c'); write_json('store.json', $s); }
+            if ($n > 0) { backup_store(); $s['rev'] = (int)$s['rev'] + 1; $s['updatedAt'] = gmdate('c'); write_json('store.json', $s); save_history(); }
             return [$s, $n];
         });
         out(200, ['ok' => true, 'applied' => $res[1], 'rev' => $res[0]['rev'], 'updatedAt' => $res[0]['updatedAt'], 'collections' => $res[0]['collections']]);
@@ -453,6 +531,103 @@ switch ($action) {
         $r = run_cron();
         with_lock(function () { $p = push_state(); $p['lastCron'] = gmdate('c'); write_json('push.json', $p); });
         out(200, ['ok' => true] + $r);
+
+    /* ----- Siri / Shortcuts ----- */
+    case 'shortkey':
+        require_auth();
+        if (($_GET['rotate'] ?? '') === '1' && $method === 'POST' || empty(config()['shortKey'])) { with_lock(function () { $c = config(); $c['shortKey'] = bin2hex(random_bytes(16)); write_json('config.json', $c); }); }
+        out(200, ['ok' => true, 'key' => config()['shortKey']]);
+
+    case 's-add':
+        shortcut_auth(); $s = load_store(); $txt = ' ' . shortcut_text() . ' '; $rec = ['state' => 'To do', 'priority' => 'P2', 'owner' => 'Milad'];
+        $txt = preg_replace_callback('/\s!([123])(?=\s)/', function ($m) use (&$rec) { $rec['priority'] = 'P' . $m[1]; return ' '; }, $txt, 1);
+        $top = false; $txt = preg_replace_callback('/\s\*(?=\s)/', function () use (&$top) { $top = true; return ' '; }, $txt, 1);
+        $txt = preg_replace_callback('/\s@(\S+)(?=\s)/', function ($m) use (&$rec, $s) { $d = word_date($m[1], $s); if ($d) { $rec['due'] = $d; return ' '; } return $m[0]; }, $txt, 1);
+        foreach (['tomorrow' => 1, 'today' => 0] as $w => $n) { if (!isset($rec['due']) && preg_match('/\s' . $w . '\s*$/i', $txt)) { $rec['due'] = local_day($s, $n); $txt = preg_replace('/\s' . $w . '\s*$/i', ' ', $txt); } }
+        $title = trim(preg_replace('/\s+/', ' ', $txt)); if ($title === '') { plain('Nothing to add.'); }
+        if ($top) { $rec['focusDate'] = local_day($s); $rec['due'] = $rec['due'] ?? $rec['focusDate']; }
+        $now = now_ms(); $rec += ['id' => new_id('tsk'), 'title' => mb_substr($title, 0, 300), 'createdAt' => $now, 'updatedAt' => $now, 'by' => 'Siri'];
+        store_put('tasks', $rec);
+        plain('Added: ' . $rec['title'] . (isset($rec['due']) ? ' (' . ($rec['due'] === local_day($s) ? 'today' : ($rec['due'] === local_day($s, 1) ? 'tomorrow' : date('D j M', strtotime($rec['due'])))) . ')' : ''));
+
+    case 's-top3':
+        shortcut_auth(); $s = load_store(); $d = local_day($s); $tops = []; $due = 0;
+        foreach ($s['collections']['tasks'] as $t) { if (!is_array($t) || !empty($t['deleted']) || in_array((string)($t['state'] ?? ''), DONE_STATES, true)) { continue; } if (($t['focusDate'] ?? '') === $d) { $tops[] = (string)$t['title']; } elseif (($t['due'] ?? '') === $d) { $due++; } }
+        $msg = $tops ? 'Your Top 3 today. ' . implode('. ', array_map(fn($i, $x) => ($i + 1) . ', ' . $x, array_keys($tops), $tops)) . '.' : 'You have not picked a Top 3 for today yet.';
+        if ($due) { $msg .= " Also $due more due today."; }
+        plain($msg);
+
+    case 's-log':
+        shortcut_auth(); $s = load_store(); $q = mb_strtolower(trim((string)($_GET['skill'] ?? ''))); $min = (int)($_GET['min'] ?? 0);
+        if ($min <= 0 || $min > 600) { plain('Say how many minutes.'); }
+        $best = null; foreach ($s['collections']['skills'] as $sk) { if (!is_array($sk) || !empty($sk['deleted'])) { continue; } $t = mb_strtolower((string)($sk['title'] ?? '')); if ($q !== '' && str_contains($t, $q)) { $best = $sk; break; } }
+        if (!$best) { plain('No skill matches "' . $q . '". Use a word from the skill name, like IELTS or SQL.'); }
+        $now = now_ms(); store_put('sessions', ['id' => new_id('ses'), 'title' => $best['title'] . ' · ' . $min . ' min', 'skill' => $best['id'], 'minutes' => $min, 'date' => local_day($s), 'result' => 'Not a check', 'createdAt' => $now, 'updatedAt' => $now, 'by' => 'Siri']);
+        plain("Logged $min minutes of " . $best['title'] . '.');
+
+    case 's-job':
+        shortcut_auth(); $s = load_store(); $url = trim((string)($_GET['url'] ?? $_POST['url'] ?? '')); $title = shortcut_text();
+        if ($url === '' && preg_match('#https?://\S+#', $title, $m)) { $url = $m[0]; $title = trim(str_replace($url, '', $title)); }
+        if (!preg_match('#^https?://#', $url)) { plain('Share a job ad link.'); }
+        $host = preg_replace('/^www\./', '', (string)parse_url($url, PHP_URL_HOST));
+        $role = $title !== '' ? $title : 'Job from ' . $host;
+        $now = now_ms(); store_put('applications', ['id' => new_id('app'), 'company' => '', 'role' => mb_substr($role, 0, 200), 'stage' => 'Saved', 'link' => $url, 'source' => $host, 'followUp' => local_day($s, 2), 'createdAt' => $now, 'updatedAt' => $now, 'by' => 'Siri']);
+        plain('Saved to Job search: ' . $role);
+
+    /* ----- history and health ----- */
+    case 'history':
+        require_auth(); $k = (string)($_GET['c'] ?? '') . ':' . (string)($_GET['id'] ?? '');
+        out(200, ['ok' => true, 'versions' => array_reverse(read_json('history.json', [])[$k] ?? [])]);
+
+    case 'health':
+        require_auth(); $s = load_store(); $p = push_state(); $b = glob(path('backups/store-*.json')) ?: []; sort($b);
+        $counts = []; foreach (COLLECTIONS as $c) { $counts[$c] = count(array_filter($s['collections'][$c], fn($r) => is_array($r) && empty($r['deleted']))); }
+        out(200, ['ok' => true, 'version' => APP_VERSION, 'php' => PHP_VERSION, 'rev' => $s['rev'], 'updatedAt' => $s['updatedAt'], 'storeKB' => round((@filesize(path('store.json')) ?: 0) / 1024), 'historyKB' => round((@filesize(path('history.json')) ?: 0) / 1024), 'backups' => count($b), 'lastBackup' => $b ? substr(basename(end($b)), 6, 8) : null, 'writable' => is_writable(DATA_DIR), 'lastCron' => $p['lastCron'] ?? null, 'pushDevices' => count($p['subs'] ?? []), 'passkeys' => count(wa_state()['creds']), 'counts' => $counts, 'time' => gmdate('c'), 'outsideWebroot' => strpos(realpath(DATA_DIR) ?: '', realpath(__DIR__) ?: '#') !== 0]);
+
+    /* ----- passkeys ----- */
+    case 'wa-reg-opts':
+        require_auth();
+        out(200, ['ok' => true, 'challenge' => wa_challenge('webauthn.create'), 'rpId' => wa_rpid(), 'user' => b64u('milad2031-owner'), 'exclude' => array_keys(wa_state()['creds'])]);
+
+    case 'wa-reg':
+        if ($method !== 'POST') { fail(405, 'POST only'); }
+        require_auth(); $b = body(); wa_client((string)($b['clientDataJSON'] ?? ''), 'webauthn.create');
+        try { $o = 0; $att = cbor_decode(b64u_dec((string)($b['attestationObject'] ?? '')), $o); } catch (Throwable $e) { fail(400, 'Passkey: unreadable'); }
+        $ad = (string)($att['authData'] ?? ''); $f = wa_authdata($ad);
+        if (!($f['flags'] & 64)) { fail(400, 'Passkey: no key'); }
+        $cl = unpack('n', substr($ad, 53, 2))[1]; $cid = substr($ad, 55, $cl); $o = 55 + $cl;
+        try { $k = cbor_decode($ad, $o); } catch (Throwable $e) { fail(400, 'Passkey: unreadable key'); }
+        if (($k[1] ?? null) !== 2 || ($k[3] ?? null) !== -7 || strlen((string)($k[-2] ?? '')) !== 32) { fail(400, 'Passkey: unsupported key type'); }
+        $pem = ec_pub_pem("\x04" . $k[-2] . $k[-3]);
+        $dev = mb_substr((string)($b['device'] ?? 'device'), 0, 40);
+        with_lock(function () use ($cid, $pem, $f, $dev) { $w = wa_state(); $w['creds'][b64u($cid)] = ['pem' => $pem, 'count' => $f['count'], 'device' => $dev, 'created' => gmdate('c')]; write_json('webauthn.json', $w); });
+        out(200, ['ok' => true]);
+
+    case 'wa-login-opts':
+        $w = wa_state(); if (!$w['creds']) { fail(404, 'No passkey yet'); }
+        throttle_check();
+        out(200, ['ok' => true, 'challenge' => wa_challenge('webauthn.get'), 'rpId' => wa_rpid(), 'allow' => array_keys($w['creds'])]);
+
+    case 'wa-login':
+        if ($method !== 'POST') { fail(405, 'POST only'); }
+        throttle_check(); $b = body(); $w = wa_state(); $id = (string)($b['id'] ?? ''); $cred = $w['creds'][$id] ?? null;
+        if (!$cred) { throttle_hit(false); fail(401, 'Unknown passkey'); }
+        [$cdj] = wa_client((string)($b['clientDataJSON'] ?? ''), 'webauthn.get');
+        $ad = b64u_dec((string)($b['authenticatorData'] ?? '')); $f = wa_authdata($ad);
+        $ok = openssl_verify($ad . hash('sha256', $cdj, true), b64u_dec((string)($b['signature'] ?? '')), $cred['pem'], OPENSSL_ALGO_SHA256) === 1;
+        if ($ok && $f['count'] > 0 && $f['count'] <= (int)$cred['count']) { $ok = false; }
+        throttle_hit($ok); if (!$ok) { fail(401, 'Passkey check failed'); }
+        with_lock(function () use ($id, $f) { $w = wa_state(); if (isset($w['creds'][$id])) { $w['creds'][$id]['count'] = $f['count']; $w['creds'][$id]['used'] = gmdate('c'); } write_json('webauthn.json', $w); });
+        out(200, ['ok' => true, 'token' => issue_token((string)($b['device'] ?? 'passkey'))]);
+
+    case 'wa-list':
+        require_auth(); out(200, ['ok' => true, 'items' => array_map(fn($k, $v) => ['id' => $k, 'device' => $v['device'] ?? '', 'created' => $v['created'] ?? '', 'used' => $v['used'] ?? ''], array_keys(wa_state()['creds']), wa_state()['creds'])]);
+
+    case 'wa-del':
+        if ($method !== 'POST') { fail(405, 'POST only'); }
+        require_auth(); $b = body(); $id = (string)($b['id'] ?? '');
+        with_lock(function () use ($id) { $w = wa_state(); unset($w['creds'][$id]); write_json('webauthn.json', $w); });
+        out(200, ['ok' => true]);
 
     default:
         fail(404, 'Unknown action');
