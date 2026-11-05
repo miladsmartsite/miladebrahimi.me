@@ -5,12 +5,14 @@
 (() => {
 'use strict';
 
-const VERSION = '1.1.0';
+const VERSION = '2.0.0';
 const API = 'api.php';
 const K = { db: 'm2031.db', out: 'm2031.outbox', tok: 'm2031.token', rev: 'm2031.rev', ui: 'm2031.ui', last: 'm2031.lastSync' };
-const COLS = ['tasks','events','projects','goals','skills','logs','evidence','decisions','notes','ielts','sessions','settings'];
-const STATES = ['Not Started','In Progress','Waiting for Me','Waiting for External Input','Blocked','Ready for Review','Completed & Verified','Completed - Not Verified','Cancelled'];
-const DONE = new Set(['Completed & Verified','Completed - Not Verified','Cancelled']);
+const COLS = ['tasks','events','projects','goals','skills','logs','evidence','decisions','notes','ielts','sessions','settings','milestones','applications','immigration'];
+const STATES = ['To do','Doing','Waiting','Done','Cancelled'];
+const LEGACY = { 'Not Started': 'To do', 'Waiting for Me': 'To do', 'In Progress': 'Doing', 'Ready for Review': 'Doing', 'Waiting for External Input': 'Waiting', 'Blocked': 'Waiting', 'Completed & Verified': 'Done', 'Completed - Not Verified': 'Done', 'Cancelled': 'Cancelled' };
+const stOf = t => STATES.includes(t.state) ? t.state : (LEGACY[t.state] || 'To do');
+const DONE = { has: s => s === 'Done' || s === 'Cancelled' || /^Completed/.test(s || '') };
 const PRI = ['P1','P2','P3'];
 const OWNERS = ['Milad','Claude','External'];
 const AREAS = ['Migration','English & Education','Technical Skills','Career & Tathmeer','Personal Brand','Finance','Personal & Sustainability'];
@@ -21,6 +23,11 @@ const GOAL_STATES = ['Not started','In progress','On track','At risk','Achieved'
 const DECISION_STATES = ['Open','Decided','Closed'];
 const IELTS_KINDS = ['Self-estimate (not an IELTS score)','Assessor estimate (not official)','Official IELTS result'];
 const SKILL_STATES = ['Not started','Learning','Practising','Competence shown'];
+const MS_STATES = ['Planned','In progress','Done','At risk','Dropped'];
+const APP_STAGES = ['Saved','Applied','Screening','Interview','Offer','Rejected','Withdrawn'];
+const APP_ACTIVE = ['Saved','Applied','Screening','Interview','Offer'];
+const IMM_CATS = ['Identity','Education','Employment','English test','Finance','Police & health','Forms & fees','Other'];
+const IMM_STATES = ['Not started','Collecting','Ready','Submitted','Not needed'];
 
 /* ---------------- storage ---------------- */
 const ls = {
@@ -55,7 +62,7 @@ function fromInput(v) { return v ? v.slice(0, 16) + tzOffset() : ''; }
 function fmtDate(s, withYear) { const d = parseD(s); if (!d) return ''; return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', ...(withYear ? { year: 'numeric' } : {}) }); }
 function fmtTime(s) { if (!s || s.length <= 10) return ''; const d = parseD(s); return d ? `${pad(d.getHours())}:${pad(d.getMinutes())}` : ''; }
 function rel(s) { const t = today(); if (!s) return ''; const n = Math.round((parseD(s) - parseD(t)) / 86400000); if (n === 0) return 'today'; if (n === 1) return 'tomorrow'; if (n === -1) return 'yesterday'; return n < 0 ? `${-n}d late` : `in ${n}d`; }
-function toast(msg) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 2600); }
+function toast(msg) { document.querySelectorAll('.toast').forEach(x => x.remove()); const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 2600); }
 const list = c => Object.values(db[c] || {}).filter(r => r && !r.deleted);
 const get = (c, id) => { const r = db[c] && db[c][id]; return r && !r.deleted ? r : null; };
 const isOpen = t => !DONE.has(t.state);
@@ -114,7 +121,7 @@ async function sync() {
     if (!j.unchanged && j.collections) {
       const server = normalise(j.collections);
       for (const [k, r] of Object.entries(outbox)) { server[k.split(':')[0]][r.id] = r; }
-      db = server;
+      db = server; migrate();
     }
     ls.set(K.rev, j.rev); ls.set(K.last, nowIso()); persist();
     setSyncState('ok', '');
@@ -164,6 +171,8 @@ function agenda(from, to) {
     const sd = dayOf(t.scheduled); if (sd && sd >= from && sd <= to) items.push({ kind: 'task', day: sd, time: fmtTime(t.scheduled), end: fmtTime(t.scheduledEnd), title: t.title, id: t.id, rec: t });
     const dd = dayOf(t.due); if (dd && dd >= from && dd <= to && dd !== sd) items.push({ kind: 'due', day: dd, time: '', title: t.title, id: t.id, rec: t });
   }
+  for (const a of list('applications')) { const d = a.followUp; if (d && APP_ACTIVE.includes(a.stage || 'Saved') && d >= from && d <= to) items.push({ kind: 'follow', day: d, time: '', title: 'Follow up: ' + [a.role, a.company].filter(Boolean).join(' · '), id: a.id, rec: a }); }
+  for (const m of list('milestones')) { const d = m.target; if (d && d >= from && d <= to && m.status !== 'Done' && m.status !== 'Dropped') items.push({ kind: 'ms', day: d, time: '', title: 'Milestone: ' + m.title, id: m.id, rec: m }); }
   return items.sort((a, b) => (a.day + (a.time || '00:00')).localeCompare(b.day + (b.time || '00:00')));
 }
 
@@ -195,6 +204,13 @@ function md(src) {
 
 /* ---------------- icons ---------------- */
 const I = {
+  jobs: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 13h18"/></svg>',
+  imm: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="5" y="2.5" width="14" height="19" rx="2"/><circle cx="12" cy="10" r="3.2"/><path d="M8.8 10h6.4M12 6.8c-1.2 1.5-1.2 4.9 0 6.4M12 6.8c1.2 1.5 1.2 4.9 0 6.4M9 17h6"/></svg>',
+  clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+  flag: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg>',
+  alert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3l9.5 17h-19z"/><path d="M12 10v4M12 17.5v.01"/></svg>',
+  moon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>',
+  bell: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></svg>',
   today: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
   tasks: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M3.5 6l1.5 1.5L7.5 5M3.5 12l1.5 1.5L7.5 11M3.5 18l1.5 1.5L7.5 17"/></svg>',
   cal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
@@ -213,10 +229,10 @@ const I = {
   right: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg>'
 };
 const NAV_MAIN = [['today', 'Today', I.today], ['tasks', 'Tasks', I.tasks], ['calendar', 'Calendar', I.cal], ['plan', 'Plan', I.plan], ['more', 'More', I.more]];
-const NAV_MORE = [['learn', 'Learning', I.learn], ['evidence', 'Evidence', I.evid], ['decisions', 'Decisions', I.dec], ['notes', 'Notes & docs', I.notes], ['review', 'Review', I.review], ['settings', 'Settings', I.set]];
+const NAV_MORE = [['jobs', 'Job search', I.jobs], ['immigration', 'Immigration', I.imm], ['learn', 'Learning', I.learn], ['evidence', 'Evidence', I.evid], ['decisions', 'Decisions', I.dec], ['notes', 'Notes & docs', I.notes], ['review', 'Review', I.review], ['settings', 'Settings', I.set]];
 
 /* ---------------- chips ---------------- */
-function stateChip(s) { const c = DONE.has(s) ? 's-done' : /Waiting/.test(s) ? 's-wait' : s === 'Blocked' ? 's-block' : s === 'In Progress' ? 's-prog' : s === 'Ready for Review' ? 's-rev' : ''; return `<span class="chip ${c}">${esc(s || 'Not Started')}</span>`; }
+function stateChip(s0) { const s = STATES.includes(s0) ? s0 : (LEGACY[s0] || 'To do'); const c = s === 'Done' ? 's-done' : s === 'Waiting' ? 's-wait' : s === 'Doing' ? 's-prog' : ''; return s === 'To do' ? '' : `<span class="chip ${c}">${esc(s)}</span>`; }
 const priChip = p => p ? `<span class="chip ${esc(p.toLowerCase())}">${esc(p)}</span>` : '';
 function dueChip(t) { if (!t.due) return ''; const late = isOpen(t) && t.due < today(); return `<span class="chip ${late ? 'late' : ''}">Due ${esc(fmtDate(t.due))} · ${esc(rel(t.due))}</span>`; }
 
@@ -230,49 +246,145 @@ function taskRow(t, opts = {}) {
 }
 const sortTasks = arr => arr.sort((a, b) => (a.priority || 'P9').localeCompare(b.priority || 'P9') || (a.due || '9999').localeCompare(b.due || '9999') || String(a.title).localeCompare(String(b.title)));
 
+/* ---------------- appearance ---------------- */
+const darkMq = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
+function applyTheme() {
+  const m = ui.theme || 'auto'; const dark = m === 'dark' || (m === 'auto' && darkMq && darkMq.matches);
+  const h = document.documentElement; h.classList.toggle('dark', dark); h.classList.toggle('large', ui.size === 'large');
+  const meta = document.querySelector('meta[name=theme-color]'); if (meta) meta.content = dark ? '#0f1824' : '#22344a';
+}
+if (darkMq && darkMq.addEventListener) darkMq.addEventListener('change', applyTheme);
+applyTheme();
+
+/* ---------------- notifications (Web Push) ---------------- */
+const pushOk = () => location.protocol === 'https:' && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+const standalone = () => (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+const b64uBytes = s => { const b = atob(s.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - s.length % 4) % 4)); return Uint8Array.from(b, c => c.charCodeAt(0)); };
+async function pushSub() { try { const r = await navigator.serviceWorker.ready; return await r.pushManager.getSubscription(); } catch { return null; } }
+function pushTimes() { return `<div class="fgrid" style="margin:10px 0 4px"><div class="f"><label for="push-m">Morning: Top 3</label><input type="time" id="push-m" value="${esc(ui.pushMorning ?? '07:30')}"></div><div class="f"><label for="push-e">Evening: close the day</label><input type="time" id="push-e" value="${esc(ui.pushEvening ?? '21:00')}"></div></div><div style="margin:-6px 0 10px">Leave a time empty to turn that reminder off.</div>`; }
+async function pushPost(sub) {
+  ui.pushMorning = ($('#push-m') || {}).value ?? ui.pushMorning; ui.pushEvening = ($('#push-e') || {}).value ?? ui.pushEvening; saveUi();
+  await api('pushsub', { body: { sub: sub.toJSON(), tz: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC', morning: ui.pushMorning || '', evening: ui.pushEvening || '', device: device() } });
+}
+async function pushRender() {
+  const box = $('#pushbox'); if (!box) return;
+  if (!pushOk()) {
+    box.innerHTML = /iPhone|iPad|Macintosh/.test(navigator.userAgent) && !standalone() ? 'On iPhone and iPad, notifications work in the installed app only: Safari → Share → <b>Add to Home Screen</b>, then open MILAD 2031 from its icon and come back here (iOS 16.4 or later).' : 'Notifications need the installed app over HTTPS, in a browser that supports them.';
+    return;
+  }
+  const sub = await pushSub(); if (!$('#pushbox')) return;
+  if (!sub || Notification.permission !== 'granted') { box.innerHTML = `Get your Top 3 each morning and a reminder to close the day.${pushTimes()}<div class="btns"><button class="btn small primary" data-act="push-on">Turn on notifications</button></div>`; return; }
+  box.innerHTML = `<b style="color:var(--ok)">On for this device.</b>${pushTimes()}<div class="btns"><button class="btn small primary" data-act="push-save">Save times</button><button class="btn small" data-act="push-test">Send a test</button><button class="btn small danger" data-act="push-off">Turn off</button></div><div id="croninfo" style="margin-top:12px"></div>`;
+  try { const i = await api('pushinfo'); const ci = $('#croninfo'); if (ci) ci.innerHTML = `<b>One-time server setup</b> so reminders arrive on time: Hostinger hPanel → Advanced → <b>Cron Jobs</b> → Custom → every 15 minutes (*/15 * * * *) → paste this command:<div class="mono" style="word-break:break-all;margin:6px 0;padding:8px;background:var(--paper-dim);border-radius:8px">${esc(i.cronCmd)}</div><button class="btn small" data-act="copy" data-text="${esc(i.cronCmd)}">Copy command</button><div style="margin-top:6px">${i.lastCron ? 'Server check last ran ' + esc(fmtDate(i.lastCron, true) + ' ' + fmtTime(i.lastCron)) + '.' : '<span style="color:var(--warn)">The server check has not run yet.</span>'} Keep this command private.</div>`; } catch {}
+}
+
+/* ---------------- quick capture ---------------- */
+const WDN = ['sun','mon','tue','wed','thu','fri','sat'];
+function wordDate(w) {
+  w = w.toLowerCase(); const t = today();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(w)) return w;
+  if (w === 'today') return t; if (w === 'tomorrow' || w === 'tmr') return addDays(t, 1);
+  if (w === 'week') return addDays(t, 7); if (w === 'month') return addDays(t, 30);
+  const i = WDN.indexOf(w.slice(0, 3)); if (i >= 0) { const d = parseD(t).getDay(); return addDays(t, ((i - d + 7) % 7) || 7); }
+  const m = w.match(/^(\d{1,2})\/(\d{1,2})$/); if (m) { const y = Number(t.slice(0, 4)); let s = `${y}-${pad(m[2])}-${pad(m[1])}`; if (s < t) s = `${y + 1}-${pad(m[2])}-${pad(m[1])}`; return s; }
+  return '';
+}
+function parseQuick(s) {
+  const r = {}; let x = ' ' + s + ' ';
+  x = x.replace(/\s!([123])(?=\s)/, (m, p) => { r.priority = 'P' + p; return ' '; });
+  x = x.replace(/\s\*(?=\s)/, () => { r.top = true; return ' '; });
+  x = x.replace(/\s@(\S+)(?=\s)/, (m, w) => { const d = wordDate(w); if (d) { r.due = d; return ' '; } return m; });
+  r.title = x.replace(/\s+/g, ' ').trim(); return r;
+}
+function quickBar(ph) {
+  return `<form class="qadd" data-form="qadd"><input name="q" enterkeyhint="done" autocomplete="off" dir="auto" placeholder="${esc(ph || 'Add a task…')}" value="${esc(ui.quick || '')}" data-input="quick" data-norender="1"><button class="btn primary" type="submit" aria-label="Add">${I.plus}</button></form>
+  <div class="qhint">Tip: <b>!1</b> priority · <b>@fri</b> or <b>@tomorrow</b> due · <b>*</b> Top 3 today</div>`;
+}
+function quickSubmit(form) {
+  const inp = form.querySelector('input'); const p = parseQuick(inp.value || ''); if (!p.title) return;
+  const rec = { title: p.title, state: 'To do', priority: p.priority || 'P2', owner: 'Milad' };
+  if (p.due) rec.due = p.due;
+  if (p.top) { const n = list('tasks').filter(x => isOpen(x) && x.focusDate === today()).length; if (n >= 3) toast('Top 3 is full; added without it'); else rec.focusDate = today(); }
+  ui.quick = ''; saveUi(); save('tasks', rec); toast('Added: ' + p.title);
+  setTimeout(() => { const i = document.querySelector('.qadd input'); if (i) i.focus(); }, 30);
+}
+document.addEventListener('submit', e => { const f = e.target.closest('[data-form="qadd"]'); if (f) { e.preventDefault(); quickSubmit(f); } });
+
 /* ---------------- views ---------------- */
+/* ---------------- 2031 helpers ---------------- */
+const prefs = () => get('settings', 'prefs') || { id: 'prefs' };
+const visionDate = () => prefs().visionDate || '2031-12-31';
+const daysTo = d => Math.round((parseD(d) - parseD(today())) / 86400000);
+function weekStart(d = today()) { const x = parseD(d); return addDays(d, -((x.getDay() + 6) % 7)); }
+const inWeek = (d, ws) => d && d >= ws && d <= addDays(ws, 6);
+function weekMinutes(ws, skillId) { return list('sessions').filter(s => inWeek(s.date, ws) && (!skillId || s.skill === skillId)).reduce((n, s) => n + (Number(s.minutes) || 0), 0); }
+function weekTarget() { return Math.round(list('skills').reduce((n, s) => n + (Number(s.weeklyHours) || 0), 0) * 60); }
+function streak() {
+  const days = new Set(list('sessions').filter(s => s.date && (Number(s.minutes) > 0 || s.done)).map(s => s.date));
+  let d = today(); if (!days.has(d)) d = addDays(d, -1); let n = 0;
+  while (days.has(d)) { n++; d = addDays(d, -1); }
+  return n;
+}
+const hrs = m => (Math.round(m / 6) / 10).toString();
+function weeklyLogged(ws = weekStart()) { return list('logs').some(l => l.type === 'weekly' && (l.week === ws || inWeek(l.date, ws))); }
+function weeklyDue() { const wd = new Date().getDay(); return (wd === 5 || wd === 6 || wd === 0) && !weeklyLogged(); }
+function expiring() { const lim = addDays(today(), 180); return list('immigration').filter(x => x.expiry && x.expiry <= lim && x.status !== 'Not needed'); }
+function followUps() { return list('applications').filter(a => a.followUp && a.followUp <= today() && APP_ACTIVE.includes(a.stage || 'Saved')); }
+function lateMilestones() { return list('milestones').filter(m => m.target && m.target < today() && !['Done', 'Dropped'].includes(m.status)); }
+function attention() {
+  const t = today(), open = list('tasks').filter(isOpen);
+  const od = open.filter(x => x.due && x.due < t).length, wt = open.filter(x => stOf(x) === 'Waiting').length;
+  const fu = followUps().length, ex = expiring().length, lm = lateMilestones().length;
+  const out = [];
+  if (weeklyDue()) out.push(['weekly', '', I.review, 'Weekly review is due', '5 minutes · three questions', 'warn']);
+  if (od) out.push(['filter', 'overdue', I.alert, `${od} overdue task${od > 1 ? 's' : ''}`, 'Reschedule or finish', 'bad']);
+  if (fu) out.push(['go', 'jobs', I.jobs, `${fu} job follow-up${fu > 1 ? 's' : ''} due`, 'Applications to chase', 'warn']);
+  if (ex) out.push(['go', 'immigration', I.imm, `${ex} document${ex > 1 ? 's' : ''} expiring within 6 months`, 'Check passport, test reports and certificates', 'warn']);
+  if (lm) out.push(['go', 'plan', I.flag, `${lm} roadmap milestone${lm > 1 ? 's' : ''} past target`, 'Update the date or the status', 'warn']);
+  if (wt) out.push(['filter', 'ext', I.clock, `${wt} waiting on others`, 'Nudge or keep waiting', '']);
+  return out;
+}
+const attRow = ([act, arg, ic, t, s, tone]) => `<div role="button" tabindex="0" class="row att ${tone}" data-act="${act}" ${act === 'filter' ? `data-f="${arg}"` : act === 'go' ? `data-to="${arg}"` : ''}><span class="att-i">${ic}</span><div class="main"><div class="t">${esc(t)}</div><div class="m">${esc(s)}</div></div><span class="att-go">${I.right}</span></div>`;
+
 function vToday() {
   const t = today(), open = list('tasks').filter(isOpen);
   const top = sortTasks(open.filter(x => x.focusDate === t));
-  const overdue = sortTasks(open.filter(x => x.due && x.due < t));
-  const week = open.filter(x => x.due && x.due >= t && x.due <= addDays(t, 7));
-  const mine = sortTasks(open.filter(x => x.state === 'Waiting for Me'));
-  const ext = open.filter(x => x.state === 'Waiting for External Input' || x.state === 'Blocked');
-  const sched = agenda(t, t).filter(a => a.kind !== 'due');
-  const lastClose = list('logs').filter(l => l.type === 'closeout').sort((a, b) => b.date.localeCompare(a.date))[0];
-  return header(new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }), 'Today') + `
-  <div class="kpis"><div class="kpi"><b>${top.length}</b><span>Top 3 today</span></div><div class="kpi ${overdue.length ? 'bad' : ''}"><b>${overdue.length}</b><span>Overdue</span></div><div class="kpi"><b>${week.length}</b><span>Due in 7 days</span></div><div class="kpi ${mine.length ? 'warn' : ''}"><b>${mine.length}</b><span>Waiting for me</span></div></div>
-  <div class="grid two" style="margin-top:14px">
-    <div class="card"><h2>Top 3 <span class="count">${top.length}</span></h2>${top.length ? `<div class="list">${top.map(x => taskRow(x)).join('')}</div>` : `<div class="empty">No Top 3 set for today.</div>`}
-      <div class="btns" style="margin-top:10px"><button class="btn small" data-act="plan-day" data-day="${t}">Choose today's Top 3</button></div></div>
-    <div class="card"><h2>Schedule <span class="count">${sched.length}</span></h2>${sched.length ? `<div class="list">${sched.map(agendaRow).join('')}</div>` : '<div class="empty">Nothing scheduled today.</div>'}</div>
-  </div>
-  ${overdue.length ? `<div class="card" style="margin-top:14px"><h2>Overdue <span class="count">${overdue.length}</span></h2><div class="list">${overdue.map(x => taskRow(x)).join('')}</div></div>` : ''}
-  <div class="grid two" style="margin-top:14px">
-    <div class="card"><h2>Waiting for me <span class="count">${mine.length}</span></h2>${mine.length ? `<div class="list">${mine.slice(0, 6).map(x => taskRow(x, { na: false })).join('')}</div>${mine.length > 6 ? `<a class="btn small ghost" href="#/tasks" data-act="filter" data-f="mine">See all ${mine.length}</a>` : ''}` : '<div class="empty">Nothing waiting for you.</div>'}</div>
-    <div class="card"><h2>External and blocked <span class="count">${ext.length}</span></h2>${ext.length ? `<div class="list">${ext.slice(0, 6).map(x => taskRow(x, { na: false })).join('')}</div>` : '<div class="empty">No blocked items.</div>'}</div>
-  </div>
-  <div class="card" style="margin-top:14px"><h2>Daily close-out</h2><div class="small">${lastClose ? `Last close-out: ${esc(fmtDate(lastClose.date))}.` : 'No close-out recorded yet.'} Update states, record what was done, and set tomorrow's Top 3. About 10 minutes.</div>
-    <div class="btns" style="margin-top:10px"><button class="btn primary" data-act="closeout">Close out today</button></div></div>`;
+  const doneTop = list('tasks').filter(x => !isOpen(x) && x.focusDate === t);
+  const sched = agenda(t, t).filter(a => a.kind !== 'due' || !top.some(x => x.id === a.id));
+  const closed = list('logs').some(l => l.type === 'closeout' && l.date === t);
+  const att = attention();
+  const ws = weekStart(), mins = weekMinutes(ws), tgt = weekTarget(), st = streak();
+  const dl = daysTo(visionDate());
+  return header(new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }), '') + `
+  <a class="vision" href="#/plan" data-act="go" data-to="plan"><b>${dl.toLocaleString('en-GB')}</b> days to MILAD 2031 <span>${I.right}</span></a>
+  ${quickBar('Add a task…')}
+  <div class="card"><h2>Top 3 today <span class="count">${doneTop.length}/${top.length + doneTop.length || 3}</span><span style="flex:1"></span><button class="btn small ghost" data-act="plan-day" data-day="${t}">${top.length ? 'Change' : 'Choose'}</button></h2>
+    ${top.length ? `<div class="list">${top.map(x => taskRow(x)).join('')}</div>` : doneTop.length ? '<div class="empty">All of today\'s Top 3 are done. 🎉</div>' : `<div class="empty">Pick up to three things that matter most today.</div><div class="btns" style="margin-top:8px"><button class="btn primary" data-act="plan-day" data-day="${t}">Choose today's Top 3</button></div>`}</div>
+  <div class="card" style="margin-top:12px"><h2>Today <span class="count">${sched.length}</span><span style="flex:1"></span><button class="btn small ghost" data-act="new-event" data-day="${t}">${I.plus} Event</button></h2>${sched.length ? `<div class="list">${sched.map(agendaRow).join('')}</div>` : '<div class="empty">Nothing scheduled.</div>'}</div>
+  ${att.length ? `<div class="card" style="margin-top:12px"><h2>Needs attention <span class="count">${att.length}</span></h2><div class="list">${att.map(attRow).join('')}</div></div>` : ''}
+  <div role="button" tabindex="0" class="card learnmini" data-act="go" data-to="learn" style="margin-top:12px"><span class="att-i">${I.learn}</span><div class="main"><div class="t">Learning this week: ${hrs(mins)} h${tgt ? ` of ${hrs(tgt)} h` : ''}</div>${tgt ? `<div class="bar"><i style="width:${Math.min(100, Math.round(100 * mins / tgt))}%"></i></div>` : ''}<div class="m">${st ? `🔥 ${st}-day streak` : 'Log a session to start a streak'}</div></div><button class="btn small" data-act="log-time">${I.plus} Log time</button></div>
+  <div style="margin-top:14px">${closed ? `<div class="card closed">✓ Day closed. Tomorrow's Top 3 is set.<button class="btn small ghost" data-act="closeout">Edit</button></div>` : `<button class="btn primary wide" data-act="closeout">Close the day</button>`}</div>`;
 }
 function agendaRow(a) {
-  const tag = a.kind === 'event' ? '' : a.kind === 'due' ? '<span class="chip late">Due</span>' : '<span class="chip s-rev">Task</span>';
-  return `<div class="row" data-act="${a.kind === 'event' ? 'event' : 'task'}" data-id="${esc(a.id)}"><div class="time">${esc(a.time || 'all day')}${a.end ? `<br><span class="small">${esc(a.end)}</span>` : ''}</div><div class="main"><div class="t" dir="auto">${esc(a.title)}</div><div class="m">${tag}${a.kind !== 'event' && a.rec.nextAction ? `<span dir="auto">${esc(a.rec.nextAction).slice(0, 120)}</span>` : ''}${a.kind === 'event' && a.rec.rrule ? '<span>repeats</span>' : ''}</div></div></div>`;
+  const tag = a.kind === 'event' ? '' : a.kind === 'due' ? '<span class="chip late">Due</span>' : a.kind === 'follow' ? '<span class="chip s-wait">Job</span>' : a.kind === 'ms' ? '<span class="chip s-rev">2031</span>' : '<span class="chip s-prog">Task</span>';
+  const act = { event: 'event', follow: 'application', ms: 'milestone' }[a.kind] || 'task';
+  return `<div class="row" data-act="${act}" data-id="${esc(a.id)}"><div class="time">${esc(a.time || 'all day')}${a.end ? `<br><span class="small">${esc(a.end)}</span>` : ''}</div><div class="main"><div class="t" dir="auto">${esc(a.title)}</div><div class="m">${tag}${(a.kind === 'task' || a.kind === 'due') && a.rec.nextAction ? `<span dir="auto">${esc(a.rec.nextAction).slice(0, 120)}</span>` : ''}${a.kind === 'event' && a.rec.rrule ? '<span>repeats</span>' : ''}</div></div></div>`;
 }
-const TASK_FILTERS = [['active', 'Active'], ['top', 'Top 3'], ['mine', 'Waiting for me'], ['ext', 'External / blocked'], ['overdue', 'Overdue'], ['week', 'Next 7 days'], ['month', 'Next 30 days'], ['done', 'Completed'], ['all', 'All']];
+const TASK_FILTERS = [['active', 'Open'], ['top', 'Top 3'], ['doing', 'Doing'], ['ext', 'Waiting'], ['overdue', 'Overdue'], ['week', 'Next 7 days'], ['done', 'Done'], ['all', 'All']];
 function vTasks() {
   const t = today(), f = ui.taskFilter, q = (ui.taskQuery || '').toLowerCase();
   let arr = list('tasks');
   const by = {
-    active: x => isOpen(x), top: x => isOpen(x) && x.focusDate === t, mine: x => x.state === 'Waiting for Me', ext: x => x.state === 'Waiting for External Input' || x.state === 'Blocked',
-    overdue: x => isOpen(x) && x.due && x.due < t, week: x => isOpen(x) && x.due && x.due <= addDays(t, 7), month: x => isOpen(x) && x.due && x.due <= addDays(t, 30), done: x => DONE.has(x.state), all: () => true
+    active: x => isOpen(x), top: x => isOpen(x) && x.focusDate === t, doing: x => stOf(x) === 'Doing', mine: x => stOf(x) === 'Doing', ext: x => stOf(x) === 'Waiting', month: x => isOpen(x) && x.due && x.due <= addDays(t, 30),
+    overdue: x => isOpen(x) && x.due && x.due < t, week: x => isOpen(x) && x.due && x.due <= addDays(t, 7), done: x => DONE.has(x.state), all: () => true
   };
   arr = arr.filter(by[f] || by.active);
   if (q) arr = arr.filter(x => [x.title, x.nextAction, x.notes, x.area].join(' ').toLowerCase().includes(q));
   if (f === 'done') arr.sort((a, b) => String(b.completedOn || '').localeCompare(String(a.completedOn || ''))); else sortTasks(arr);
   return header('Tasks', `${arr.length} shown`) + `
   <div class="seg">${TASK_FILTERS.map(([k, l]) => `<button class="${f === k ? 'on' : ''}" data-act="filter" data-f="${k}">${l}</button>`).join('')}</div>
-  <div class="toolbar"><input class="search" type="search" placeholder="Search tasks" value="${esc(ui.taskQuery)}" data-input="taskQuery"><button class="btn primary" data-act="new-task">${I.plus} Task</button></div>
+  ${quickBar()}
+  <div class="toolbar"><input class="search" type="search" placeholder="Search tasks" value="${esc(ui.taskQuery)}" data-input="taskQuery"><button class="btn" data-act="new-task">${I.plus} Full form</button></div>
   <div class="card">${arr.length ? `<div class="list">${arr.map(x => taskRow(x)).join('')}</div>` : '<div class="empty">No tasks in this view.</div>'}</div>`;
 }
 function vCalendar() {
@@ -288,7 +400,7 @@ function vCalendar() {
   return header('Calendar', 'Events, scheduled tasks and deadlines') + `
   <div class="card"><div class="cal-h"><button class="icon-btn" data-act="cal-move" data-d="-1" aria-label="Previous month">${I.left}</button><b>${esc(monthName)}</b><button class="btn small" data-act="cal-today">Today</button><button class="icon-btn" data-act="cal-move" data-d="1" aria-label="Next month">${I.right}</button></div>
   <div class="month">${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => `<div class="dow">${d}</div>`).join('')}
-  ${days.map(d => { const it = byDay[d] || []; return `<div class="day ${d.slice(0, 7) !== ui.calMonth ? 'out' : ''} ${d === t ? 'today' : ''} ${d === ui.calSel ? 'sel' : ''}" data-act="cal-sel" data-day="${d}"><span class="n">${Number(d.slice(8))}</span><div class="dots">${it.slice(0, 6).map(a => `<i class="${a.kind === 'task' ? 't' : a.kind === 'due' ? 'd' : ''}"></i>`).join('')}</div>${it.slice(0, 3).map(a => `<div class="lbl" dir="auto">${esc(a.time ? a.time + ' ' : '')}${esc(a.title)}</div>`).join('')}${it.length > 3 ? `<div class="lbl">+${it.length - 3}</div>` : ''}</div>`; }).join('')}</div></div>
+  ${days.map(d => { const it = byDay[d] || []; return `<div class="day ${d.slice(0, 7) !== ui.calMonth ? 'out' : ''} ${d === t ? 'today' : ''} ${d === ui.calSel ? 'sel' : ''}" data-act="cal-sel" data-day="${d}"><span class="n">${Number(d.slice(8))}</span><div class="dots">${it.slice(0, 6).map(a => `<i class="${a.kind === 'task' || a.kind === 'ms' ? 't' : a.kind === 'due' || a.kind === 'follow' ? 'd' : ''}"></i>`).join('')}</div>${it.slice(0, 3).map(a => `<div class="lbl" dir="auto">${esc(a.time ? a.time + ' ' : '')}${esc(a.title)}</div>`).join('')}${it.length > 3 ? `<div class="lbl">+${it.length - 3}</div>` : ''}</div>`; }).join('')}</div></div>
   <div class="card" style="margin-top:14px"><h2>${esc(fmtDate(ui.calSel, true))} <span class="count">${sel.length}</span></h2>${sel.length ? `<div class="list">${sel.map(agendaRow).join('')}</div>` : '<div class="empty">Nothing on this day.</div>'}
   <div class="btns" style="margin-top:10px"><button class="btn small" data-act="new-event" data-day="${ui.calSel}">${I.plus} Event</button><button class="btn small" data-act="new-task" data-day="${ui.calSel}">${I.plus} Task on this day</button></div></div>`;
 }
@@ -299,30 +411,101 @@ function vPlan() {
   const gprog = gid => { const ts = tasks.filter(t => t.goalId === gid || (t.projectId && (get('projects', t.projectId) || {}).goalId === gid)); const d = ts.filter(t => DONE.has(t.state)).length; return [d, ts.length]; };
   const bar = ([d, n]) => `<div class="bar" title="${d}/${n}"><i style="width:${n ? Math.round(100 * d / n) : 0}%"></i></div><div class="small">${d} of ${n} tasks done</div>`;
   const orphan = projects.filter(p => !p.goalId || !get('goals', p.goalId));
-  return header('Plan', 'Vision → goals → projects → actions') + `
+  if ((ui.planTab || 'roadmap') === 'roadmap') return vRoadmap();
+  return header('Plan', 'Vision → goals → projects → actions') + planTabs() + `
   <div class="btns" style="margin-bottom:12px"><button class="btn primary" data-act="new-goal">${I.plus} Goal</button><button class="btn" data-act="new-project">${I.plus} Project</button></div>
   ${goals.length ? goals.map(g => { const ps = projects.filter(p => p.goalId === g.id); return `<div class="card" style="margin-bottom:12px"><div class="row" data-act="goal" data-id="${esc(g.id)}" style="border:0;padding-top:0"><div class="main"><div class="t" dir="auto">${esc(g.title)}</div><div class="m"><span class="chip">${esc(g.status || 'Not started')}</span>${g.area ? `<span>${esc(g.area)}</span>` : ''}${g.target ? `<span>Target ${esc(fmtDate(g.target, true))}</span>` : ''}</div>${g.success ? `<div class="na" dir="auto">${esc(g.success)}</div>` : ''}</div></div>${bar(gprog(g.id))}
     ${ps.length ? `<div class="list" style="margin-top:8px">${ps.map(p => `<div class="row" data-act="project" data-id="${esc(p.id)}"><div class="main"><div class="t" dir="auto">${esc(p.title)}</div><div class="m"><span class="chip">${esc(p.status || 'Planned')}</span>${p.target ? `<span>Target ${esc(fmtDate(p.target, true))}</span>` : ''}<span>${prog(p.id)[1] - prog(p.id)[0]} open</span></div></div></div>`).join('')}</div>` : ''}</div>`; }).join('') : '<div class="card empty">No goals yet. Import your MILAD 2031 data in Settings, or add a goal.</div>'}
   ${orphan.length ? `<div class="card"><h2>Projects without a goal</h2><div class="list">${orphan.map(p => `<div class="row" data-act="project" data-id="${esc(p.id)}"><div class="main"><div class="t" dir="auto">${esc(p.title)}</div><div class="m"><span class="chip">${esc(p.status || 'Planned')}</span></div></div></div>`).join('')}</div></div>` : ''}`;
 }
+function planTabs() { const p = ui.planTab || 'roadmap'; return `<div class="seg" style="margin-bottom:12px"><button class="${p === 'roadmap' ? 'on' : ''}" data-act="plan-tab" data-t="roadmap">Roadmap 2031</button><button class="${p === 'goals' ? 'on' : ''}" data-act="plan-tab" data-t="goals">Goals & projects</button></div>`; }
+function vRoadmap() {
+  const ms = list('milestones'); const t = today(); const vd = visionDate();
+  const done = ms.filter(m => m.status === 'Done').length, live = ms.filter(m => m.status !== 'Dropped').length;
+  const y0 = Math.min(Number(t.slice(0, 4)), ...ms.filter(m => m.target).map(m => Number(m.target.slice(0, 4)))), y1 = Math.max(Number(vd.slice(0, 4)), ...ms.filter(m => m.target).map(m => Number(m.target.slice(0, 4))));
+  const years = []; for (let y = y0; y <= y1; y++) years.push(y);
+  const yearOf = m => m.target ? Number(m.target.slice(0, 4)) : null;
+  const noDate = ms.filter(m => !m.target);
+  const msRow = m => { const late = m.target && m.target < t && !['Done', 'Dropped'].includes(m.status); return `<div class="row" data-act="milestone" data-id="${esc(m.id)}"><button class="check ${m.status === 'Done' ? 'done' : ''}" data-act="ms-done" data-id="${esc(m.id)}" aria-label="Mark done">${I.tick}</button><div class="main"><div class="t" dir="auto">${esc(m.title)}</div><div class="m">${m.status && m.status !== 'Planned' ? `<span class="chip ${m.status === 'Done' ? 's-done' : m.status === 'At risk' ? 's-block' : m.status === 'In progress' ? 's-prog' : ''}">${esc(m.status)}</span>` : ''}${m.target ? `<span class="chip ${late ? 'late' : ''}">${esc(fmtDate(m.target, true))}</span>` : ''}${m.goalId && get('goals', m.goalId) ? `<span dir="auto">${esc(get('goals', m.goalId).title)}</span>` : ''}</div></div></div>`; };
+  const dl = daysTo(vd);
+  return header('Plan', 'Where you are going and by when') + planTabs() + `
+  <div class="card hero"><div class="hero-n">${dl.toLocaleString('en-GB')}</div><div class="hero-l">days to MILAD 2031 · ${esc(fmtDate(vd, true))} <button class="btn small ghost" data-act="vision">Change</button></div>
+    <div class="bar" style="margin-top:12px"><i style="width:${live ? Math.round(100 * done / live) : 0}%"></i></div><div class="small" style="margin-top:6px">${done} of ${live} milestones done</div>
+    <div class="btns" style="margin-top:12px"><button class="btn primary small" data-act="new-milestone">${I.plus} Milestone</button>${list('goals').some(g => g.target) ? '<button class="btn small" data-act="ms-from-goals">Create from goal dates</button>' : ''}</div></div>
+  <div class="timeline">${years.map(y => { const it = ms.filter(m => yearOf(m) === y).sort((a, b) => a.target.localeCompare(b.target)); const d = it.filter(m => m.status === 'Done').length; const cur = y === Number(t.slice(0, 4));
+    return `<div class="yr ${cur ? 'cur' : ''} ${y < Number(t.slice(0, 4)) ? 'past' : ''}"><div class="yr-h"><b>${y}</b>${it.length ? `<span class="small">${d}/${it.length}</span>` : ''}${cur ? '<span class="chip s-rev">now</span>' : ''}</div>${it.length ? `<div class="list">${it.map(msRow).join('')}</div>` : `<div class="empty">No milestones yet. <a href="#" data-act="new-milestone" data-year="${y}">Add one</a></div>`}</div>`; }).join('')}</div>
+  ${noDate.length ? `<div class="card" style="margin-top:12px"><h2>No date yet</h2><div class="list">${noDate.map(msRow).join('')}</div></div>` : ''}`;
+}
+function vJobs() {
+  const f = ui.jobFilter || 'active'; const all = list('applications');
+  const arr = all.filter(a => f === 'active' ? APP_ACTIVE.includes(a.stage || 'Saved') : f === 'all' ? true : (a.stage || 'Saved') === f)
+    .sort((a, b) => String(a.followUp || '9999').localeCompare(String(b.followUp || '9999')) || String(b.appliedOn || '').localeCompare(String(a.appliedOn || '')));
+  const cnt = s => all.filter(a => (a.stage || 'Saved') === s).length;
+  const t = today();
+  return header('Job search', 'Applications and follow-ups. Nothing is sent from here.') + `
+  <div class="funnel">${APP_STAGES.slice(0, 5).map(s => `<button data-act="job-filter" data-f="${s}" class="${f === s ? 'on' : ''}"><b>${cnt(s)}</b><span>${s}</span></button>`).join('')}</div>
+  <div class="seg" style="margin:12px 0"><button class="${f === 'active' ? 'on' : ''}" data-act="job-filter" data-f="active">Active</button><button class="${f === 'Rejected' ? 'on' : ''}" data-act="job-filter" data-f="Rejected">Rejected (${cnt('Rejected')})</button><button class="${f === 'Withdrawn' ? 'on' : ''}" data-act="job-filter" data-f="Withdrawn">Withdrawn</button><button class="${f === 'all' ? 'on' : ''}" data-act="job-filter" data-f="all">All</button></div>
+  <div class="toolbar"><button class="btn primary" data-act="new-application">${I.plus} Application</button></div>
+  <div class="card">${arr.length ? `<div class="list">${arr.map(a => { const late = a.followUp && a.followUp <= t && APP_ACTIVE.includes(a.stage || 'Saved'); return `<div class="row" data-act="application" data-id="${esc(a.id)}"><div class="main"><div class="t" dir="auto">${esc(a.role || 'Role')} · ${esc(a.company || '')}</div><div class="m"><span class="chip ${['Interview', 'Offer'].includes(a.stage) ? 's-done' : a.stage === 'Rejected' ? 's-block' : a.stage === 'Saved' ? '' : 's-prog'}">${esc(a.stage || 'Saved')}</span>${a.appliedOn ? `<span>Applied ${esc(fmtDate(a.appliedOn))}</span>` : ''}${a.followUp && APP_ACTIVE.includes(a.stage || 'Saved') ? `<span class="chip ${late ? 'late' : ''}">Follow up ${esc(rel(a.followUp))}</span>` : ''}${a.location ? `<span dir="auto">${esc(a.location)}</span>` : ''}</div></div></div>`; }).join('')}</div>` : '<div class="empty">No applications in this view.</div>'}</div>`;
+}
+function vImmigration() {
+  const items = list('immigration'); const t = today(); const lim = addDays(t, 180);
+  const ok = items.filter(x => ['Ready', 'Submitted', 'Not needed'].includes(x.status)).length;
+  const row = x => { const exp = x.expiry && x.status !== 'Not needed' ? (x.expiry < t ? 'late' : x.expiry <= lim ? 's-wait' : '') : null; const ev = x.evidenceId && get('evidence', x.evidenceId);
+    return `<div class="row" data-act="immig" data-id="${esc(x.id)}"><button class="check ${['Ready', 'Submitted', 'Not needed'].includes(x.status) ? 'done' : ''}" data-act="imm-ready" data-id="${esc(x.id)}" aria-label="Mark ready">${I.tick}</button><div class="main"><div class="t" dir="auto">${esc(x.title)}</div><div class="m"><span class="chip ${['Ready', 'Submitted'].includes(x.status) ? 's-done' : x.status === 'Collecting' ? 's-prog' : ''}">${esc(x.status || 'Not started')}</span>${exp !== null && x.expiry ? `<span class="chip ${exp}">Expires ${esc(fmtDate(x.expiry, true))}</span>` : ''}${ev ? `<span>${esc(ev.code || '')} ${esc(ev.status || '')}</span>` : ''}</div></div></div>`; };
+  return header('Immigration', 'Documents to collect, and when they expire') + `
+  <div class="card warnbox small">This checklist does not decide eligibility. Confirm each requirement on the official government website for your pathway, and paste that link in the item.</div>
+  <div class="card" style="margin-top:12px"><div class="bar"><i style="width:${items.length ? Math.round(100 * ok / items.length) : 0}%"></i></div><div class="small" style="margin-top:6px">${ok} of ${items.length} ready</div>
+    <div class="btns" style="margin-top:10px"><button class="btn primary small" data-act="new-immig">${I.plus} Document</button>${items.length ? '' : '<button class="btn small" data-act="imm-starter">Add a starter list</button>'}</div></div>
+  ${IMM_CATS.map(c => { const it = items.filter(x => (x.category || 'Other') === c).sort((a, b) => String(a.title).localeCompare(String(b.title))); return it.length ? `<div class="card" style="margin-top:12px"><h2>${esc(c)} <span class="count">${it.filter(x => ['Ready', 'Submitted', 'Not needed'].includes(x.status)).length}/${it.length}</span></h2><div class="list">${it.map(row).join('')}</div></div>` : ''; }).join('')}`;
+}
 function vMore() {
   return header('More', 'Everything else in MILAD 2031') + `<div class="grid two">${NAV_MORE.map(([k, l, ic]) => `<a class="card row" href="#/${k}" style="text-decoration:none;align-items:center"><span style="width:26px;color:var(--brass-ink)">${ic}</span><div class="main"><div class="t">${l}</div><div class="m">${moreHint(k)}</div></div></a>`).join('')}</div>`;
 }
 function moreHint(k) {
-  return { learn: `${list('skills').length} skills · ${list('sessions').length} sessions · ${list('ielts').length} IELTS entries`, evidence: `${list('evidence').length} items`, decisions: `${list('decisions').length} decisions`, notes: `${list('notes').length} documents`, review: 'Live executive review and close-out logs', settings: 'Sync, calendar feed, backup, password' }[k] || '';
+  return { jobs: `${list('applications').filter(a => APP_ACTIVE.includes(a.stage || 'Saved')).length} active applications`, immigration: `${list('immigration').length} documents`, learn: `${list('skills').length} skills · ${list('sessions').length} sessions · ${list('ielts').length} IELTS entries`, evidence: `${list('evidence').length} items`, decisions: `${list('decisions').length} decisions`, notes: `${list('notes').length} documents`, review: 'Live executive review and close-out logs', settings: 'Sync, calendar feed, backup, password' }[k] || '';
 }
 function vLearn() {
   const skills = list('skills').sort((a, b) => String(a.priority || 'P9').localeCompare(String(b.priority || 'P9')));
   const sessions = list('sessions').sort((a, b) => String(b.date).localeCompare(String(a.date)));
   const ielts = list('ielts').sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  const ws = weekStart(), mins = weekMinutes(ws), tgt = weekTarget(), st = streak();
+  const tracked = skills.filter(s => Number(s.weeklyHours) > 0 || weekMinutes(ws, s.id) > 0);
   return header('Learning', 'Competence is shown by practical checks, not attendance') + `
-  <div class="card"><h2>Skills <span class="count">${skills.length}</span></h2>${skills.length ? `<div class="list">${skills.map(s => `<div class="row" data-act="skill" data-id="${esc(s.id)}"><div class="main"><div class="t" dir="auto">${esc(s.title)}</div><div class="m">${priChip(s.priority)}<span class="chip">${esc(s.status || 'Not started')}</span><span>Level ${esc(s.current ?? '?')} → ${esc(s.target ?? '?')}</span>${s.weeklyHours ? `<span>${esc(s.weeklyHours)} h/week</span>` : ''}</div>${s.evidenceNeeded ? `<div class="na" dir="auto">Evidence: ${esc(s.evidenceNeeded)}</div>` : ''}</div></div>`).join('')}</div>` : '<div class="empty">No skills yet.</div>'}
+  <div class="card"><h2>This week <span class="count">${hrs(mins)} h${tgt ? ' / ' + hrs(tgt) + ' h' : ''}</span><span style="flex:1"></span><button class="btn small primary" data-act="log-time">${I.plus} Log time</button></h2>
+    <div class="small" style="margin-bottom:8px">${st ? `🔥 ${st}-day streak` : 'No streak yet. Log any practice today to start one.'} · Week of ${esc(fmtDate(ws))}</div>
+    ${tracked.length ? tracked.map(s => { const m = weekMinutes(ws, s.id), g = Math.round((Number(s.weeklyHours) || 0) * 60); return `<div style="margin:8px 0"><div class="small" style="display:flex;justify-content:space-between;gap:8px"><span dir="auto">${esc(s.title)}</span><b>${hrs(m)}${g ? ' / ' + hrs(g) : ''} h</b></div><div class="bar"><i style="width:${g ? Math.min(100, Math.round(100 * m / g)) : 100}%"></i></div></div>`; }).join('') : '<div class="empty">Set weekly hours on a skill to track it here.</div>'}</div>
+  <div class="card" style="margin-top:14px"><h2>IELTS progress</h2><div class="small" style="margin-bottom:10px">Target 7.5 overall, no skill below 7.0. ● official result · ○ estimate (not an IELTS score)</div>${ieltsCharts()}</div>
+  <div class="card" style="margin-top:14px"><h2>Skills <span class="count">${skills.length}</span></h2>${skills.length ? `<div class="list">${skills.map(s => `<div class="row" data-act="skill" data-id="${esc(s.id)}"><div class="main"><div class="t" dir="auto">${esc(s.title)}</div><div class="m">${priChip(s.priority)}<span class="chip">${esc(s.status || 'Not started')}</span><span>Level ${esc(s.current ?? '?')} → ${esc(s.target ?? '?')}</span>${s.weeklyHours ? `<span>${esc(s.weeklyHours)} h/week</span>` : ''}</div>${s.evidenceNeeded ? `<div class="na" dir="auto">Evidence: ${esc(s.evidenceNeeded)}</div>` : ''}</div></div>`).join('')}</div>` : '<div class="empty">No skills yet.</div>'}
     <div class="btns" style="margin-top:10px"><button class="btn small" data-act="new-skill">${I.plus} Skill</button></div></div>
   <div class="grid two" style="margin-top:14px">
-  <div class="card"><h2>Practice sessions <span class="count">${sessions.length}</span></h2>${sessions.length ? `<div class="list">${sessions.slice(0, 30).map(s => `<div class="row" data-act="session" data-id="${esc(s.id)}"><div class="main"><div class="t" dir="auto">${esc(s.title || ('Session ' + (s.number || '')))}</div><div class="m"><span>${esc(fmtDate(s.date, true))}</span>${s.result ? `<span class="chip ${s.result === 'Pass' ? 's-done' : s.result === 'Partial' ? 's-wait' : ''}">${esc(s.result)}</span>` : ''}${s.skill ? `<span>${esc((get('skills', s.skill) || {}).title || '')}</span>` : ''}</div></div></div>`).join('')}</div>` : '<div class="empty">No sessions logged.</div>'}
+  <div class="card"><h2>Practice sessions <span class="count">${sessions.length}</span></h2>${sessions.length ? `<div class="list">${sessions.slice(0, 30).map(s => `<div class="row" data-act="session" data-id="${esc(s.id)}"><div class="main"><div class="t" dir="auto">${esc(s.title || ('Session ' + (s.number || '')))}</div><div class="m"><span>${esc(fmtDate(s.date, true))}</span>${s.minutes ? `<span>${esc(s.minutes)} min</span>` : ''}${s.result ? `<span class="chip ${s.result === 'Pass' ? 's-done' : s.result === 'Partial' ? 's-wait' : ''}">${esc(s.result)}</span>` : ''}${s.skill ? `<span>${esc((get('skills', s.skill) || {}).title || '')}</span>` : ''}</div></div></div>`).join('')}</div>` : '<div class="empty">No sessions logged.</div>'}
     <div class="btns" style="margin-top:10px"><button class="btn small" data-act="new-session">${I.plus} Log session</button></div></div>
   <div class="card"><h2>IELTS log <span class="count">${ielts.length}</span></h2><div class="small" style="margin-bottom:6px">Target 7.5 overall, no skill below 7.0. Only an official test report is an IELTS score.</div>${ielts.length ? `<div class="list">${ielts.map(e => `<div class="row" data-act="ielts" data-id="${esc(e.id)}"><div class="main"><div class="t">${esc(e.skill || 'IELTS')} ${e.band ? '· ' + esc(e.band) : ''}</div><div class="m"><span>${esc(fmtDate(e.date, true))}</span><span class="chip ${/Official/.test(e.kind) ? 's-done' : 's-wait'}">${esc(e.kind || '')}</span></div></div></div>`).join('')}</div>` : '<div class="empty">No entries yet. No baseline exists.</div>'}
     <div class="btns" style="margin-top:10px"><button class="btn small" data-act="new-ielts">${I.plus} Entry</button></div></div></div>`;
+}
+function bandOf(e) { const m = String(e.band || '').trim().match(/^(\d(?:\.[05])?)$/); const v = m ? Number(m[1]) : NaN; return v >= 0 && v <= 9 ? v : null; }
+function ieltsCharts() {
+  const groups = [['Listening', ['Listening'], 7], ['Reading', ['Reading'], 7], ['Writing', ['Writing Task 1', 'Writing Task 2', 'Writing'], 7], ['Speaking', ['Speaking'], 7], ['Overall', ['Overall'], 7.5]];
+  const all = list('ielts').filter(e => e.date && bandOf(e) !== null);
+  return `<div class="minis">${groups.map(([name, keys, target]) => bandChart(name, all.filter(e => keys.includes(e.skill)).sort((a, b) => a.date.localeCompare(b.date)), target)).join('')}</div>`;
+}
+function bandChart(name, pts, target) {
+  if (!pts.length) return `<div class="mini"><div class="mini-h"><b>${name}</b><span class="small">no band yet</span></div></div>`;
+  const W = 300, H = 118, pl = 22, pr = 30, pt = 8, pb = 18;
+  const lo = Math.max(0, Math.min(4, Math.floor(Math.min(...pts.map(bandOf))))), hi = 9;
+  const t0 = parseD(pts[0].date).getTime(), t1 = parseD(pts[pts.length - 1].date).getTime();
+  const x = d => t1 === t0 ? (pl + (W - pl - pr) / 2) : pl + (parseD(d).getTime() - t0) / (t1 - t0) * (W - pl - pr);
+  const y = v => pt + (hi - v) / (hi - lo) * (H - pt - pb);
+  const grid = []; for (let v = Math.ceil(lo); v <= hi; v++) grid.push(`<line x1="${pl}" x2="${W - pr}" y1="${y(v)}" y2="${y(v)}" class="g"/><text x="${pl - 5}" y="${y(v) + 3}" class="ax" text-anchor="end">${v}</text>`);
+  const line = pts.map((p, i) => `${i ? 'L' : 'M'}${x(p.date).toFixed(1)},${y(bandOf(p)).toFixed(1)}`).join('');
+  const last = pts[pts.length - 1], lv = bandOf(last);
+  const dots = pts.map(p => { const off = /Official/.test(p.kind || ''); return `<g class="pt"><circle cx="${x(p.date)}" cy="${y(bandOf(p))}" r="12" class="hit"/><circle cx="${x(p.date)}" cy="${y(bandOf(p))}" r="4.5" class="${off ? 'off' : 'est'}"/><title>${esc(fmtDate(p.date, true))}: ${bandOf(p)} · ${esc(off ? 'official result' : 'estimate, not an IELTS score')}</title></g>`; }).join('');
+  return `<div class="mini"><div class="mini-h"><b>${name}</b><span class="small">latest ${lv}${/Official/.test(last.kind || '') ? '' : ' (est.)'}</span></div>
+  <svg viewBox="0 0 ${W} ${H}" class="bchart" role="img" aria-label="${name} band over time, latest ${lv}, target ${target}">${grid.join('')}
+  <line x1="${pl}" x2="${W - pr}" y1="${y(target)}" y2="${y(target)}" class="tg"/><text x="${W - pr + 4}" y="${y(target) + 3}" class="ax tgl">${target}</text>
+  <path d="${line}" class="ln"/>${dots}
+  <text x="${pl}" y="${H - 3}" class="ax">${esc(fmtDate(pts[0].date))}</text>${pts.length > 1 ? `<text x="${W - pr}" y="${H - 3}" class="ax" text-anchor="end">${esc(fmtDate(last.date))}</text>` : ''}</svg></div>`;
 }
 function vEvidence() {
   const items = list('evidence').sort((a, b) => String(a.code || '').localeCompare(String(b.code || ''), undefined, { numeric: true }));
@@ -352,18 +535,18 @@ function vNote(id) {
 }
 function vReview() {
   const t = today(); const tasks = list('tasks'); const open = tasks.filter(isOpen);
-  const counts = STATES.map(s => [s, tasks.filter(x => (x.state || 'Not Started') === s).length]).filter(([, n]) => n);
+  const counts = STATES.map(s => [s, tasks.filter(x => stOf(x) === s).length]).filter(([, n]) => n);
   const max = Math.max(1, ...counts.map(([, n]) => n));
   const overdue = sortTasks(open.filter(x => x.due && x.due < t));
   const next30 = sortTasks(open.filter(x => x.due && x.due >= t && x.due <= addDays(t, 30)));
   const doneWeek = tasks.filter(x => DONE.has(x.state) && x.completedOn && x.completedOn >= addDays(t, -7));
   const noNext = open.filter(x => !x.nextAction);
-  const noEvid = tasks.filter(x => /Completed/.test(x.state || '') && !x.evidence);
+  const noEvid = tasks.filter(x => stOf(x) === 'Done' && !x.evidence);
   const logs = list('logs').sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 12);
   return header('Review', 'Live executive review, computed from your records') + `
   <div class="kpis"><div class="kpi"><b>${open.length}</b><span>Open tasks</span></div><div class="kpi ${overdue.length ? 'bad' : ''}"><b>${overdue.length}</b><span>Overdue</span></div><div class="kpi"><b>${doneWeek.length}</b><span>Completed in 7 days</span></div><div class="kpi ${noNext.length || noEvid.length ? 'warn' : ''}"><b>${noNext.length + noEvid.length}</b><span>Quality issues</span></div></div>
   <div class="grid two" style="margin-top:14px">
-    <div class="card"><h2>By workflow state</h2>${counts.map(([s, n]) => `<div style="margin:6px 0"><div class="small" style="display:flex;justify-content:space-between"><span>${esc(s)}</span><b>${n}</b></div><div class="bar"><i style="width:${Math.round(100 * n / max)}%"></i></div></div>`).join('') || '<div class="empty">No tasks.</div>'}</div>
+    <div class="card"><h2>By status</h2>${counts.map(([s, n]) => `<div style="margin:6px 0"><div class="small" style="display:flex;justify-content:space-between"><span>${esc(s)}</span><b>${n}</b></div><div class="bar"><i style="width:${Math.round(100 * n / max)}%"></i></div></div>`).join('') || '<div class="empty">No tasks.</div>'}</div>
     <div class="card"><h2>Quality checks</h2><div class="small">Open tasks without a next action: <b>${noNext.length}</b><br>Completed tasks without evidence: <b>${noEvid.length}</b><br>Open tasks with no due date: <b>${open.filter(x => !x.due).length}</b></div>
       <div class="hr"></div><div class="btns"><button class="btn small" data-act="log" data-type="weekly">Log weekly review</button><button class="btn small" data-act="log" data-type="monthly">Log monthly review</button><button class="btn small" data-act="closeout">Daily close-out</button></div></div>
   </div>
@@ -380,6 +563,10 @@ function vSettings() {
     <div class="btns" style="margin-top:10px"><button class="btn small primary" data-act="sync-now">Sync now</button><button class="btn small" data-act="reload">Reload from server</button></div></div>
   <div class="card"><h2>Calendar on iPhone and iPad</h2><div class="small">Subscribe once and your events and scheduled tasks appear in the Apple Calendar app with reminders (15 minutes before, or the alarm you set).</div>
     <div class="btns" style="margin-top:10px"><button class="btn small primary" data-act="ics">Show my calendar link</button></div><div id="icsbox" class="small" style="margin-top:8px"></div></div>
+  <div class="card"><h2>Appearance</h2>
+    <div class="small" style="margin-bottom:6px">Theme</div><div class="seg">${[['auto', 'Automatic'], ['light', 'Light'], ['dark', 'Dark']].map(([k, l]) => `<button class="${(ui.theme || 'auto') === k ? 'on' : ''}" data-act="set-theme" data-v="${k}">${l}</button>`).join('')}</div>
+    <div class="small" style="margin:12px 0 6px">Text size</div><div class="seg">${[['normal', 'Normal'], ['large', 'Large']].map(([k, l]) => `<button class="${(ui.size || 'normal') === k ? 'on' : ''}" data-act="set-size" data-v="${k}">${l}</button>`).join('')}</div></div>
+  <div class="card"><h2>${I.bell} Notifications</h2><div id="pushbox" class="small">Checking…</div></div>
   <div class="card"><h2>Install on iPhone or iPad</h2><div class="small">Open this page in Safari → Share → <b>Add to Home Screen</b>. It then opens full screen like an app and works offline; changes sync when you are online.</div></div>
   <div class="card"><h2>Backup and import</h2><div class="small">The server also keeps a daily snapshot for 30 days. Export a copy regularly.</div>
     <div class="btns" style="margin-top:10px"><button class="btn small" data-act="export">Export JSON backup</button><label class="btn small" style="cursor:pointer">Import JSON<input type="file" accept="application/json,.json" data-change="import" hidden></label></div>
@@ -397,7 +584,7 @@ function route() { const h = location.hash.replace(/^#\/?/, '') || 'today'; cons
 function render() {
   if (!ls.get(K.tok) && !document.querySelector('.shell')) return;
   const { page, arg } = route();
-  const views = { today: vToday, tasks: vTasks, calendar: vCalendar, plan: vPlan, more: vMore, learn: vLearn, evidence: vEvidence, decisions: vDecisions, notes: vNotes, note: () => vNote(arg), review: vReview, settings: vSettings };
+  const views = { today: vToday, tasks: vTasks, calendar: vCalendar, plan: vPlan, more: vMore, learn: vLearn, evidence: vEvidence, decisions: vDecisions, notes: vNotes, note: () => vNote(arg), review: vReview, settings: vSettings, jobs: vJobs, immigration: vImmigration };
   const html = (views[page] || vToday)();
   const active = NAV_MAIN.some(([k]) => k === page) ? page : page === 'note' ? 'more' : NAV_MORE.some(([k]) => k === page) ? 'more' : 'today';
   const focusKey = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.input : null;
@@ -410,6 +597,7 @@ function render() {
     <nav class="tabs">${NAV_MAIN.map(([k, l, ic]) => `<a href="#/${k}" class="${active === k ? 'on' : ''}">${ic}<span>${l}</span></a>`).join('')}</nav>
     <button class="fab" data-act="quick" aria-label="Add">${I.plus}</button></div>`;
   if (focusKey) { const el = app.querySelector(`[data-input="${focusKey}"]`); if (el) { el.focus(); try { el.setSelectionRange(sel[0], sel[1]); } catch {} } }
+  if (page === 'settings') setTimeout(pushRender, 0);
   if (render.keepScroll) window.scrollTo(0, scrollY);
   render.keepScroll = true;
 }
@@ -464,7 +652,7 @@ const skillOpts = () => list('skills').map(s => [s.id, s.title]);
 function taskForm(t = {}) {
   const fields = [
     { k: 'title', label: 'Task', req: true },
-    [{ k: 'state', label: 'Status', type: 'select', options: STATES, blank: false, def: 'Not Started' }, { k: 'priority', label: 'Priority', type: 'select', options: PRI, def: 'P2' }],
+    [{ k: 'state', label: 'Status', type: 'select', options: STATES, blank: false, def: 'To do' }, { k: 'priority', label: 'Priority', type: 'select', options: PRI, def: 'P2' }],
     [{ k: 'due', label: 'Due date', type: 'date' }, { k: 'focusDate', label: 'Top 3 on day', type: 'date' }],
     { k: 'nextAction', label: 'Next step', ph: 'One concrete next step' },
     'MORE',
@@ -474,31 +662,31 @@ function taskForm(t = {}) {
     [{ k: 'scheduled', label: 'Scheduled start', type: 'datetime' }, { k: 'scheduledEnd', label: 'Scheduled end', type: 'datetime' }],
     [{ k: 'schedType', label: 'Schedule type', type: 'select', options: SCHED }, { k: 'estMinutes', label: 'Estimate (minutes)', type: 'number', step: 5 }],
     { k: 'dueAlert', label: 'Show the due date in my phone calendar', type: 'check' },
-    { k: 'blockedBy', label: 'Blocked by / waiting on' },
-    { k: 'evidence', label: 'Evidence of completion', type: 'textarea', hint: 'Required before a task can be marked Completed.' },
+    { k: 'blockedBy', label: 'Waiting on (who / what)' },
+    { k: 'evidence', label: 'Evidence of completion', type: 'textarea', hint: 'Required before a task can be marked Done.' }, { k: 'verified', label: 'Evidence verified by a document', type: 'check' },
     [{ k: 'completedOn', label: 'Completed on', type: 'date' }, { k: 'docLink', label: 'Document link', type: 'url' }],
     { k: 'notes', label: 'Notes', type: 'textarea' }
   ];
   form(t.id ? 'Edit task' : 'New task', fields, t, v => {
     if (!v.title) return 'Give the task a title.';
-    if (/Completed/.test(v.state) && !v.evidence) return 'Add the evidence of completion first. A task is not complete because a document was drafted.';
+    if (v.state === 'Done' && !v.evidence) return 'To mark it Done, add the evidence under More details, or use the ✓ button in the list.';
     if (DONE.has(v.state) && !v.completedOn) v.completedOn = today();
-    if (!DONE.has(v.state)) v.completedOn = v.completedOn && /Completed/.test(t.state || '') ? '' : v.completedOn;
+    if (!DONE.has(v.state) && DONE.has(t.state || '')) v.completedOn = '';
     save('tasks', Object.assign({}, t, v));
     toast('Saved');
   }, { onDelete: t.id ? () => { if (confirm('Delete this task? It can be restored from a backup.')) { remove('tasks', t.id); closeSheet(); } } : null });
 }
 function completeTask(id) {
   const t = get('tasks', id); if (!t) return;
-  if (DONE.has(t.state)) { if (confirm('Reopen this task?')) save('tasks', Object.assign({}, t, { state: 'In Progress', completedOn: '' })); return; }
+  if (DONE.has(t.state)) { if (confirm('Reopen this task?')) save('tasks', Object.assign({}, t, { state: 'To do', completedOn: '' })); return; }
   form('Complete: ' + t.title, [
     { html: t.criterion ? `<div class="card" style="margin-bottom:12px"><div class="small"><b>Completion criterion</b><br>${esc(t.criterion)}</div></div>` : '' },
-    { k: 'state', label: 'Result', type: 'select', options: ['Completed & Verified', 'Completed - Not Verified', 'Cancelled'], blank: false, def: 'Completed & Verified' },
-    { k: 'evidence', label: 'Evidence of completion', type: 'textarea', ph: 'What exists now, and where? (file, link, result, date)', req: true },
-    { k: 'completedOn', label: 'Completed on', type: 'date', def: today() }
-  ], { evidence: t.evidence || '', completedOn: today() }, v => {
-    if (v.state !== 'Cancelled' && !v.evidence) return 'Record the evidence first.';
-    save('tasks', Object.assign({}, t, v)); toast('Marked ' + v.state);
+    { k: 'state', label: 'Result', type: 'select', options: ['Done', 'Cancelled'], blank: false, def: 'Done' },
+    { k: 'evidence', label: 'What shows it is done?', type: 'textarea', ph: 'File, link, result or date' },
+    { k: 'verified', label: 'Verified by a document', type: 'check' }
+  ], { evidence: t.evidence || '', verified: !!t.verified }, v => {
+    if (v.state !== 'Cancelled' && !v.evidence) return 'Write one line of evidence first.';
+    save('tasks', Object.assign({}, t, v, { completedOn: today() })); toast(v.state === 'Done' ? 'Done ✓' : 'Cancelled');
   });
 }
 function eventForm(e = {}, day) {
@@ -531,10 +719,17 @@ function simpleForm(c, title, fields, rec) {
     { onDelete: rec.id ? () => { if (confirm('Delete this ' + title + '?')) { remove(c, rec.id); closeSheet(); } } : null });
 }
 const FORMS = {
+  milestone: r => simpleForm('milestones', 'milestone', [{ k: 'title', label: 'Milestone', req: true, ph: 'e.g. Official IELTS 7.5 achieved' }, [{ k: 'target', label: 'Target date', type: 'date' }, { k: 'status', label: 'Status', type: 'select', options: MS_STATES, blank: false, def: 'Planned' }], 'MORE', [{ k: 'goalId', label: 'Goal', type: 'select', options: goalOpts }, { k: 'area', label: 'Area', type: 'select', options: AREAS }], { k: 'proof', label: 'How I will know it is achieved', type: 'textarea' }, { k: 'notes', label: 'Notes', type: 'textarea' }], r),
+  application: r => simpleForm('applications', 'application', [[{ k: 'company', label: 'Company', req: true }, { k: 'role', label: 'Role', req: true }], [{ k: 'stage', label: 'Stage', type: 'select', options: APP_STAGES, blank: false, def: 'Saved' }, { k: 'appliedOn', label: 'Applied on', type: 'date' }], { k: 'followUp', label: 'Follow up on', type: 'date', hint: 'Appears in Today and the calendar.' }, 'MORE', [{ k: 'location', label: 'Location' }, { k: 'source', label: 'Found via', ph: 'LinkedIn, referral…' }], { k: 'link', label: 'Job ad link', type: 'url' }, [{ k: 'cvVersion', label: 'CV version used' }, { k: 'contact', label: 'Contact person' }], { k: 'notes', label: 'Notes', type: 'textarea' }], r),
+  immig: r => simpleForm('immigration', 'document', [{ k: 'title', label: 'Document', req: true }, [{ k: 'status', label: 'Status', type: 'select', options: IMM_STATES, blank: false, def: 'Not started' }, { k: 'category', label: 'Category', type: 'select', options: IMM_CATS, blank: false, def: 'Other' }], { k: 'expiry', label: 'Expiry date (if any)', type: 'date' }, 'MORE', { k: 'source', label: 'Official requirement link', type: 'url' }, { k: 'evidenceId', label: 'Linked evidence item', type: 'select', options: () => list('evidence').map(e => [e.id, (e.code ? e.code + ' · ' : '') + e.title]) }, { k: 'notes', label: 'Notes', type: 'textarea' }], r),
+  logtime: r => form('Log practice time', [[{ k: 'skill', label: 'Skill', type: 'select', options: skillOpts, blank: false }, { k: 'minutes', label: 'Minutes', type: 'number', step: 5, def: 30 }], { k: 'date', label: 'Date', type: 'date', def: today() }, 'MORE', { k: 'title', label: 'Title', ph: 'e.g. Reading test 3' }, { k: 'done', label: 'What I did', type: 'textarea' }], r, v => {
+    if (!v.skill) return 'Add a skill first (Learning → Skill).'; if (!(Number(v.minutes) > 0)) return 'Enter the minutes.';
+    const sk = get('skills', v.skill); save('sessions', Object.assign({ title: v.title || ((sk ? sk.title : 'Practice') + ' · ' + v.minutes + ' min'), result: 'Not a check' }, v)); toast('Logged ' + v.minutes + ' min');
+  }),
   goal: r => simpleForm('goals', 'goal', [{ k: 'title', label: 'Goal', req: true }, [{ k: 'status', label: 'Status', type: 'select', options: GOAL_STATES }, { k: 'target', label: 'Target date', type: 'date' }], 'MORE', [{ k: 'code', label: 'Code', ph: 'G1' }, { k: 'area', label: 'Area', type: 'select', options: AREAS }], { k: 'success', label: 'Success criteria', type: 'textarea' }, { k: 'notes', label: 'Notes', type: 'textarea' }], r),
   project: r => simpleForm('projects', 'project', [{ k: 'title', label: 'Project', req: true }, [{ k: 'status', label: 'Status', type: 'select', options: PROJECT_STATES }, { k: 'target', label: 'Target date', type: 'date' }], 'MORE', [{ k: 'goalId', label: 'Goal', type: 'select', options: goalOpts }, { k: 'start', label: 'Start', type: 'date' }], { k: 'deliverable', label: 'Deliverable', type: 'textarea' }, { k: 'dependencies', label: 'Dependencies', type: 'textarea' }, { k: 'notes', label: 'Notes', type: 'textarea' }], r),
-  skill: r => simpleForm('skills', 'skill', [{ k: 'title', label: 'Skill', req: true }, [{ k: 'status', label: 'Status', type: 'select', options: SKILL_STATES }, { k: 'current', label: 'Level now (0-5)', type: 'number' }], 'MORE', [{ k: 'priority', label: 'Priority', type: 'select', options: PRI }, { k: 'target', label: 'Target level', type: 'number' }], [{ k: 'weeklyHours', label: 'Weekly hours', type: 'number', step: 0.1 }, { k: 'category', label: 'Category', type: 'select', options: ['Technical', 'Language', 'Domain', 'Commercial', 'Leadership'] }], { k: 'evidenceNeeded', label: 'Evidence of competence', type: 'textarea' }, { k: 'plan', label: 'Learning plan', type: 'big' }], r),
-  session: r => simpleForm('sessions', 'session', [{ k: 'title', label: 'Session', req: true, ph: 'SQL S1: core queries' }, [{ k: 'date', label: 'Date', type: 'date', def: today() }, { k: 'result', label: 'Result', type: 'select', options: ['Pass', 'Partial', 'Not yet', 'Not a check'] }], { k: 'done', label: 'What I did', type: 'textarea' }, 'MORE', [{ k: 'skill', label: 'Skill', type: 'select', options: skillOpts }, { k: 'number', label: 'Session no.', type: 'number' }], { k: 'difficulty', label: 'Difficulties / next time', type: 'textarea' }], r),
+  skill: r => simpleForm('skills', 'skill', [{ k: 'title', label: 'Skill', req: true }, [{ k: 'status', label: 'Status', type: 'select', options: SKILL_STATES }, { k: 'weeklyHours', label: 'Hours per week', type: 'number', step: 0.5 }], 'MORE', [{ k: 'current', label: 'Level now (0-5)', type: 'number' }, { k: 'target', label: 'Target level', type: 'number' }], [{ k: 'priority', label: 'Priority', type: 'select', options: PRI }, { k: 'category', label: 'Category', type: 'select', options: ['Technical', 'Language', 'Domain', 'Commercial', 'Leadership'] }], { k: 'evidenceNeeded', label: 'Evidence of competence', type: 'textarea' }, { k: 'plan', label: 'Learning plan', type: 'big' }], r),
+  session: r => simpleForm('sessions', 'session', [{ k: 'title', label: 'Session', req: true, ph: 'SQL S1: core queries' }, [{ k: 'date', label: 'Date', type: 'date', def: today() }, { k: 'minutes', label: 'Minutes', type: 'number', step: 5 }], [{ k: 'skill', label: 'Skill', type: 'select', options: skillOpts }, { k: 'result', label: 'Result', type: 'select', options: ['Pass', 'Partial', 'Not yet', 'Not a check'] }], 'MORE', { k: 'done', label: 'What I did', type: 'textarea' }, { k: 'number', label: 'Session no.', type: 'number' }, { k: 'difficulty', label: 'Difficulties / next time', type: 'textarea' }], r),
   ielts: r => simpleForm('ielts', 'IELTS entry', [[{ k: 'date', label: 'Date', type: 'date', def: today(), req: true }, { k: 'skill', label: 'Skill', type: 'select', options: ['Listening', 'Reading', 'Writing Task 1', 'Writing Task 2', 'Speaking', 'Overall'] }], [{ k: 'kind', label: 'Type', type: 'select', options: IELTS_KINDS, blank: false }, { k: 'band', label: 'Band / raw score', ph: 'e.g. 31/40 or 6.5' }], 'MORE', { k: 'assessor', label: 'Assessor / source' }, { k: 'feedback', label: 'Feedback by criterion', type: 'textarea' }, { k: 'actions', label: 'Next actions', type: 'textarea' }], r),
   evidence: r => simpleForm('evidence', 'evidence item', [{ k: 'title', label: 'Document', req: true }, { k: 'status', label: 'Status', type: 'select', options: EVIDENCE_STATES }, 'MORE', { k: 'code', label: 'ID', ph: 'A1' }, { k: 'why', label: 'Why it is needed', type: 'textarea' }, { k: 'proves', label: 'Exact facts it can prove', type: 'textarea' }, [{ k: 'conflicts', label: 'Related conflicts', ph: 'C1, C2' }, { k: 'priority', label: 'Priority', type: 'select', options: PRI }], { k: 'source', label: 'Likely source / issuer' }, { k: 'recovery', label: 'Recovery action', type: 'textarea' }, { k: 'alternative', label: 'Alternative (proposed, not confirmed accepted)', type: 'textarea' }, [{ k: 'target', label: 'Target date', type: 'date' }, { k: 'location', label: 'Where the file is stored', ph: 'Private vault, not this app' }], { k: 'notes', label: 'Notes', type: 'textarea' }], r),
   decision: r => simpleForm('decisions', 'decision', [{ k: 'title', label: 'Decision', req: true }, { k: 'decision', label: 'What was decided', type: 'textarea' }, 'MORE', [{ k: 'status', label: 'Status', type: 'select', options: DECISION_STATES }, { k: 'date', label: 'Date', type: 'date', def: today() }], { k: 'category', label: 'Category', type: 'select', options: ['Career', 'Migration', 'Learning', 'Finance', 'Tathmeer', 'Personal', 'System'] }, { k: 'evidence', label: 'Evidence used', type: 'textarea' }, { k: 'alternatives', label: 'Alternatives considered', type: 'textarea' }, { k: 'risks', label: 'Risks and assumptions', type: 'textarea' }, [{ k: 'nextAction', label: 'Next action' }, { k: 'review', label: 'Review date', type: 'date' }]], r),
@@ -557,15 +752,34 @@ function planDay(day, isCloseout) {
       closeSheet(); toast(isCloseout ? 'Close-out saved' : 'Top 3 saved');
     } });
 }
+function weeklyReview() {
+  const ws = weekStart(), t = today(), tasks = list('tasks');
+  const done = tasks.filter(x => x.completedOn && inWeek(x.completedOn, ws) && stOf(x) === 'Done');
+  const od = tasks.filter(x => isOpen(x) && x.due && x.due < t);
+  const mins = weekMinutes(ws), tgt = weekTarget();
+  const apps = list('applications').filter(a => inWeek(a.appliedOn, ws)).length;
+  const ie = list('ielts').filter(e => inWeek(e.date, ws)).length;
+  const stats = `${done.length} done · ${od.length} overdue · learning ${hrs(mins)}${tgt ? '/' + hrs(tgt) : ''} h · ${apps} applications · ${ie} IELTS entries`;
+  const prev = list('logs').find(l => l.type === 'weekly' && l.week === ws) || {};
+  form('Weekly review · ' + fmtDate(ws), [
+    { html: `<div class="card" style="margin-bottom:12px"><div class="small"><b>This week</b><br>${esc(stats)}</div>${done.length ? `<div class="small" style="margin-top:6px">${done.slice(0, 8).map(x => '✓ ' + esc(x.title)).join('<br>')}</div>` : ''}</div>` },
+    { k: 'done', label: '1. What moved forward?', type: 'textarea' },
+    { k: 'blockers', label: '2. What slipped, and why?', type: 'textarea' },
+    { k: 'next', label: '3. Top 3 for next week', type: 'textarea', ph: 'One per line' }
+  ], prev, v => {
+    save('logs', Object.assign({}, prev, { type: 'weekly', week: ws, date: t, title: 'Weekly review · ' + fmtDate(ws, true), done: v.done, blockers: v.blockers, next: v.next, notes: 'Next week: ' + (v.next || '') + '\n' + stats })); toast('Weekly review saved');
+  });
+}
+const IMM_STARTER = [['Passport', 'Identity'], ['National ID / birth certificate', 'Identity'], ['Degree certificate', 'Education'], ['Academic transcripts', 'Education'], ['Employment reference letters', 'Employment'], ['English test report (IELTS)', 'English test'], ['Police clearance certificates', 'Police & health'], ['Medical examination', 'Police & health'], ['Proof of funds', 'Finance'], ['Passport-style photos', 'Forms & fees']];
 function quickAdd() {
-  openSheet('Add', `<div class="grid two">${[['new-task', 'Task', I.tasks], ['new-event', 'Event', I.cal], ['new-note', 'Document', I.notes], ['new-decision', 'Decision', I.dec], ['new-evidence', 'Evidence item', I.evid], ['new-session', 'Practice session', I.learn], ['closeout', 'Daily close-out', I.review]].map(([a, l, ic]) => `<button class="card row" data-act="${a}" style="align-items:center;text-align:left"><span style="width:24px;color:var(--brass-ink)">${ic}</span><div class="main"><div class="t">${l}</div></div></button>`).join('')}</div>`, '', { noFocus: true });
+  openSheet('Add', `<div class="grid two">${[['new-task', 'Task', I.tasks], ['new-event', 'Event', I.cal], ['log-time', 'Log practice time', I.clock], ['new-application', 'Job application', I.jobs], ['new-milestone', '2031 milestone', I.flag], ['new-immig', 'Immigration document', I.imm], ['new-note', 'Document', I.notes], ['new-decision', 'Decision', I.dec], ['weekly', 'Weekly review', I.review], ['closeout', 'Close the day', I.today]].map(([a, l, ic]) => `<button class="card row" data-act="${a}" style="align-items:center;text-align:left"><span style="width:24px;color:var(--brass-ink)">${ic}</span><div class="main"><div class="t">${l}</div></div></button>`).join('')}</div>`, '', { noFocus: true });
 }
 
 /* ---------------- events (delegated) ---------------- */
 document.addEventListener('click', async e => {
   const a = e.target.closest('[data-act]'); if (!a) return;
   const act = a.dataset.act, id = a.dataset.id;
-  if (act !== 'task' && act !== 'event' && a.tagName !== 'A') e.preventDefault();
+  if ((act !== 'task' && act !== 'event' && a.tagName !== 'A') || a.getAttribute('href') === '#' || act === 'go') e.preventDefault();
   if (act === 'complete') { e.stopPropagation(); e.preventDefault(); return completeTask(id); }
   const map = {
     'sheet-close': () => closeSheet(),
@@ -584,7 +798,7 @@ document.addEventListener('click', async e => {
     decision: () => FORMS.decision(get('decisions', id) || {}), 'new-decision': () => FORMS.decision({}),
     'new-note': () => FORMS.note({}), 'edit-note': () => FORMS.note(get('notes', id) || {}),
     logitem: () => FORMS.logitem(get('logs', id) || {}),
-    log: () => FORMS.logitem({ type: a.dataset.type, date: today(), title: (a.dataset.type === 'weekly' ? 'Weekly review ' : 'Monthly review ') + fmtDate(today(), true) }),
+    log: () => a.dataset.type === 'weekly' ? weeklyReview() : FORMS.logitem({ type: a.dataset.type, date: today(), title: (a.dataset.type === 'weekly' ? 'Weekly review ' : 'Monthly review ') + fmtDate(today(), true) }),
     filter: () => { ui.taskFilter = a.dataset.f; saveUi(); if (route().page !== 'tasks') location.hash = '#/tasks'; else render(); },
     'cal-move': () => { const [y, m] = ui.calMonth.split('-').map(Number); const d = new Date(y, m - 1 + Number(a.dataset.d), 1); ui.calMonth = `${d.getFullYear()}-${pad(d.getMonth() + 1)}`; saveUi(); render(); },
     'cal-today': () => { ui.calMonth = today().slice(0, 7); ui.calSel = today(); saveUi(); render(); },
@@ -592,6 +806,32 @@ document.addEventListener('click', async e => {
     'plan-day': () => planDay(a.dataset.day || today(), false),
     closeout: () => planDay(addDays(today(), 1), true),
     quick: () => quickAdd(),
+    go: () => { location.hash = '#/' + a.dataset.to; if (a.dataset.to === 'plan') { ui.planTab = 'roadmap'; saveUi(); } },
+    'plan-tab': () => { ui.planTab = a.dataset.t; saveUi(); render(); },
+    'job-filter': () => { ui.jobFilter = ui.jobFilter === a.dataset.f && a.dataset.f !== 'active' ? 'active' : a.dataset.f; saveUi(); render(); },
+    milestone: () => FORMS.milestone(get('milestones', id) || {}), 'new-milestone': () => FORMS.milestone(a.dataset.year ? { target: a.dataset.year + '-12-31' } : {}),
+    'ms-done': () => { e.stopPropagation(); const m = get('milestones', id); if (m) save('milestones', Object.assign({}, m, { status: m.status === 'Done' ? 'In progress' : 'Done', doneOn: m.status === 'Done' ? '' : today() })); },
+    'ms-from-goals': () => { let n = 0; for (const g of list('goals')) { if (!g.target || list('milestones').some(m => m.goalId === g.id)) continue; save('milestones', { title: g.title, target: g.target, goalId: g.id, status: 'Planned', area: g.area || '' }); n++; } toast(n ? `${n} milestone${n > 1 ? 's' : ''} created` : 'Every dated goal already has a milestone'); },
+    vision: () => form('MILAD 2031 target date', [{ k: 'visionDate', label: 'Target date', type: 'date', req: true }], { visionDate: visionDate() }, v => { if (!v.visionDate) return 'Choose a date.'; save('settings', Object.assign({}, prefs(), { id: 'prefs', visionDate: v.visionDate })); }),
+    application: () => FORMS.application(get('applications', id) || {}), 'new-application': () => FORMS.application({ appliedOn: '', stage: 'Saved' }),
+    immig: () => FORMS.immig(get('immigration', id) || {}), 'new-immig': () => FORMS.immig({}),
+    'imm-ready': () => { e.stopPropagation(); const x = get('immigration', id); if (x) save('immigration', Object.assign({}, x, { status: ['Ready', 'Submitted', 'Not needed'].includes(x.status) ? 'Collecting' : 'Ready' })); },
+    'imm-starter': () => { if (!confirm('Add 10 common document types? They are generic placeholders; confirm each against the official checklist for your pathway.')) return; for (const [title, category] of IMM_STARTER) save('immigration', { title, category, status: 'Not started', notes: 'Generic starter item. Confirm the exact requirement on the official website.' }); },
+    'log-time': () => { e.stopPropagation(); FORMS.logtime({}); },
+    weekly: () => weeklyReview(),
+    'set-theme': () => { ui.theme = a.dataset.v; saveUi(); applyTheme(); render(); },
+    'set-size': () => { ui.size = a.dataset.v; saveUi(); applyTheme(); render(); },
+    'push-on': async () => {
+      try {
+        const perm = await Notification.requestPermission(); if (perm !== 'granted') { toast('Notifications were not allowed. Change it in Settings → Notifications → MILAD 2031.'); return; }
+        const reg = await navigator.serviceWorker.ready; const { key } = await api('vapid');
+        const sub = (await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uBytes(key) });
+        await pushPost(sub); toast('Notifications on'); pushRender();
+      } catch (err) { toast('Could not turn on: ' + err.message); }
+    },
+    'push-save': async () => { const s = await pushSub(); if (!s) return pushRender(); try { await pushPost(s); toast('Times saved'); } catch (err) { toast(err.message); } },
+    'push-test': async () => { const s = await pushSub(); if (!s) return pushRender(); try { await pushPost(s); await api('pushtest', { body: { endpoint: s.endpoint } }); toast('Test sent. It should arrive in a few seconds.'); } catch (err) { toast(err.message); } },
+    'push-off': async () => { const s = await pushSub(); if (s) { try { await api('pushunsub', { body: { endpoint: s.endpoint } }); } catch {} await s.unsubscribe().catch(() => {}); } toast('Notifications off'); pushRender(); },
     'sync-now': () => { toast('Syncing…'); sync().then(() => toast(syncState === 'ok' ? 'Up to date' : 'Sync failed: ' + lastError)); },
     reload: async () => { if (Object.keys(outbox).length && !confirm('Some changes have not synced yet. Reload anyway? Unsynced changes are kept and sent first.')) return; ls.del(K.rev); await sync(); render(); toast('Reloaded'); },
     export: () => { const blob = new Blob([JSON.stringify({ app: 'milad2031', version: 1, exportedAt: nowIso(), collections: db }, null, 2)], { type: 'application/json' }); const u = URL.createObjectURL(blob); const l = document.createElement('a'); l.href = u; l.download = `milad2031-backup-${today()}.json`; document.body.appendChild(l); l.click(); l.remove(); setTimeout(() => URL.revokeObjectURL(u), 2000); },
@@ -600,9 +840,9 @@ document.addEventListener('click', async e => {
     password: () => form('Change password', [{ k: 'current', label: 'Current password', type: 'password', req: true }, { k: 'next', label: 'New password (10+ characters)', type: 'password', req: true }], {}, v => { api('password', { body: v }).then(j => { ls.set(K.tok, j.token); toast('Password changed. Other devices must sign in again.'); }).catch(err => toast(err.message)); }),
     logout: async () => { if (!confirm('Sign out on this device? Data stays on the server.')) return; if (Object.keys(outbox).length) await sync(); try { await api('logout', { method: 'POST' }); } catch {} ls.del(K.tok); ls.del(K.db); ls.del(K.out); ls.del(K.rev); db = blankDb(); outbox = {}; showAuth(); }
   };
-  if (map[act]) { if (act !== 'sheet-close' && act !== 'form-save' && act !== 'form-del' && sheetCtx && ['new-task', 'new-event', 'new-note', 'new-decision', 'new-evidence', 'new-session', 'closeout'].includes(act)) closeSheet(true); map[act](); }
+  if (map[act]) { if (act !== 'sheet-close' && act !== 'form-save' && act !== 'form-del' && sheetCtx && ['new-task', 'new-event', 'new-note', 'new-decision', 'new-evidence', 'new-session', 'closeout', 'log-time', 'new-application', 'new-milestone', 'new-immig', 'weekly'].includes(act)) closeSheet(true); map[act](); }
 });
-document.addEventListener('input', e => { const k = e.target.dataset && e.target.dataset.input; if (k) { ui[k] = e.target.value; saveUi(); clearTimeout(render.t); render.t = setTimeout(render, 180); } });
+document.addEventListener('input', e => { const k = e.target.dataset && e.target.dataset.input; if (k) { ui[k] = e.target.value; saveUi(); if (e.target.dataset.norender) return; clearTimeout(render.t); render.t = setTimeout(render, 180); } });
 document.addEventListener('change', e => {
   if (e.target.dataset && e.target.dataset.change === 'import') {
     const file = e.target.files[0]; if (!file) return;
@@ -610,7 +850,7 @@ document.addEventListener('change', e => {
       let j; try { j = JSON.parse(txt); } catch { return toast('Not a valid JSON file'); }
       const cols = j.collections || j; let n = 0, skipped = 0;
       for (const c of COLS) { const src = cols[c]; if (!src) continue; for (const r of Array.isArray(src) ? src : Object.values(src)) { if (!r || !r.id) continue; const cur = db[c][r.id]; if (cur && String(cur.updatedAt) >= String(r.updatedAt || '')) { skipped++; continue; } const rec = Object.assign({ createdAt: nowIso() }, r, { updatedAt: r.updatedAt || nowIso() }); db[c][r.id] = rec; outbox[c + ':' + r.id] = rec; n++; } }
-      persist(); render(); queueSync(200); toast(`Imported ${n} records${skipped ? `, kept ${skipped} newer local records` : ''}`);
+      migrate(); persist(); render(); queueSync(200); toast(`Imported ${n} records${skipped ? `, kept ${skipped} newer local records` : ''}`);
     });
     e.target.value = '';
   }
@@ -639,7 +879,17 @@ async function showAuth(msg) {
   });
   setTimeout(() => { const p = $('#pw'); if (p) p.focus(); }, 50);
 }
-function start() { db = normalise(ls.get(K.db, null)); outbox = ls.get(K.out, {}) || {}; render.keepScroll = false; render(); sync(); }
+function migrate() {
+  let n = 0;
+  for (const t of Object.values(db.tasks)) {
+    if (!t || t.deleted || !t.state || STATES.includes(t.state) || !LEGACY[t.state]) continue;
+    const r = Object.assign({}, t, { state: LEGACY[t.state], legacyState: t.state, updatedAt: nowIso(), by: device() });
+    if (t.state === 'Completed & Verified') r.verified = true;
+    db.tasks[t.id] = r; outbox['tasks:' + t.id] = r; n++;
+  }
+  if (n) { persist(); queueSync(); }
+}
+function start() { db = normalise(ls.get(K.db, null)); outbox = ls.get(K.out, {}) || {}; migrate(); render.keepScroll = false; render(); sync(); }
 
 /* ---------------- boot ---------------- */
 if ('serviceWorker' in navigator && location.protocol === 'https:') { navigator.serviceWorker.register('sw.js').catch(() => {}); }

@@ -16,6 +16,11 @@
 - Use **Settings → Export JSON** now and then to keep a copy.
 - Optional, safer: create `config.local.php` next to `api.php` containing `<?php define('DATA_DIR', '/home/USER/milad2031-data');` (a folder outside public_html).
 
+### Notifications (optional, iOS 16.4 or later)
+1. Open MILAD 2031 from its Home Screen icon, then **Settings → Notifications → Turn on notifications**, and allow.
+2. Set the morning (Top 3) and evening (close the day) times, then **Send a test**.
+3. One-time server setup, so reminders arrive on time: hPanel → Advanced → **Cron Jobs** → Custom, every 15 minutes (`*/15 * * * *`). Paste the command shown in Settings → Notifications. Keep it private.
+
 ### Updating the app later
 - Replace these files: `index.html`, `assets/`, `icons/`, `sw.js`, `api.php`, `manifest.webmanifest`.
 - Never replace or delete `data/`.
@@ -36,3 +41,8 @@
 ۷. برای امنیت، آدرس `https://miladebrahimi.me/milad2031/data/store.json` را باز کنید. باید خطای 403 یا 404 بدهد، نه داده‌های شما.
 
 **به‌روزرسانی بعدی:** فقط فایل‌های برنامه را جایگزین کنید. پوشه `data/` را هرگز پاک یا جایگزین نکنید.
+
+**اعلان‌ها (اختیاری، iOS 16.4 یا بالاتر):**
+۱. برنامه را از آیکون Home Screen باز کنید و به **Settings → Notifications → Turn on notifications** بروید و اجازه بدهید.
+۲. ساعت صبح (Top 3) و ساعت شب (بستن روز) را تنظیم کنید و **Send a test** را بزنید.
+۳. یک بار روی سرور: hPanel → Advanced → **Cron Jobs** → Custom، هر ۱۵ دقیقه (`*/15 * * * *`). دستوری را که در Settings → Notifications نشان داده می‌شود paste کنید. این دستور را با کسی به اشتراک نگذارید.

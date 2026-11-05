@@ -7,11 +7,12 @@
  */
 declare(strict_types=1);
 
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '2.0.0';
 const TOKEN_DAYS = 180;
 const MAX_BODY = 8 * 1024 * 1024;          // 8 MB per request
 const BACKUPS_KEEP = 30;                   // daily snapshots kept
-const COLLECTIONS = ['tasks','events','projects','goals','skills','logs','evidence','decisions','notes','ielts','sessions','settings'];
+const COLLECTIONS = ['tasks','events','projects','goals','skills','logs','evidence','decisions','notes','ielts','sessions','settings','milestones','applications','immigration'];
+const DONE_STATES = ['Done', 'Cancelled', 'Completed & Verified', 'Completed - Not Verified'];
 
 if (is_file(__DIR__ . '/config.local.php')) { require __DIR__ . '/config.local.php'; }
 if (!defined('DATA_DIR')) { define('DATA_DIR', __DIR__ . '/data'); }
@@ -192,13 +193,18 @@ function ics_feed(array $store): string {
     foreach ($store['collections']['tasks'] as $t) {
         if (!is_array($t) || !empty($t['deleted'])) { continue; }
         $state = (string)($t['state'] ?? '');
-        if (in_array($state, ['Completed & Verified', 'Completed - Not Verified', 'Cancelled'], true)) { continue; }
+        if (in_array($state, DONE_STATES, true)) { continue; }
         if (!empty($t['scheduled'])) {
             $add('ts-' . $t['id'], (string)($t['title'] ?? 'Task'), (string)$t['scheduled'], $t['scheduledEnd'] ?? null, strlen((string)$t['scheduled']) === 10, 'Next action: ' . (string)($t['nextAction'] ?? ''), null, [], 15);
         }
         if (!empty($t['due']) && !empty($t['dueAlert'])) {
             $add('td-' . $t['id'], 'DUE: ' . (string)($t['title'] ?? 'Task'), (string)$t['due'], null, true, (string)($t['nextAction'] ?? ''), null, [], 0);
         }
+    }
+    foreach ($store['collections']['applications'] ?? [] as $ap) {
+        if (!is_array($ap) || !empty($ap['deleted']) || empty($ap['followUp'])) { continue; }
+        if (!in_array((string)($ap['stage'] ?? 'Saved'), ['Saved', 'Applied', 'Screening', 'Interview', 'Offer'], true)) { continue; }
+        $add('fu-' . $ap['id'], 'Follow up: ' . trim((string)($ap['role'] ?? '') . ' · ' . (string)($ap['company'] ?? ''), ' ·'), (string)$ap['followUp'], null, true, (string)($ap['notes'] ?? ''), null, [], 0);
     }
     $L[] = 'END:VCALENDAR';
     $out = '';
@@ -209,8 +215,125 @@ function ics_feed(array $store): string {
     return $out;
 }
 
+/* ---------- Web Push (RFC 8030 / 8291 / 8292), no third-party library ---------- */
+function b64u(string $s): string { return rtrim(strtr(base64_encode($s), '+/', '-_'), '='); }
+function b64u_dec(string $s): string { $r = base64_decode(strtr($s, '-_', '+/') . str_repeat('=', (4 - strlen($s) % 4) % 4), true); return $r === false ? '' : $r; }
+function ec_new(): array {
+    $k = openssl_pkey_new(['curve_name' => 'prime256v1', 'private_key_type' => OPENSSL_KEYTYPE_EC]);
+    if (!$k) { throw new RuntimeException('EC key generation failed'); }
+    $d = openssl_pkey_get_details($k); openssl_pkey_export($k, $pem);
+    $raw = "\x04" . str_pad($d['ec']['x'], 32, "\0", STR_PAD_LEFT) . str_pad($d['ec']['y'], 32, "\0", STR_PAD_LEFT);
+    return [$k, $pem, $raw];
+}
+function ec_pub_pem(string $raw): string {
+    $der = hex2bin('3059301306072a8648ce3d020106082a8648ce3d030107034200') . $raw;
+    return "-----BEGIN PUBLIC KEY-----\n" . chunk_split(base64_encode($der), 64, "\n") . "-----END PUBLIC KEY-----\n";
+}
+function der_to_raw(string $der): string {
+    $o = 2; if (ord($der[1]) & 0x80) { $o += ord($der[1]) & 0x7f; }
+    $lr = ord($der[$o + 1]); $r = substr($der, $o + 2, $lr); $o += 2 + $lr;
+    $ls = ord($der[$o + 1]); $s = substr($der, $o + 2, $ls);
+    $fix = fn($x) => str_pad(ltrim($x, "\0"), 32, "\0", STR_PAD_LEFT);
+    return $fix($r) . $fix($s);
+}
+function push_state(): array { return read_json('push.json', ['subs' => []]); }
+function push_keys(): array {
+    $p = push_state();
+    if (empty($p['vapid']['pem']) || empty($p['cronKey'])) {
+        $p = with_lock(function () {
+            $p = push_state();
+            if (empty($p['vapid']['pem'])) { [, $pem, $raw] = ec_new(); $p['vapid'] = ['pem' => $pem, 'pub' => b64u($raw)]; }
+            if (empty($p['cronKey'])) { $p['cronKey'] = bin2hex(random_bytes(20)); }
+            write_json('push.json', $p); return $p;
+        });
+    }
+    return $p;
+}
+function push_encrypt(string $payload, string $uaPubB64, string $authB64): string {
+    $uaPub = b64u_dec($uaPubB64); $auth = b64u_dec($authB64);
+    if (strlen($uaPub) !== 65 || strlen($auth) < 16) { throw new RuntimeException('Bad subscription keys'); }
+    [$eph, , $asPub] = ec_new();
+    $peer = openssl_pkey_get_public(ec_pub_pem($uaPub));
+    $secret = openssl_pkey_derive($peer, $eph, 32);
+    if ($secret === false) { throw new RuntimeException('ECDH failed'); }
+    $ikm = hash_hkdf('sha256', $secret, 32, "WebPush: info\0" . $uaPub . $asPub, $auth);
+    $salt = random_bytes(16);
+    $cek = hash_hkdf('sha256', $ikm, 16, "Content-Encoding: aes128gcm\0", $salt);
+    $nonce = hash_hkdf('sha256', $ikm, 12, "Content-Encoding: nonce\0", $salt);
+    $tag = '';
+    $ct = openssl_encrypt($payload . "\x02", 'aes-128-gcm', $cek, OPENSSL_RAW_DATA, $nonce, $tag, '', 16);
+    return $salt . pack('N', 4096) . chr(65) . $asPub . $ct . $tag;
+}
+function push_jwt(string $endpoint, array $keys, string $subject): string {
+    $u = parse_url($endpoint); $aud = $u['scheme'] . '://' . $u['host'] . (isset($u['port']) ? ':' . $u['port'] : '');
+    $in = b64u(json_encode(['typ' => 'JWT', 'alg' => 'ES256'])) . '.' . b64u(json_encode(['aud' => $aud, 'exp' => time() + 12 * 3600, 'sub' => $subject], JSON_UNESCAPED_SLASHES));
+    openssl_sign($in, $der, $keys['vapid']['pem'], OPENSSL_ALGO_SHA256);
+    return $in . '.' . b64u(der_to_raw($der));
+}
+function push_send(array $sub, array $msg, array $keys, string $subject): int {
+    $ep = (string)($sub['endpoint'] ?? '');
+    if (!preg_match('#^https://#', $ep)) { return 0; }
+    $body = push_encrypt(json_encode($msg, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), (string)($sub['keys']['p256dh'] ?? ''), (string)($sub['keys']['auth'] ?? ''));
+    $hdr = ['TTL: 43200', 'Urgency: normal', 'Content-Type: application/octet-stream', 'Content-Encoding: aes128gcm', 'Authorization: vapid t=' . push_jwt($ep, $keys, $subject) . ', k=' . $keys['vapid']['pub']];
+    $ch = curl_init($ep);
+    curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => $body, CURLOPT_HTTPHEADER => $hdr, CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 15]);
+    curl_exec($ch); $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
+    return $code;
+}
+function local_now(string $tz): DateTime { try { return new DateTime('now', new DateTimeZone($tz ?: 'UTC')); } catch (Throwable $e) { return new DateTime('now', new DateTimeZone('UTC')); } }
+function digest(string $kind, string $day, array $store): ?array {
+    $c = $store['collections']; $live = fn($r) => is_array($r) && empty($r['deleted']);
+    $tasks = array_filter($c['tasks'] ?? [], $live);
+    $open = array_filter($tasks, fn($t) => !in_array((string)($t['state'] ?? ''), DONE_STATES, true));
+    $top = array_values(array_filter($open, fn($t) => ($t['focusDate'] ?? '') === $day));
+    $topDone = count(array_filter($tasks, fn($t) => ($t['focusDate'] ?? '') === $day && in_array((string)($t['state'] ?? ''), DONE_STATES, true)));
+    $due = count(array_filter($open, fn($t) => ($t['due'] ?? '') === $day));
+    $over = count(array_filter($open, fn($t) => ($t['due'] ?? '') !== '' && $t['due'] < $day));
+    $fu = count(array_filter(array_filter($c['applications'] ?? [], $live), fn($a) => ($a['followUp'] ?? '') !== '' && $a['followUp'] <= $day && in_array((string)($a['stage'] ?? 'Saved'), ['Saved', 'Applied', 'Screening', 'Interview', 'Offer'], true)));
+    $logs = array_filter($c['logs'] ?? [], $live);
+    $dow = (int)date('N', strtotime($day)); $ws = date('Y-m-d', strtotime($day . ' -' . ($dow - 1) . ' days'));
+    $weeklyDone = (bool)array_filter($logs, fn($l) => ($l['type'] ?? '') === 'weekly' && (($l['week'] ?? '') === $ws || (($l['date'] ?? '') >= $ws && ($l['date'] ?? '') <= $day)));
+    $extra = [];
+    if ($due) { $extra[] = $due . ' due today'; }
+    if ($over) { $extra[] = $over . ' overdue'; }
+    if ($fu) { $extra[] = $fu . ' job follow-up' . ($fu > 1 ? 's' : ''); }
+    if ($kind === 'morning') {
+        $lines = []; foreach (array_slice($top, 0, 3) as $i => $t) { $lines[] = ($i + 1) . '. ' . (string)($t['title'] ?? ''); }
+        $body = $lines ? implode("\n", $lines) : 'No Top 3 yet. Choose three things that matter today.';
+        if ($extra) { $body .= "\n" . implode(' · ', $extra); }
+        return ['title' => 'Today · Top 3', 'body' => $body, 'url' => './#/today', 'tag' => 'm2031-morning'];
+    }
+    if ((bool)array_filter($logs, fn($l) => ($l['type'] ?? '') === 'closeout' && ($l['date'] ?? '') === $day)) { return null; }
+    $n = count($top) + $topDone;
+    $body = ($n ? "$topDone of $n Top 3 done. " : '') . "Close the day and set tomorrow's Top 3 (5 min).";
+    if ($dow >= 5 && !$weeklyDone) { $body .= "\nWeekly review is due."; }
+    return ['title' => 'Close the day', 'body' => $body, 'url' => './#/today', 'tag' => 'm2031-evening'];
+}
+function run_cron(): array {
+    $p = push_keys(); $store = load_store(); $sent = 0; $drop = [];
+    $subject = (string)($p['subject'] ?? 'https://localhost');
+    foreach ($p['subs'] as $id => $s) {
+        $now = local_now((string)($s['tz'] ?? 'UTC')); $day = $now->format('Y-m-d'); $hm = $now->format('H:i');
+        foreach (['morning', 'evening'] as $kind) {
+            $at = (string)($s[$kind] ?? ''); if (!preg_match('/^\d{2}:\d{2}$/', $at)) { continue; }
+            if (($s['last'][$kind] ?? '') === $day || $hm < $at) { continue; }
+            [$h, $m] = array_map('intval', explode(':', $at)); $due = (clone $now)->setTime($h, $m);
+            if ($now->getTimestamp() - $due->getTimestamp() > 3 * 3600) { continue; }
+            $msg = digest($kind, $day, $store);
+            $p['subs'][$id]['last'][$kind] = $day;
+            if ($msg === null) { continue; }
+            $code = push_send($s['sub'], $msg, $p, $subject);
+            if ($code === 404 || $code === 410) { $drop[] = $id; } elseif ($code >= 200 && $code < 300) { $sent++; }
+        }
+    }
+    with_lock(function () use ($p, $drop) { $cur = push_state(); foreach ($p['subs'] as $id => $s) { if (isset($cur['subs'][$id])) { $cur['subs'][$id]['last'] = $s['last'] ?? []; } } foreach ($drop as $id) { unset($cur['subs'][$id]); } write_json('push.json', $cur); });
+    return ['sent' => $sent, 'removed' => count($drop), 'devices' => count($p['subs'])];
+}
+
 /* ---------- router ---------- */
+if (defined('M2031_LIB')) { return; }
 ensure_dir();
+if (PHP_SAPI === 'cli') { $_GET['action'] = $argv[1] ?? ''; }
 $action = $_GET['action'] ?? '';
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
@@ -288,6 +411,48 @@ switch ($action) {
         header('Content-Type: text/calendar; charset=utf-8');
         header('Content-Disposition: inline; filename="milad2031.ics"');
         echo ics_feed(load_store()); exit;
+
+    case 'vapid':
+        require_auth(); $p = push_keys();
+        out(200, ['ok' => true, 'key' => $p['vapid']['pub']]);
+
+    case 'pushsub':
+        if ($method !== 'POST') { fail(405, 'POST only'); }
+        require_auth(); push_keys(); $b = body(); $s = $b['sub'] ?? null;
+        if (!is_array($s) || !preg_match('#^https://#', (string)($s['endpoint'] ?? '')) || empty($s['keys']['p256dh']) || empty($s['keys']['auth'])) { fail(400, 'Bad subscription'); }
+        $tm = fn($v, $d) => preg_match('/^\d{2}:\d{2}$/', (string)$v) ? (string)$v : $d;
+        $host = preg_replace('/[^A-Za-z0-9.\-:]/', '', (string)($_SERVER['HTTP_HOST'] ?? 'localhost'));
+        $rec = ['sub' => ['endpoint' => (string)$s['endpoint'], 'keys' => ['p256dh' => (string)$s['keys']['p256dh'], 'auth' => (string)$s['keys']['auth']]], 'tz' => mb_substr((string)($b['tz'] ?? 'UTC'), 0, 60), 'morning' => ($b['morning'] ?? null) === '' ? '' : $tm($b['morning'] ?? '', '07:30'), 'evening' => ($b['evening'] ?? null) === '' ? '' : $tm($b['evening'] ?? '', '21:00'), 'device' => mb_substr((string)($b['device'] ?? ''), 0, 40), 'updated' => gmdate('c')];
+        with_lock(function () use ($rec, $host) { $p = push_state(); $id = hash('sha256', $rec['sub']['endpoint']); $rec['last'] = $p['subs'][$id]['last'] ?? []; $p['subs'][$id] = $rec; $p['subject'] = 'https://' . $host; write_json('push.json', $p); });
+        out(200, ['ok' => true]);
+
+    case 'pushunsub':
+        if ($method !== 'POST') { fail(405, 'POST only'); }
+        require_auth(); $b = body(); $id = hash('sha256', (string)($b['endpoint'] ?? ''));
+        with_lock(function () use ($id) { $p = push_state(); unset($p['subs'][$id]); write_json('push.json', $p); });
+        out(200, ['ok' => true]);
+
+    case 'pushtest':
+        if ($method !== 'POST') { fail(405, 'POST only'); }
+        require_auth(); $b = body(); $p = push_keys(); $id = hash('sha256', (string)($b['endpoint'] ?? ''));
+        if (empty($p['subs'][$id])) { fail(404, 'This device is not subscribed'); }
+        $tz = (string)($p['subs'][$id]['tz'] ?? 'UTC'); $msg = digest('morning', local_now($tz)->format('Y-m-d'), load_store());
+        try { $code = push_send($p['subs'][$id]['sub'], ['title' => 'MILAD 2031 · test', 'body' => $msg['body'], 'url' => './#/today', 'tag' => 'm2031-test'], $p, (string)($p['subject'] ?? 'https://localhost')); }
+        catch (Throwable $e) { fail(500, 'Push failed: ' . $e->getMessage()); }
+        if ($code < 200 || $code >= 300) { fail(502, 'Push service answered ' . $code); }
+        out(200, ['ok' => true, 'code' => $code]);
+
+    case 'pushinfo':
+        require_auth(); $p = push_keys();
+        $dir = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/')), '/');
+        $url = (is_https() ? 'https://' : 'http://') . preg_replace('/[^A-Za-z0-9.\-:]/', '', (string)($_SERVER['HTTP_HOST'] ?? 'localhost')) . $dir . '/api.php?action=cron&k=' . $p['cronKey'];
+        out(200, ['ok' => true, 'devices' => count($p['subs']), 'cronUrl' => $url, 'cronCmd' => 'curl -fsS "' . $url . '" > /dev/null', 'lastCron' => $p['lastCron'] ?? null]);
+
+    case 'cron':
+        if (PHP_SAPI !== 'cli') { $p = push_keys(); if (!hash_equals((string)$p['cronKey'], (string)($_GET['k'] ?? ''))) { http_response_code(404); exit; } }
+        $r = run_cron();
+        with_lock(function () { $p = push_state(); $p['lastCron'] = gmdate('c'); write_json('push.json', $p); });
+        out(200, ['ok' => true] + $r);
 
     default:
         fail(404, 'Unknown action');
