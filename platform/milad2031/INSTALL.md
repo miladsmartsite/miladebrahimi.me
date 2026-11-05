@@ -25,6 +25,8 @@
 - **Face ID sign-in:** Settings → Face ID sign-in → Set up Face ID (once per device).
 - **Siri and Safari Share:** Settings → Siri & Shortcuts. Follow the steps shown; each shortcut takes about two minutes to make.
 - **System health:** More → System health shows server, backups, cron, data protection and sync status.
+- **Courses (3.1):** Progress → Learning → Courses. Start from the SQL path, the Power BI build, an IELTS cycle or any note's list.
+- **One input for everything (3.1):** type a task, "fri 10:30 meeting", "30 min sql", a job link, "note: …" or "savings 9000"; the line under the box shows what it will become.
 - **Updating:** extract the new zip over the old folder. Never delete the folder. The app shows "MILAD 2031 was updated" when a new version is ready.
 
 ### Updating the app later

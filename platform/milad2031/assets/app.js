@@ -5,10 +5,10 @@
 (() => {
 'use strict';
 
-const VERSION = '3.0.0';
+const VERSION = '3.1.0';
 const API = 'api.php';
 const K = { db: 'm2031.db', out: 'm2031.outbox', tok: 'm2031.token', rev: 'm2031.rev', ui: 'm2031.ui', last: 'm2031.lastSync' };
-const COLS = ['tasks','events','projects','goals','skills','logs','evidence','decisions','notes','ielts','sessions','settings','milestones','applications','immigration','habits','money','templates'];
+const COLS = ['tasks','events','projects','goals','skills','logs','evidence','decisions','notes','ielts','sessions','settings','milestones','applications','immigration','habits','money','templates','courses'];
 const STATES = ['To do','Doing','Waiting','Done','Cancelled'];
 const LEGACY = { 'Not Started': 'To do', 'Waiting for Me': 'To do', 'In Progress': 'Doing', 'Ready for Review': 'Doing', 'Waiting for External Input': 'Waiting', 'Blocked': 'Waiting', 'Completed & Verified': 'Done', 'Completed - Not Verified': 'Done', 'Cancelled': 'Cancelled' };
 const stOf = t => STATES.includes(t.state) ? t.state : (LEGACY[t.state] || 'To do');
@@ -214,6 +214,8 @@ function md(src) {
 
 /* ---------------- icons ---------------- */
 const I = {
+  course: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5M9 8h7M9 12h5"/></svg>',
+  play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg>',
   search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg>',
   prog: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 17l5-5 4 3 8-8"/><path d="M15 7h5v5"/></svg>',
   journal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 3h11a2 2 0 0 1 2 2v16H7a2 2 0 0 1-2-2V4a1 1 0 0 1 1-1z"/><path d="M9 8h6M9 12h6M5 17a2 2 0 0 1 2-2h12"/></svg>',
@@ -398,6 +400,7 @@ async function decBackup(j) { const p = prompt('This backup is encrypted. Enter 
 function download(txt, name) { const u = URL.createObjectURL(new Blob([txt], { type: 'application/json' })); const l = document.createElement('a'); l.href = u; l.download = name; document.body.appendChild(l); l.click(); l.remove(); setTimeout(() => URL.revokeObjectURL(u), 2000); }
 /* ---------------- Siri & Shortcuts ---------------- */
 async function siriSheet() {
+  ui.siriDone = true; saveUi();
   openSheet('Siri & Shortcuts', '<div class="empty">Loading…</div>', '', { noFocus: true });
   try {
     const { key } = await api('shortkey'); const base = new URL('api.php', location.href).href; const u = (a, extra = '') => `${base}?action=${a}&k=${key}${extra}`;
@@ -417,7 +420,7 @@ const WDN = ['sun','mon','tue','wed','thu','fri','sat'];
 function wordDate(w) {
   w = w.toLowerCase(); const t = today();
   if (/^\d{4}-\d{2}-\d{2}$/.test(w)) return w;
-  if (w === 'today') return t; if (w === 'tomorrow' || w === 'tmr') return addDays(t, 1);
+  if (w === 'today' || w === 'امروز') return t; if (w === 'tomorrow' || w === 'tmr' || w === 'فردا') return addDays(t, 1); if (w === 'پسفردا' || w === 'پس‌فردا') return addDays(t, 2);
   if (w === 'week') return addDays(t, 7); if (w === 'month') return addDays(t, 30);
   const i = WDN.indexOf(w.slice(0, 3)); if (i >= 0) { const d = parseD(t).getDay(); return addDays(t, ((i - d + 7) % 7) || 7); }
   const m = w.match(/^(\d{1,2})\/(\d{1,2})$/); if (m) { const y = Number(t.slice(0, 4)); let s = `${y}-${pad(m[2])}-${pad(m[1])}`; if (s < t) s = `${y + 1}-${pad(m[2])}-${pad(m[1])}`; return s; }
@@ -428,19 +431,56 @@ function parseQuick(s) {
   x = x.replace(/\s!([123])(?=\s)/, (m, p) => { r.priority = 'P' + p; return ' '; });
   x = x.replace(/\s\*(?=\s)/, () => { r.top = true; return ' '; });
   x = x.replace(/\s@(\S+)(?=\s)/, (m, w) => { const d = wordDate(w); if (d) { r.due = d; return ' '; } return m; });
+  if (!r.due) { const m = x.trim().match(/^(.+?)\s+(?:on\s+)?(today|tomorrow|tmr|امروز|فردا|(?:mon|tues?|wed(?:nes)?|thu(?:rs)?|fri|sat(?:ur)?|sun)(?:day)?)$/i); if (m) { const d = wordDate(m[2]); if (d) { r.due = d; x = ' ' + m[1] + ' '; } } }
   r.title = x.replace(/\s+/g, ' ').trim(); return r;
 }
 function quickBar(ph) {
   const w = ui.qWhen || '';
   return `<form class="qadd" data-form="qadd"><input name="q" enterkeyhint="done" autocomplete="off" dir="auto" placeholder="${esc(ph || 'Add a task…')}" value="${esc(ui.quick || '')}" data-input="quick" data-norender="1"><button class="btn primary" type="submit" aria-label="Add">${I.plus}</button></form>
-  <div class="qchips">${[['today', 'Today'], ['tomorrow', 'Tomorrow'], ['week', 'Next week'], ['top', '★ Top 3']].map(([k, l]) => `<button type="button" class="${w === k ? 'on' : ''}" data-act="qwhen" data-v="${k}">${l}</button>`).join('')}</div>`;
+  <div class="qprev" aria-live="polite">${esc(smartLabel(parseSmart(ui.quick || '')))}</div><div class="qchips">${[['today', 'Today'], ['tomorrow', 'Tomorrow'], ['week', 'Next week'], ['top', '★ Top 3']].map(([k, l]) => `<button type="button" class="${w === k ? 'on' : ''}" data-act="qwhen" data-v="${k}">${l}</button>`).join('')}</div>`;
 }
-function quickSubmit(form) {
-  const inp = form.querySelector('input'); const p = parseQuick(inp.value || ''); if (!p.title) return;
-  const rec = { title: p.title, state: 'To do', priority: p.priority || 'P2', owner: 'Milad' };
-  const w = ui.qWhen || '';
+const JOB_RX = /linkedin\.com\/jobs|indeed\.|bayt\.com|gulftalent|naukrigulf|seek\.com|glassdoor|workable|lever\.co|greenhouse\.io|\bjobs?\b|careers?/i;
+function skillFind(q) { q = q.toLowerCase().trim(); if (!q) return null; return list('skills').find(s => String(s.title).toLowerCase().includes(q)) || list('skills').find(s => q.split(/\s+/).some(w => w.length > 2 && String(s.title).toLowerCase().includes(w))); }
+function parseSmart(raw) {
+  const s = String(raw || '').trim(); if (!s) return null; let m;
+  if ((m = s.match(/https?:\/\/\S+/i))) { const url = m[0], rest = s.replace(url, '').trim(); return JOB_RX.test(url + ' ' + rest) ? { kind: 'job', url, title: rest } : { kind: 'link', url, title: rest }; }
+  if ((m = s.match(/^(?:note|یادداشت)\s*[:：]\s*(.+)$/i))) return { kind: 'note', title: m[1] };
+  if ((m = s.match(/^(?:saved|savings|balance|پس\u200cانداز|پس انداز)\s+([\d,.]+)$/i))) return { kind: 'money', amount: Number(m[1].replace(/,/g, '')) };
+  if ((m = s.match(/^(?:log\s+)?(\d{1,3})\s*(?:m|min|mins|minutes|دقیقه)\s+(.+)$/i)) || (m = s.match(/^log\s+(.+?)\s+(\d{1,3})\s*(?:m|min|mins|minutes)?$/i))) {
+    const [mins, q] = /^\d+$/.test(m[1]) ? [Number(m[1]), m[2]] : [Number(m[2]), m[1]]; const sk = skillFind(q); if (sk && mins > 0) return { kind: 'practice', skill: sk, minutes: mins };
+  }
+  if ((m = s.match(/(?:^|\s)(?:at\s+)?(\d{1,2}):(\d{2})(?=\s|$)/)) && Number(m[1]) < 24 && Number(m[2]) < 60) {
+    const p = parseQuick(s.replace(m[0], ' ')); const day = p.due || today();
+    return { kind: 'event', title: p.title || 'Event', start: `${day}T${pad(Number(m[1]))}:${m[2]}${tzOffset()}`, day, time: `${pad(Number(m[1]))}:${m[2]}` };
+  }
+  const p = parseQuick(s); const w = ui.qWhen || '';
   if (!p.due && w === 'today') p.due = today(); if (!p.due && w === 'tomorrow') p.due = addDays(today(), 1); if (!p.due && w === 'week') p.due = addDays(weekStart(), 7);
   if (w === 'top') { p.top = true; if (!p.due) p.due = today(); }
+  return Object.assign({ kind: 'task' }, p);
+}
+function smartLabel(p) {
+  if (!p) return '';
+  if (p.kind === 'task') return `→ Task${p.due ? ' · ' + (rel(p.due) === 'today' || rel(p.due) === 'tomorrow' ? rel(p.due) : fmtDate(p.due)) : ''}${p.top ? ' · ★ Top 3' : ''}${p.priority ? ' · ' + p.priority : ''}`;
+  if (p.kind === 'event') return `→ Event · ${fmtDate(p.day)} ${p.time}`;
+  if (p.kind === 'practice') return `→ Practice · ${p.minutes} min ${p.skill.title}`;
+  if (p.kind === 'job') return '→ Job ad · saved to Job search';
+  if (p.kind === 'link') return '→ Note with link';
+  if (p.kind === 'note') return '→ Note';
+  if (p.kind === 'money') return `→ Savings balance ${fmtMoney(p.amount)}`;
+  return '';
+}
+document.addEventListener('input', e => { if (e.target.closest && e.target.closest('.qadd')) { const pv = document.querySelector('.qprev'); if (pv) pv.textContent = smartLabel(parseSmart(e.target.value)); } });
+function quickSubmit(form) {
+  const inp = form.querySelector('input'); const sp = parseSmart(inp.value || ''); if (!sp) return;
+  const done = (r, c, msg) => { ui.quick = ''; saveUi(); toast(msg, 'Undo', () => remove(c, r.id)); setTimeout(() => { const i = document.querySelector('.qadd input'); if (i) i.focus(); }, 30); };
+  if (sp.kind === 'event') return done(save('events', { title: sp.title, start: sp.start, end: '', alarm: 15 }), 'events', 'Event added');
+  if (sp.kind === 'practice') return done(save('sessions', { title: sp.skill.title + ' · ' + sp.minutes + ' min', skill: sp.skill.id, minutes: sp.minutes, date: today(), result: 'Not a check' }), 'sessions', `Logged ${sp.minutes} min`);
+  if (sp.kind === 'job') { let host = ''; try { host = new URL(sp.url).hostname.replace(/^www\./, ''); } catch {} return done(save('applications', { company: '', role: sp.title || 'Job from ' + host, stage: 'Saved', link: sp.url, source: host, followUp: addDays(today(), 2) }), 'applications', 'Saved to Job search'); }
+  if (sp.kind === 'link' || sp.kind === 'note') return done(save('notes', { title: sp.title || sp.url, body: sp.url ? `<${sp.url}>` : '', source: sp.url || '' }), 'notes', 'Note saved');
+  if (sp.kind === 'money') return done(save('money', { amount: sp.amount, date: today() }), 'money', 'Balance saved');
+  const p = sp;
+  if (!p.title) return;
+  const rec = { title: p.title, state: 'To do', priority: p.priority || 'P2', owner: 'Milad' };
   if (p.due) rec.due = p.due;
   if (p.top) { const n = list('tasks').filter(x => isOpen(x) && x.focusDate === today()).length; if (n >= 3) toast('Top 3 is full; added without it'); else rec.focusDate = today(); }
   ui.quick = ''; saveUi(); const nr = save('tasks', rec); toast('Added', 'Undo', () => remove('tasks', nr.id));
@@ -480,10 +520,11 @@ function attention() {
   if (ex) out.push(['go', 'immigration', I.imm, `${ex} document${ex > 1 ? 's' : ''} expiring within 6 months`, 'Check passport, test reports and certificates', 'warn']);
   if (lm) out.push(['go', 'plan', I.flag, `${lm} roadmap milestone${lm > 1 ? 's' : ''} past target`, 'Update the date or the status', 'warn']);
   if (!ui.lastBackup ? list('tasks').length > 20 && new Date().getDay() === 0 : daysTo(ui.lastBackup) < -14) out.push(['enc-backup', '', I.health, 'Time for a backup copy', 'Encrypted file to keep in iCloud Drive', '']);
+  for (const c of list('courses').filter(c => ['Active', 'Paused'].includes(c.status) && c.nextReview && c.nextReview <= today()).slice(0, 2)) out.push(['c-review', c.id, I.course, 'Course review: ' + c.title, 'Keep, pause or drop. 1 minute', 'warn']);
   if (wt) out.push(['filter', 'ext', I.clock, `${wt} waiting on others`, 'Nudge or keep waiting', '']);
   return out;
 }
-const attRow = ([act, arg, ic, t, s, tone]) => `<div role="button" tabindex="0" class="row att ${tone}" data-act="${act}" ${act === 'filter' ? `data-f="${arg}"` : act === 'go' ? `data-to="${arg}"` : ''}><span class="att-i">${ic}</span><div class="main"><div class="t">${esc(t)}</div><div class="m">${esc(s)}</div></div><span class="att-go">${I.right}</span></div>`;
+const attRow = ([act, arg, ic, t, s, tone]) => `<div role="button" tabindex="0" class="row att ${tone}" data-act="${act}" ${act === 'filter' ? `data-f="${arg}"` : act === 'go' ? `data-to="${arg}"` : arg ? `data-id="${esc(arg)}"` : ''}><span class="att-i">${ic}</span><div class="main"><div class="t">${esc(t)}</div><div class="m">${esc(s)}</div></div><span class="att-go">${I.right}</span></div>`;
 
 function vToday() {
   const t = today(), open = list('tasks').filter(isOpen);
@@ -497,12 +538,14 @@ function vToday() {
   const att = attention().filter(a => a[0] !== 'filter');
   const dl = daysTo(visionDate());
   return header(new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }), '') + `
+  ${setupCard()}
   <a class="vision" href="#/progress" data-act="p-tab" data-t="roadmap"><b>${dl.toLocaleString('en-GB')}</b> days to MILAD 2031 <span>${I.right}</span></a>
   ${quickBar('What needs doing?')}
   <div class="card"><h2>★ Top 3 <span class="count">${doneTop.length}/${top.length + doneTop.length}</span><span style="flex:1"></span>${top.length + doneTop.length ? `<button class="btn small ghost" data-act="plan-day" data-day="${t}">Change</button>` : ''}</h2>
     ${top.length ? `<div class="list">${top.map(x => taskRow(x)).join('')}</div>` : doneTop.length ? '<div class="empty">All done for today. 🎉</div>' : (() => { const sg = suggestTop(t); return sg.length ? `<div class="small" style="margin-bottom:6px">Suggested for today:</div><div class="list">${sg.map(x => `<div class="row sug"><span class="dotx warn"></span><div class="main"><div class="t" dir="auto">${esc(x.title)}</div><div class="m">${dueChip(x)}${x.priority === 'P1' ? priChip('P1') : ''}</div></div></div>`).join('')}</div><div class="btns" style="margin-top:10px"><button class="btn primary" data-act="accept-top" data-ids="${esc(sg.map(x => x.id).join(','))}">Use these</button><button class="btn" data-act="plan-day" data-day="${t}">Choose myself</button></div>` : `<button class="btn primary wide" data-act="plan-day" data-day="${t}">Pick today's Top 3</button>`; })()}</div>
   ${habitStrip()}
   ${sched.length || dueToday.length ? `<div class="card" style="margin-top:12px"><h2>Also today <span class="count">${sched.length + dueToday.length}</span></h2><div class="list">${sched.map(agendaRow).join('')}${dueToday.map(x => taskRow(x)).join('')}</div></div>` : ''}
+  ${(() => { const up = courseLive().filter(c => cNext(c) && cWeekDone(c) < (Number(c.perWeek) || 1) && (c.status || 'Planned') === 'Active').slice(0, 2); return up.length ? `<div class="card" style="margin-top:12px"><h2>${I.course} Up next</h2><div class="list">${up.map(c => `<div class="row" data-act="go" data-to="course/${encodeURIComponent(c.id)}"><div class="main"><div class="t" dir="auto">${esc(cNext(c).t)}</div><div class="m"><span dir="auto">${esc(c.title)}</span><span>${cWeekDone(c)}/${c.perWeek || 1} this week</span></div></div><button class="icon-btn playb" data-act="c-start" data-id="${esc(c.id)}" aria-label="Start">${I.play}</button></div>`).join('')}</div></div>` : ''; })()}
   ${overdue.length ? `<div class="card" style="margin-top:12px"><h2>Overdue <span class="count">${overdue.length}</span><span style="flex:1"></span><button class="btn small ghost" data-act="od-today">Move all to today</button></h2><div class="list">${overdue.slice(0, 5).map(x => taskRow(x)).join('')}</div>${overdue.length > 5 ? `<a class="btn small ghost" href="#/tasks">See all ${overdue.length}</a>` : ''}</div>` : ''}
   ${att.length ? `<div class="card" style="margin-top:12px"><div class="list">${att.map(attRow).join('')}</div></div>` : ''}
   <div style="margin-top:14px">${closed ? `<div class="card closed">✓ Day closed<button class="btn small ghost" data-act="closeout">Again</button></div>` : `<button class="btn primary wide" data-act="closeout">Close the day</button>`}</div>`;
@@ -561,7 +604,7 @@ const stripHead = h => h.replace(/^<div class="top">[\s\S]*?<div class="spacer"[
 function vProgress() {
   const p = ui.pTab || 'overview';
   const body = p === 'roadmap' ? vRoadmap() : p === 'goals' ? (ui.planTab = 'goals', vPlan()) : p === 'learning' ? vLearn() : p === 'money' ? vMoney() : vOverview();
-  return header('Progress', 'Where you are, and where you are heading') + `<div class="seg ptabs">${P_TABS.map(([k, l]) => `<button class="${p === k ? 'on' : ''}" data-act="p-tab" data-t="${k}">${l}</button>`).join('')}</div><div style="height:12px"></div>` + stripHead(body);
+  return header('Progress', 'Where you are, and where you are heading') + `<div class="seg ptabs">${P_TABS.filter(([k]) => !(k === 'money' && hidden().has('money'))).map(([k, l]) => `<button class="${p === k ? 'on' : ''}" data-act="p-tab" data-t="${k}">${l}</button>`).join('')}</div><div style="height:12px"></div>` + stripHead(body);
 }
 /* ---------- habits ---------- */
 function habitWeek(h, ws = weekStart()) { let n = 0; for (let i = 0; i < 7; i++) if ((h.done || {})[addDays(ws, i)]) n++; return n; }
@@ -573,7 +616,7 @@ function habitStrip() {
 }
 /* ---------- money ---------- */
 const money = () => list('money').filter(m => m.date && m.amount !== '' && !isNaN(Number(m.amount))).sort((a, b) => a.date.localeCompare(b.date));
-const fmtMoney = n => (prefs().currency || '') + ' ' + Math.round(Number(n)).toLocaleString('en-GB');
+const fmtMoney = n => ((prefs().currency || '') + ' ' + Math.round(Number(n)).toLocaleString('en-GB')).trim();
 function linFit(pts) { // pts [[x,y]] -> {a,b} with y = a + b x
   const n = pts.length; if (n < 2) return null; const mx = pts.reduce((s, p) => s + p[0], 0) / n, my = pts.reduce((s, p) => s + p[1], 0) / n;
   const sxx = pts.reduce((s, p) => s + (p[0] - mx) ** 2, 0); if (!sxx) return null; const b = pts.reduce((s, p) => s + (p[0] - mx) * (p[1] - my), 0) / sxx; return { a: my - b * mx, b };
@@ -637,6 +680,97 @@ function vOverview() {
   <div class="card" style="margin-top:12px"><h2>Habits <span class="count">${hs.length}</span><span style="flex:1"></span><button class="btn small ghost" data-act="new-habit">${I.plus} Habit</button></h2>${hs.length ? `<div class="list">${hs.map(h => `<div class="row" data-act="habit" data-id="${esc(h.id)}"><div class="main"><div class="t" dir="auto">${esc(h.title)}</div><div class="m"><span>${habitWeek(h)} of ${Number(h.perWeek) || 7} this week</span>${habitStreak(h) ? `<span>🔥 ${habitStreak(h)} days</span>` : ''}</div></div><div class="week7">${[0, 1, 2, 3, 4, 5, 6].map(i => `<i class="${(h.done || {})[addDays(ws, i)] ? 'on' : ''}"></i>`).join('')}</div></div>`).join('')}</div>` : '<div class="empty">Small daily habits: exercise, sleep by 11, 20 min reading. Tick them on Today.</div>'}</div>
   <div class="btns" style="margin-top:14px"><a class="btn" href="#/report">Progress report (PDF)</a><button class="btn" data-act="weekly">Weekly review</button></div>`;
 }
+/* ---------- courses ---------- */
+const COURSE_STATES = ['Planned', 'Active', 'Paused', 'Done', 'Dropped'];
+const L = (arr) => arr.map((t, i) => ({ id: 'l' + (i + 1), t, done: false, doneOn: '' }));
+const SQL_STAGES = [['Core queries', 'SELECT, WHERE, GROUP BY, HAVING, dates', 'Q1, Q2, Q3, Q6 correct unaided'], ['Joins and keys', 'INNER/LEFT JOIN, anti-join, duplicates, grain', 'correct + explain the grain'], ['KPI queries', 'CASE, date arithmetic, ratios', 'SQL equals the expected values'], ['Data-quality SQL', 'missing, out-of-range, duplicates, date order, orphans', 'all 8 seeded defects found, none altered'], ['Analytical SQL and design', 'CTEs, window functions, views, ER model', '10 questions unaided; ER model explained']];
+const COURSE_STARTERS = [
+  { key: 'sql', title: 'SQL learning path (20 sessions)', skill: /sql/i, provider: 'Self-study, SQLite', gate: 'Starts after Power BI Page 1 is built and QA-checked.', perWeek: 2, lessons: () => L(SQL_STAGES.flatMap(([n, k, pc], si) => [1, 2, 3, 4].map(i => `S${si * 4 + i} · ${n} (${i}/4): ${k}`).concat([`Stage ${si + 1} pass check: ${pc}`]))) },
+  { key: 'pbi', title: 'Power BI build: construction dashboard (S0–S10)', skill: /power bi/i, provider: 'Self-build, Power BI Desktop', gate: '', perWeek: 3, lessons: () => L(['S0 Open Power BI Desktop and note the version', 'S1 Download the six CSVs to C:\\MILAD2031\\PBI1\\data', 'S2 Import and check row counts', 'S3 Four relationships, StatusDate and Measures tables', 'S4 Calculated columns and measures', 'S5 Results log before visuals', 'S6 Page 1 layout', 'S7 Slicers', 'S8 Empty states', 'S9 Defects log', 'S10 Save the .pbix and upload it']) },
+  { key: 'ielts', title: 'IELTS weekly practice cycle', skill: /ielts/i, provider: 'Self-study with official practice tests', gate: '', perWeek: 4, lessons: () => L([1, 2, 3].flatMap(r => [`Round ${r}: Listening test (timed) and review`, `Round ${r}: Reading test (timed) and review`, `Round ${r}: Writing Task 1 and 2 (timed)`, `Round ${r}: Speaking recording and self-review`])) }
+];
+const cLessons = c => Array.isArray(c.lessons) ? c.lessons : [];
+const cNext = c => cLessons(c).find(l => !l.done);
+const cPct = c => { const ls = cLessons(c); return ls.length ? Math.round(100 * ls.filter(l => l.done).length / ls.length) : 0; };
+const cWeekDone = c => cLessons(c).filter(l => l.done && inWeek(l.doneOn, weekStart())).length;
+const courseLive = () => list('courses').filter(c => ['Active', 'Planned'].includes(c.status || 'Planned'));
+function cleanMd(s) { return String(s).replace(/\*\*|__|`/g, '').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').trim(); }
+function parseNoteLessons(md) {
+  const out = []; let inTable = 0;
+  for (const raw of String(md || '').split('\n')) {
+    const line = raw.trim(); let m;
+    if (/^\|.*\|$/.test(line)) { if (/^\|[\s|:\-]+\|$/.test(line)) continue; inTable++; if (inTable === 1) continue; const cells = line.slice(1, -1).split('|').map(x => cleanMd(x)); if (cells[0]) out.push(cells[0] + (cells[1] ? ` (${cells[1]})` : '')); continue; }
+    inTable = 0;
+    if ((m = line.match(/^[-*+]\s+(?:\[[ xX]\]\s*)?(.+)$/)) || (m = line.match(/^\d+[.)]\s+(.+)$/))) out.push(cleanMd(m[1]));
+  }
+  return out.filter(Boolean).slice(0, 120);
+}
+function courseRow(c) {
+  const n = cNext(c), ls = cLessons(c);
+  return `<div class="row crow" data-act="go" data-to="course/${encodeURIComponent(c.id)}"><div class="main"><div class="t" dir="auto">${esc(c.title)}</div><div class="bar" style="margin:6px 0 4px"><i style="width:${cPct(c)}%"></i></div><div class="m"><span>${ls.filter(l => l.done).length}/${ls.length}</span>${c.status && c.status !== 'Active' ? `<span class="chip">${esc(c.status)}</span>` : ''}${n ? `<span dir="auto">Next: ${esc(n.t).slice(0, 70)}</span>` : '<span>All lessons done 🎉</span>'}</div></div>${n && (c.status || 'Planned') !== 'Paused' ? `<button class="icon-btn playb" data-act="c-start" data-id="${esc(c.id)}" aria-label="Start next lesson">${I.play}</button>` : ''}</div>`;
+}
+function vCourses() {
+  const cs = list('courses').sort((a, b) => COURSE_STATES.indexOf(a.status || 'Planned') - COURSE_STATES.indexOf(b.status || 'Planned') || String(a.title).localeCompare(String(b.title)));
+  const live = cs.filter(c => ['Active', 'Planned', 'Paused'].includes(c.status || 'Planned')), old = cs.filter(c => !live.includes(c));
+  return `<div class="card"><h2>${I.course} Courses <span class="count">${live.length}</span><span style="flex:1"></span><button class="btn small ghost" data-act="new-course">${I.plus} Course</button></h2>
+    ${live.length ? `<div class="list">${live.map(courseRow).join('')}</div>` : '<div class="empty">No courses yet. Start from your SQL path, the Power BI build, an IELTS cycle, or any note.</div>'}
+    ${old.length ? `<details class="donebox" style="margin-top:6px"><summary>Finished or dropped (${old.length})</summary><div class="list">${old.map(courseRow).join('')}</div></details>` : ''}</div><div style="height:14px"></div>`;
+}
+function vCourse(id) {
+  const c = get('courses', id); if (!c) return header('Course', '') + '<div class="card empty">This course does not exist.</div>';
+  const ls = cLessons(c), sk = c.skillId && get('skills', c.skillId), n = cNext(c);
+  return header(c.title, `${c.status || 'Planned'} · ${cPct(c)}% done`) + `
+  <div class="card"><div class="m small" style="display:flex;flex-wrap:wrap;gap:6px 12px">${sk ? `<span>Skill: ${esc(sk.title)}</span>` : ''}${c.provider ? `<span dir="auto">${esc(c.provider)}</span>` : ''}${c.perWeek ? `<span>${esc(c.perWeek)} lessons / week · ${cWeekDone(c)} this week</span>` : ''}${c.nextReview ? `<span>Review ${esc(rel(c.nextReview))}</span>` : ''}${c.link ? `<a href="${esc(c.link)}" target="_blank" rel="noopener">Open course</a>` : ''}</div>
+    ${c.gate ? `<div class="warnbox card small" style="margin-top:10px" dir="auto">${esc(c.gate)}</div>` : ''}
+    <div class="bar" style="margin-top:12px"><i style="width:${cPct(c)}%"></i></div>
+    <div class="acts" style="margin-top:14px">${n ? `<button class="act pri" data-act="c-start" data-id="${esc(c.id)}"><span>▶</span>Start: ${esc(n.t).slice(0, 48)}</button>` : ''}<button class="act" data-act="c-review" data-id="${esc(c.id)}"><span>⟳</span>Review course</button><button class="act" data-act="c-edit" data-id="${esc(c.id)}"><span>✎</span>Edit</button></div></div>
+  <div class="card" style="margin-top:12px"><h2>Lessons <span class="count">${ls.filter(l => l.done).length}/${ls.length}</span><span style="flex:1"></span><button class="btn small ghost" data-act="c-lessons" data-id="${esc(c.id)}">Edit list</button></h2>
+    <div class="list">${ls.map(l => `<div class="row"><button class="check ${l.done ? 'done' : ''}" data-act="c-tick" data-id="${esc(c.id)}" data-l="${esc(l.id)}" aria-label="Done">${I.tick}</button><div class="main"><div class="t" dir="auto">${esc(l.t)}</div>${l.done && l.doneOn ? `<div class="m">${esc(fmtDate(l.doneOn, true))}${l.min ? ' · ' + l.min + ' min' : ''}</div>` : ''}</div>${!l.done ? `<button class="icon-btn playb small" data-act="c-start" data-id="${esc(c.id)}" data-l="${esc(l.id)}" aria-label="Start">${I.play}</button>` : ''}</div>`).join('') || '<div class="empty">No lessons. Tap Edit list.</div>'}</div></div>
+  ${(c.reviews || []).length ? `<div class="card" style="margin-top:12px"><h2>Reviews</h2><div class="list">${c.reviews.slice().reverse().map(r => `<div class="row"><div class="main"><div class="t">${esc(r.decision)}</div><div class="m"><span>${esc(fmtDate(r.date, true))}</span>${r.note ? `<span dir="auto">${esc(r.note)}</span>` : ''}</div></div></div>`).join('')}</div></div>` : ''}`;
+}
+function courseForm(c) {
+  formColl = 'courses';
+  form(c.id ? 'Edit course' : 'New course', [{ k: 'title', label: 'Course', req: true }, [{ k: 'status', label: 'Status', type: 'select', options: COURSE_STATES, blank: false, def: 'Active' }, { k: 'skillId', label: 'Skill', type: 'select', options: skillOpts }], { k: 'perWeek', label: 'Lessons per week', type: 'select', options: [1, 2, 3, 4, 5, 6, 7], def: 2 }, 'MORE', { k: 'provider', label: 'Provider / platform' }, { k: 'link', label: 'Course link', type: 'url' }, { k: 'gate', label: 'Start condition', ph: 'e.g. after Power BI Page 1' }, { k: 'reviewEvery', label: 'Review every (days)', type: 'number', def: 30 }, ...(c.id ? [] : [{ k: 'lessonText', label: 'Lessons, one per line', type: 'textarea' }])], c, v => {
+    if (!v.title) return 'Give the course a name.';
+    const rec = Object.assign({}, c, v); if (!c.id) { rec.lessons = L(String(v.lessonText || '').split('\n').map(x => x.trim()).filter(Boolean)); delete rec.lessonText; rec.nextReview = addDays(today(), Number(v.reviewEvery) || 30); }
+    const r = save('courses', rec); toast('Course saved'); if (!c.id) setTimeout(() => { location.hash = '#/course/' + encodeURIComponent(r.id); }, 50);
+  }, { onDelete: c.id ? () => { remove('courses', c.id); closeSheet(); location.hash = '#/progress'; } : null });
+}
+function newCourseSheet() {
+  const notes = list('notes').sort((a, b) => String(a.title).localeCompare(String(b.title)));
+  openSheet('New course', `<div class="small" style="margin-bottom:6px">Start from a plan you already have</div><div class="acts one">${COURSE_STARTERS.map(s => `<button class="act" data-act="c-starter" data-v="${s.key}"><span>★</span>${esc(s.title)}</button>`).join('')}</div>
+    ${notes.length ? `<div class="small" style="margin:14px 0 6px">Or turn a note's list into lessons</div><div class="acts one">${notes.map(n => `<button class="act" data-act="c-from-note" data-id="${esc(n.id)}"><span>≡</span><span dir="auto" style="width:auto;text-align:inherit;color:inherit;font-size:inherit">${esc(n.title)}</span></button>`).join('')}</div>` : ''}
+    <div class="acts one" style="margin-top:14px"><button class="act" data-act="c-blank"><span>+</span>Blank course</button></div>`, '', { noFocus: true });
+}
+function lessonsFromNote(id) {
+  const n = get('notes', id); if (!n) return; const items = parseNoteLessons(n.body);
+  if (!items.length) { toast('No list found in this note'); return; }
+  closeSheet(true);
+  openSheet('Lessons from note', `<div class="small" style="margin-bottom:8px">Untick anything that is not a lesson.</div><div class="f"><label>Course name</label><input name="ct" dir="auto" value="${esc(n.title)}"></div><div class="list">${items.map((t, i) => `<label class="row" style="cursor:pointer"><input type="checkbox" name="li" value="${i}" checked style="width:22px;height:22px;margin-top:2px"><div class="main"><div class="t" dir="auto">${esc(t)}</div></div></label>`).join('')}</div>`,
+    '<button class="btn" data-act="sheet-close">Cancel</button><button class="btn primary" data-act="form-save">Create course</button>', { noFocus: true, onSave: () => {
+      const el = sheetCtx.el; const pick = [...el.querySelectorAll('input[name=li]:checked')].map(x => items[Number(x.value)]);
+      if (!pick.length) return; const r = save('courses', { title: el.querySelector('[name=ct]').value.trim() || n.title, status: 'Active', perWeek: 2, reviewEvery: 30, nextReview: addDays(today(), 30), lessons: L(pick), source: n.id });
+      closeSheet(); toast('Course created'); location.hash = '#/course/' + encodeURIComponent(r.id);
+    } });
+}
+function courseReview(id) {
+  const c = get('courses', id); if (!c) return; closeSheet(true);
+  const ls = cLessons(c), last30 = ls.filter(l => l.done && l.doneOn >= addDays(today(), -30)).length;
+  openSheet('Review: ' + c.title, `<div class="small" style="margin-bottom:10px">${cPct(c)}% done · ${last30} lessons in the last 30 days${c.perWeek ? ` · plan ${c.perWeek}/week` : ''}.<br>Is this still the right course for your 2031 goals?</div>
+    <div class="f"><label>Note (optional)</label><input name="rn" dir="auto" placeholder="Why, or what to change"></div>
+    <div class="acts">${[['Active', '▶', 'Keep going'], ['Paused', '⏸', 'Pause for now'], ['Done', '✓', 'Finished'], ['Dropped', '✕', 'Drop it']].map(([s, ic, l]) => `<button class="act ${s === 'Active' ? 'pri' : ''}" data-act="c-decide" data-id="${esc(id)}" data-v="${s}"><span>${ic}</span>${l}</button>`).join('')}</div>`, '', { noFocus: true });
+}
+function courseStart(id, lid) {
+  const c = get('courses', id); if (!c) return; const l = lid ? cLessons(c).find(x => x.id === lid) : cNext(c); if (!l) return;
+  if (c.status !== 'Active') save('courses', Object.assign({}, c, { status: 'Active' }));
+  ui.focus = { kind: 'lesson', course: id, lesson: l.id, title: l.t, dur: 25, start: Date.now(), paused: 0, pausedAt: 0 }; saveUi(); closeSheet(true); focusShow();
+}
+function lessonDone(id, lid, mins) {
+  const c = get('courses', id); if (!c) return;
+  const ls = cLessons(c).map(l => l.id === lid ? Object.assign({}, l, { done: !l.done, doneOn: l.done ? '' : today(), min: mins || l.min || '' }) : l);
+  save('courses', Object.assign({}, c, { lessons: ls, status: ls.every(l => l.done) ? 'Done' : (c.status === 'Planned' ? 'Active' : c.status) }));
+}
+
 /* ---------- journal ---------- */
 const MOODS = ['', '😞', '🙁', '😐', '🙂', '😄'];
 function vJournal() {
@@ -666,15 +800,19 @@ function vReport() {
   <h2>Completed work (latest 40)</h2>${tbl(['Done', 'Task', 'Proof'], done.slice(0, 40).map(x => [fmtDate(x.completedOn, true), x.title, x.evidence || '']))}</div>`;
 }
 /* ---------- global search ---------- */
-const SEARCH_IN = [['tasks', 'Task', r => [r.title, r.nextAction, r.notes], 'task'], ['notes', 'Note', r => [r.title, r.body, r.tags], 'note'], ['applications', 'Job', r => [r.role, r.company, r.notes], 'application'], ['events', 'Event', r => [r.title, r.notes], 'event'], ['decisions', 'Decision', r => [r.title, r.decision], 'decision'], ['evidence', 'Evidence', r => [r.code, r.title, r.proves], 'evidence'], ['immigration', 'Document', r => [r.title, r.notes], 'immig'], ['milestones', 'Milestone', r => [r.title, r.notes], 'milestone'], ['skills', 'Skill', r => [r.title], 'skill'], ['goals', 'Goal', r => [r.title, r.success], 'goal'], ['logs', 'Journal', r => [r.title, r.done, r.notes], 'logitem']];
+const SEARCH_IN = [['courses', 'Course', r => [r.title, r.provider, cLessons(r).map(l => l.t).join(' ')], 'course-open'], ['tasks', 'Task', r => [r.title, r.nextAction, r.notes], 'task'], ['notes', 'Note', r => [r.title, r.body, r.tags], 'note'], ['applications', 'Job', r => [r.role, r.company, r.notes], 'application'], ['events', 'Event', r => [r.title, r.notes], 'event'], ['decisions', 'Decision', r => [r.title, r.decision], 'decision'], ['evidence', 'Evidence', r => [r.code, r.title, r.proves], 'evidence'], ['immigration', 'Document', r => [r.title, r.notes], 'immig'], ['milestones', 'Milestone', r => [r.title, r.notes], 'milestone'], ['skills', 'Skill', r => [r.title], 'skill'], ['goals', 'Goal', r => [r.title, r.success], 'goal'], ['logs', 'Journal', r => [r.title, r.done, r.notes], 'logitem']];
+const PALETTE = [['New task', 'new-task'], ['New event', 'new-event'], ['Log practice', 'log-time'], ['Start next lesson', 'next-lesson'], ['Close the day', 'closeout'], ['Weekly review', 'weekly'], ['New course', 'new-course'], ['Job application', 'new-application'], ['Update savings', 'money-add'], ['Go to Today', 'go', 'today'], ['Go to Tasks', 'go', 'tasks'], ['Go to Calendar', 'go', 'calendar'], ['Go to Progress', 'go', 'progress'], ['Go to Job search', 'go', 'jobs'], ['Go to Immigration', 'go', 'immigration'], ['Go to Notes', 'go', 'notes'], ['Go to Journal', 'go', 'journal'], ['Go to Settings', 'go', 'settings'], ['Go to System health', 'go', 'health']];
 function searchSheet() {
   openSheet('Search everything', `<input class="search" id="gsq" type="search" placeholder="Type to search" style="width:100%" autocomplete="off" dir="auto"><div id="gsr" class="list" style="margin-top:10px"></div>`, '', {});
   const inp = $('#gsq'); setTimeout(() => inp.focus(), 60);
   inp.addEventListener('input', () => {
     const q = inp.value.trim().toLowerCase(); const out = [];
+    const acts = PALETTE.filter(([l]) => !q || l.toLowerCase().includes(q)).slice(0, q ? 5 : 12);
+    const actHtml = acts.map(([l, act, to]) => `<div class="row" data-act="${act}" ${to ? `data-to="${to}"` : ''}><span class="att-i">${to ? I.right : I.plus}</span><div class="main"><div class="t">${l}</div></div></div>`).join('');
     if (q.length > 1) for (const [c, label, f, act] of SEARCH_IN) for (const r of list(c)) { const txt = f(r).filter(Boolean).join(' '); if (txt.toLowerCase().includes(q)) out.push([label, r, act, c]); if (out.length > 60) break; }
-    $('#gsr').innerHTML = q.length < 2 ? '' : out.length ? out.map(([l, r, act, c]) => `<div class="row" data-act="${act === 'note' ? 'open-note' : act}" data-id="${esc(r.id)}"><div class="main"><div class="t" dir="auto">${esc(r.title || r.role || r.code || '')}${c === 'applications' && r.company ? ' · ' + esc(r.company) : ''}</div><div class="m"><span class="chip">${l}</span>${c === 'tasks' && !isOpen(r) ? '<span>done</span>' : ''}</div></div></div>`).join('') : '<div class="empty">No matches.</div>';
+    $('#gsr').innerHTML = actHtml + (q.length < 2 ? '' : out.length ? out.map(([l, r, act, c]) => `<div class="row" data-act="${act === 'note' ? 'open-note' : act}" data-id="${esc(r.id)}"><div class="main"><div class="t" dir="auto">${esc(r.title || r.role || r.code || '')}${c === 'applications' && r.company ? ' · ' + esc(r.company) : ''}</div><div class="m"><span class="chip">${l}</span>${c === 'tasks' && !isOpen(r) ? '<span>done</span>' : ''}</div></div></div>`).join('') : acts.length ? '' : '<div class="empty">No matches.</div>');
   });
+  inp.dispatchEvent(new Event('input'));
 }
 
 function vRoadmap() {
@@ -717,8 +855,31 @@ function vImmigration() {
     <div class="btns" style="margin-top:10px"><button class="btn primary small" data-act="new-immig">${I.plus} Document</button>${items.length ? '' : '<button class="btn small" data-act="imm-starter">Add a starter list</button>'}</div></div>
   ${IMM_CATS.map(c => { const it = items.filter(x => (x.category || 'Other') === c).sort((a, b) => String(a.title).localeCompare(String(b.title))); return it.length ? `<div class="card" style="margin-top:12px"><h2>${esc(c)} <span class="count">${it.filter(x => ['Ready', 'Submitted', 'Not needed'].includes(x.status)).length}/${it.length}</span></h2><div class="list">${it.map(row).join('')}</div></div>` : ''; }).join('')}`;
 }
+const MORE_GROUPS = [['Career', ['jobs', 'evidence']], ['Migration', ['immigration']], ['Knowledge', ['notes', 'journal', 'templates', 'decisions']], ['System', ['review', 'trash', 'health', 'settings']]];
+const OPTIONAL = [['jobs', 'Job search'], ['immigration', 'Immigration'], ['evidence', 'Evidence'], ['journal', 'Journal'], ['templates', 'Templates'], ['decisions', 'Decisions'], ['review', 'Review'], ['money', 'Money']];
+const hidden = () => new Set(prefs().hidden || []);
+const navMore = () => NAV_MORE.filter(([k]) => !hidden().has(k));
+function badge(k) {
+  if (k === 'today') { const n = list('tasks').filter(t => isOpen(t) && t.due && t.due < today()).length; return n ? `<b class="badge">${n > 99 ? '99+' : n}</b>` : ''; }
+  if (k === 'progress') return weeklyDue() || list('courses').some(c => ['Active', 'Paused'].includes(c.status) && c.nextReview && c.nextReview <= today()) ? '<b class="badge dot"></b>' : '';
+  if (k === 'more') { const n = followUps().length + expiring().filter(x => x.expiry < addDays(today(), 60)).length; return n ? `<b class="badge">${n}</b>` : ''; }
+  return '';
+}
+/* ---------- setup checklist ---------- */
+function setupItems() {
+  return [[!!ui.pkSet, 'Sign in with Face ID', 'pk-add'], [!!ui.pushOn, 'Morning and evening reminders', 'go-settings'], [!!ui.calDone, 'Calendar on your iPhone', 'ics-setup'], [!!ui.siriDone, 'Siri shortcuts', 'siri'], [list('habits').length > 0, 'One daily habit', 'new-habit'], [list('milestones').length > 0, 'First 2031 milestone', 'new-milestone'], [list('courses').length > 0, 'Your courses', 'new-course'], [!!ui.lastBackup, 'First backup copy', 'enc-backup']];
+}
+function setupCard() {
+  if (ui.setupHidden) return ''; const it = setupItems(), d = it.filter(x => x[0]).length; if (d === it.length) return '';
+  return `<div class="card setup" role="button" data-act="setup" style="margin-bottom:12px"><div class="main"><div class="t">Finish setting up · ${d} of ${it.length}</div><div class="bar" style="margin-top:6px"><i style="width:${Math.round(100 * d / it.length)}%"></i></div></div><span class="att-go">${I.right}</span></div>`;
+}
+function setupSheet() {
+  openSheet('Set up MILAD 2031', `<div class="list">${setupItems().map(([ok, l, act]) => `<div class="row"><span class="hstat ${ok ? 'ok' : ''}">${ok ? '✓' : ''}</span><div class="main"><div class="t">${l}</div></div>${ok ? '' : `<button class="btn small primary" data-act="${act}">Set up</button>`}</div>`).join('')}</div>
+    <div class="btns" style="margin-top:12px"><button class="btn small" data-act="setup-mark">I did calendar and Siri</button><button class="btn small ghost" data-act="setup-hide">Hide this</button></div>`, '', { noFocus: true });
+}
 function vMore() {
-  return header('More', 'Everything else in MILAD 2031') + `<div class="grid two">${NAV_MORE.map(([k, l, ic]) => `<a class="card row" href="#/${k}" style="text-decoration:none;align-items:center"><span style="width:26px;color:var(--brass-ink)">${ic}</span><div class="main"><div class="t">${l}</div><div class="m">${moreHint(k)}</div></div></a>`).join('')}</div>`;
+  const hs = hidden(); const by = Object.fromEntries(NAV_MORE.map(x => [x[0], x]));
+  return header('More', '') + MORE_GROUPS.map(([g, ks]) => { const items = ks.filter(k => !hs.has(k) && by[k]); return items.length ? `<div class="grp-h">${g}</div><div class="card tight"><div class="list">${items.map(k => { const [, l, ic] = by[k]; return `<a class="row mrow" href="#/${k}"><span class="att-i">${ic}</span><div class="main"><div class="t">${l}</div><div class="m">${moreHint(k)}</div></div><span class="att-go">${I.right}</span></a>`; }).join('')}</div></div>` : ''; }).join('');
 }
 function moreHint(k) {
   return { journal: `${list('logs').filter(l => l.type === 'closeout').length} days written`, templates: `${TEMPLATE_STARTERS.length + list('templates').length} templates`, trash: `${COLS.reduce((n, c) => n + Object.values(db[c] || {}).filter(r => r && r.deleted).length, 0)} deleted items`, health: 'Server, backups, sync and security checks', jobs: `${list('applications').filter(a => APP_ACTIVE.includes(a.stage || 'Saved')).length} active applications`, immigration: `${list('immigration').length} documents`, learn: `${list('skills').length} skills · ${list('sessions').length} sessions · ${list('ielts').length} IELTS entries`, evidence: `${list('evidence').length} items`, decisions: `${list('decisions').length} decisions`, notes: `${list('notes').length} documents`, review: 'Live executive review and close-out logs', settings: 'Sync, calendar feed, backup, password' }[k] || '';
@@ -729,7 +890,7 @@ function vLearn() {
   const ielts = list('ielts').sort((a, b) => String(b.date).localeCompare(String(a.date)));
   const ws = weekStart(), mins = weekMinutes(ws), tgt = weekTarget(), st = streak();
   const tracked = skills.filter(s => Number(s.weeklyHours) > 0 || weekMinutes(ws, s.id) > 0);
-  return header('Learning', 'Competence is shown by practical checks, not attendance') + `
+  return header('Learning', 'Competence is shown by practical checks, not attendance') + vCourses() + `
   <div class="card"><h2>This week <span class="count">${hrs(mins)} h${tgt ? ' / ' + hrs(tgt) + ' h' : ''}</span><span style="flex:1"></span><button class="btn small primary" data-act="log-time">${I.plus} Log time</button></h2>
     <div class="small" style="margin-bottom:8px">${st ? `🔥 ${st}-day streak` : 'No streak yet. Log any practice today to start one.'} · Week of ${esc(fmtDate(ws))}</div>
     ${tracked.length ? tracked.map(s => { const m = weekMinutes(ws, s.id), g = Math.round((Number(s.weeklyHours) || 0) * 60); return `<div style="margin:8px 0"><div class="small" style="display:flex;justify-content:space-between;gap:8px"><span dir="auto">${esc(s.title)}</span><b>${hrs(m)}${g ? ' / ' + hrs(g) : ''} h</b></div><div class="bar"><i style="width:${g ? Math.min(100, Math.round(100 * m / g)) : 100}%"></i></div></div>`; }).join('') : '<div class="empty">Set weekly hours on a skill to track it here.</div>'}</div>
@@ -831,6 +992,7 @@ function vSettings() {
     <div class="small mono" style="margin-top:8px">${esc(n)}</div></div>
   <div class="card"><h2>Siri & Shortcuts</h2><div class="small">Add tasks, hear your Top 3, log practice and save job ads by voice or from Safari's Share button.</div><div class="btns" style="margin-top:10px"><button class="btn small primary" data-act="siri">Set up Siri</button></div></div>
   <div class="card"><h2>Face ID sign-in</h2><div id="pkbox" class="small">Checking…</div></div>
+  <div class="card"><h2>Sections</h2><div class="small" style="margin-bottom:8px">Hide what you do not use. Nothing is deleted.</div><div class="pick">${OPTIONAL.map(([k, l]) => `<button class="${hidden().has(k) ? '' : 'on'}" data-act="toggle-sec" data-v="${k}">${hidden().has(k) ? '' : '✓ '}${l}</button>`).join('')}</div></div>
   <div class="card"><h2>Language</h2><div class="seg">${[['en', 'English'], ['fa', 'فارسی']].map(([k, l]) => `<button class="${(ui.lang || 'en') === k ? 'on' : ''}" data-act="set-lang" data-v="${k}">${l}</button>`).join('')}</div></div>
   <div class="card"><h2>Security</h2><div class="btns"><button class="btn small" data-act="password">Change password</button><button class="btn small danger" data-act="logout">Sign out on this device</button></div>
     <div class="small" style="margin-top:8px">Do not store passport numbers, ID numbers, salaries or confidential employer files here. Keep those in your private evidence vault.</div></div>
@@ -838,7 +1000,8 @@ function vSettings() {
 }
 function header(title, sub) {
   if (ui.lang === 'fa') { title = trStr(title) || title; sub = sub && (trStr(sub) || sub); }
-  return `<div class="top"><div class="top-row"><h1 dir="auto">${esc(title)}</h1>${syncHtml()}<button class="icon-btn hsearch" data-act="search" aria-label="Search">${I.search}</button></div>${sub ? `<div class="sub" dir="auto">${esc(sub)}</div>` : ''}</div><div class="spacer" style="height:14px"></div>`;
+  const pg = route().page; const back = !NAV_MAIN.some(([k]) => k === pg) && pg !== 'plan' && pg !== 'learn';
+  return `<div class="top"><div class="top-row">${back ? `<button class="icon-btn hback" data-act="back" aria-label="Back">${I.left}</button>` : ''}<h1 dir="auto">${esc(title)}</h1>${syncHtml()}<button class="icon-btn hsearch" data-act="search" aria-label="Search">${I.search}</button></div>${sub ? `<div class="sub" dir="auto">${esc(sub)}</div>` : ''}</div><div class="spacer" style="height:14px"></div>`;
 }
 
 /* ---------------- shell + router ---------------- */
@@ -846,21 +1009,22 @@ function route() { const h = location.hash.replace(/^#\/?/, '') || 'today'; cons
 function render() {
   if (!ls.get(K.tok) && !document.querySelector('.shell')) return;
   const { page, arg } = route();
-  const views = { today: vToday, tasks: vTasks, calendar: vCalendar, plan: vPlan, more: vMore, learn: vLearn, evidence: vEvidence, decisions: vDecisions, notes: vNotes, note: () => vNote(arg), review: vReview, settings: vSettings, jobs: vJobs, immigration: vImmigration, progress: vProgress, journal: vJournal, report: vReport, templates: vTemplates, trash: vTrash, health: vHealth };
+  const views = { today: vToday, tasks: vTasks, calendar: vCalendar, plan: vPlan, more: vMore, learn: vLearn, evidence: vEvidence, decisions: vDecisions, notes: vNotes, note: () => vNote(arg), review: vReview, settings: vSettings, jobs: vJobs, immigration: vImmigration, progress: vProgress, journal: vJournal, report: vReport, templates: vTemplates, trash: vTrash, health: vHealth, course: () => vCourse(arg) };
   if (page === 'plan') { ui.pTab = ui.planTab === 'goals' ? 'goals' : 'roadmap'; views.plan = vProgress; } if (page === 'learn') { ui.pTab = 'learning'; views.learn = vProgress; }
   const html = (views[page] || vToday)();
-  const active = NAV_MAIN.some(([k]) => k === page) ? page : ['plan', 'learn', 'report'].includes(page) ? 'progress' : page === 'note' ? 'more' : NAV_MORE.some(([k]) => k === page) ? 'more' : 'today';
+  const active = NAV_MAIN.some(([k]) => k === page) ? page : ['plan', 'learn', 'report', 'course'].includes(page) ? 'progress' : page === 'note' ? 'more' : NAV_MORE.some(([k]) => k === page) ? 'more' : 'today';
   const focusKey = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.input : null;
   const sel = focusKey ? [document.activeElement.selectionStart, document.activeElement.selectionEnd] : null;
   const scrollY = window.scrollY;
   const app = $('#app');
   app.innerHTML = `<div class="shell">
-    <aside class="side"><div class="brand">MILAD<span>2031 OS</span></div>${NAV_MAIN.filter(([k]) => k !== 'more').map(([k, l, ic]) => `<a href="#/${k}" class="${active === k ? 'on' : ''}">${ic}${l}</a>`).join('')}<div class="grp">Workspace</div>${NAV_MORE.map(([k, l, ic]) => `<a href="#/${k}" class="${page === k || (k === 'notes' && page === 'note') ? 'on' : ''}">${ic}${l}</a>`).join('')}</aside>
-    <main class="pg-${esc(page)}">${html}</main>
-    <nav class="tabs">${NAV_MAIN.map(([k, l, ic]) => `<a href="#/${k}" class="${active === k ? 'on' : ''}">${ic}<span>${l}</span></a>`).join('')}</nav>
+    <aside class="side"><div class="brand">MILAD<span>2031 OS</span></div>${NAV_MAIN.filter(([k]) => k !== 'more').map(([k, l, ic]) => `<a href="#/${k}" class="${active === k ? 'on' : ''}">${ic}${l}${badge(k)}</a>`).join('')}<div class="grp">Workspace</div>${navMore().map(([k, l, ic]) => `<a href="#/${k}" class="${page === k || (k === 'notes' && page === 'note') ? 'on' : ''}">${ic}${l}</a>`).join('')}</aside>
+    <main class="pg-${esc(page)}${render.lastPage !== page ? ' pg-in' : ''}">${html}</main>
+    <nav class="tabs">${NAV_MAIN.map(([k, l, ic]) => `<a href="#/${k}" class="${active === k ? 'on' : ''}">${ic}${badge(k)}<span>${l}</span></a>`).join('')}</nav>
     <button class="fab" data-act="quick" aria-label="Add">${I.plus}</button></div>`;
   if (focusKey) { const el = app.querySelector(`[data-input="${focusKey}"]`); if (el) { el.focus(); try { el.setSelectionRange(sel[0], sel[1]); } catch {} } }
   if (page === 'settings') setTimeout(() => { pushRender(); pkRender(); }, 0);
+  render.lastPage = page;
   if (render.keepScroll) window.scrollTo(0, scrollY);
   render.keepScroll = true;
 }
@@ -976,7 +1140,7 @@ function focusLeft() { const f = ui.focus; if (!f) return 0; const used = (f.pau
 function focusStart(id, mins = 25) { ui.focus = { id, dur: mins, start: Date.now(), paused: 0, pausedAt: 0 }; saveUi(); closeSheet(true); focusShow(); }
 function focusShow() {
   const f = ui.focus; let el = $('#focus'); if (!f) { if (el) el.remove(); clearInterval(focusTick); return; }
-  const t = get('tasks', f.id);
+  const t = f.kind === 'lesson' ? { title: f.title } : get('tasks', f.id);
   if (!el) { el = document.createElement('div'); el.id = 'focus'; document.body.appendChild(el); }
   const draw = () => { if (!ui.focus) { clearInterval(focusTick); return; } const ms = focusLeft(); const m = Math.floor(ms / 60000), s = Math.floor(ms % 60000 / 1000); const tt = $('#focus .ft'); if (tt) tt.textContent = `${pad(m)}:${pad(s)}`; const ring = $('#focus .ring i'); if (ring) ring.style.setProperty('--p', (100 - 100 * ms / (f.dur * 60000)).toFixed(1)); if (ms <= 0 && !ui.focus.finished) { ui.focus.finished = true; saveUi(); focusEnd(true); } };
   el.innerHTML = `<div class="fbox"><div class="small">Focus</div><div class="fttl" dir="auto">${esc(t ? t.title : 'Focus session')}</div><div class="ring"><i></i><div class="ft">--:--</div></div>
@@ -985,7 +1149,16 @@ function focusShow() {
   clearInterval(focusTick); draw(); if (ui.focus) focusTick = setInterval(draw, 1000);
 }
 function focusEnd(auto) {
-  const f = ui.focus; if (!f) return; const mins = Math.max(1, Math.round((f.dur * 60000 - focusLeft()) / 60000)); const t = get('tasks', f.id);
+  const f = ui.focus; if (!f) return; const mins = Math.max(1, Math.round((f.dur * 60000 - focusLeft()) / 60000));
+  if (f.kind === 'lesson') {
+    ui.focus = null; saveUi(); clearInterval(focusTick); const el0 = $('#focus'); if (el0) el0.remove();
+    const c = get('courses', f.course); const sk = c && c.skillId && get('skills', c.skillId);
+    save('sessions', { title: (c ? c.title.split(' (')[0] + ': ' : '') + f.title, skill: c ? c.skillId || '' : '', minutes: mins, date: today(), result: 'Not a check', course: f.course });
+    openSheet(auto ? 'Time is up 🎉' : 'Lesson time saved', `<div class="closeday"><div class="big">${mins}</div><div class="small">minutes logged${sk ? ' to ' + esc(sk.title) : ''}</div></div><div class="small" style="margin:10px 0" dir="auto">${esc(f.title)}</div>
+      <div class="acts"><button class="act pri" data-act="l-done" data-id="${esc(f.course)}" data-l="${esc(f.lesson)}" data-v="${mins}"><span>✓</span>Lesson finished</button><button class="act" data-act="sheet-close"><span>→</span>Not finished yet</button><button class="act" data-act="c-start" data-id="${esc(f.course)}" data-l="${esc(f.lesson)}"><span>↻</span>Another 25 min</button></div>`, '', { noFocus: true });
+    return;
+  }
+  const t = get('tasks', f.id);
   ui.focus = null; saveUi(); clearInterval(focusTick); const el = $('#focus'); if (el) el.remove();
   if (t) save('tasks', Object.assign({}, t, { focusMin: (Number(t.focusMin) || 0) + mins }));
   const sk = list('skills').sort((a, b) => (Number(b.weeklyHours) || 0) - (Number(a.weeklyHours) || 0)).slice(0, 6);
@@ -1173,8 +1346,22 @@ function weeklyReview() {
 }
 const IMM_STARTER = [['Passport', 'Identity'], ['National ID / birth certificate', 'Identity'], ['Degree certificate', 'Education'], ['Academic transcripts', 'Education'], ['Employment reference letters', 'Employment'], ['English test report (IELTS)', 'English test'], ['Police clearance certificates', 'Police & health'], ['Medical examination', 'Police & health'], ['Proof of funds', 'Finance'], ['Passport-style photos', 'Forms & fees']];
 function quickAdd() {
-  openSheet('Add', `<div class="grid two">${[['new-task', 'Task', I.tasks], ['new-event', 'Event', I.cal], ['log-time', 'Log practice', I.clock], ['new-application', 'Job application', I.jobs], ['new-note', 'Note', I.notes], ['from-tpl', 'From template', I.tmpl], ['money-add', 'Update savings', I.money], ['weekly', 'Weekly review', I.review]].map(([a, l, ic]) => `<button class="card row" data-act="${a}" style="align-items:center;text-align:left"><span style="width:24px;color:var(--brass-ink)">${ic}</span><div class="main"><div class="t">${l}</div></div></button>`).join('')}</div>`, '', { noFocus: true });
+  openSheet('Add', `<div class="grid two">${[['new-task', 'Task', I.tasks], ['new-event', 'Event', I.cal], ['log-time', 'Log practice', I.clock], ['new-application', 'Job application', I.jobs], ['new-note', 'Note', I.notes], ['new-course', 'Course', I.course], ['from-tpl', 'From template', I.tmpl], ['money-add', 'Update savings', I.money], ['weekly', 'Weekly review', I.review]].map(([a, l, ic]) => `<button class="card row" data-act="${a}" style="align-items:center;text-align:left"><span style="width:24px;color:var(--brass-ink)">${ic}</span><div class="main"><div class="t">${l}</div></div></button>`).join('')}</div>`, '', { noFocus: true });
 }
+
+/* ---------------- navigation polish ---------------- */
+document.addEventListener('click', e => { const l = e.target.closest('nav.tabs a, .side a'); if (l && l.getAttribute('href') === '#/' + route().page) { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); } }, true);
+let ptr = null;
+document.addEventListener('touchstart', e => { if (window.scrollY > 0 || sheetCtx || $('#focus') || e.touches.length > 1 || e.target.closest('.row[data-act=task]')) return; ptr = { y: e.touches[0].clientY, d: 0 }; }, { passive: true });
+document.addEventListener('touchmove', e => { if (!ptr) return; ptr.d = e.touches[0].clientY - ptr.y; let el = $('#ptr'); if (ptr.d > 10) { if (!el) { el = document.createElement('div'); el.id = 'ptr'; document.body.appendChild(el); } el.textContent = ptr.d > 80 ? '↻ Release to sync' : '↓ Pull to sync'; el.style.opacity = Math.min(1, ptr.d / 80); } }, { passive: true });
+document.addEventListener('touchend', () => { if (!ptr) return; const d = ptr.d; ptr = null; const el = $('#ptr'); if (el) el.remove(); if (d > 80) { toast('Syncing…'); sync().then(() => toast(syncState === 'ok' ? 'Up to date' : 'Sync failed')); } });
+document.addEventListener('keydown', e => {
+  if (e.target.closest('input,textarea,select') || e.metaKey && e.key !== 'k' || e.ctrlKey || e.altKey) return;
+  if ((e.metaKey && e.key === 'k') || e.key === '/') { e.preventDefault(); searchSheet(); return; }
+  if (sheetCtx) return;
+  const n = Number(e.key); if (n >= 1 && n <= 5) { location.hash = '#/' + NAV_MAIN[n - 1][0]; return; }
+  if (e.key === 'n') { e.preventDefault(); if (route().page !== 'today' && route().page !== 'tasks') location.hash = '#/today'; setTimeout(() => { const i = document.querySelector('.qadd input'); if (i) i.focus(); }, 80); }
+});
 
 /* ---------------- swipe on task rows ---------------- */
 let sw = null, swBlock = 0;
@@ -1210,7 +1397,7 @@ document.addEventListener('click', async e => {
     't-wait': () => { const t = get('tasks', id); setTask(id, { state: stOf(t) === 'Waiting' ? 'To do' : 'Waiting' }, stOf(t) === 'Waiting' ? 'Back to To do' : 'Marked as waiting'); },
     't-edit': () => { closeSheet(true); taskForm(get('tasks', id) || {}); },
     't-del': () => { const t = get('tasks', id); remove('tasks', id); closeSheet(); toast('Deleted', 'Undo', () => save('tasks', Object.assign({}, t, { deleted: false }))); },
-    qwhen: () => { ui.qWhen = ui.qWhen === a.dataset.v ? '' : a.dataset.v; saveUi(); render(); const i = document.querySelector('.qadd input'); if (i && i.value) i.focus(); },
+    qwhen: () => { ui.qWhen = ui.qWhen === a.dataset.v ? '' : a.dataset.v; saveUi(); render(); { const pv = document.querySelector('.qprev'), qi = document.querySelector('.qadd input'); if (pv && qi) pv.textContent = smartLabel(parseSmart(qi.value)); } const i = document.querySelector('.qadd input'); if (i && i.value) i.focus(); },
     'lt-skill': () => { sheetCtx.skill = id; ui.lastSkill = id; saveUi(); sheetCtx.el.querySelectorAll('[data-act="lt-skill"]').forEach(x => x.classList.toggle('on', x.dataset.id === id)); },
     'lt-min': () => { const sk = get('skills', sheetCtx.skill); const m = Number(a.dataset.v); ui.lastSkill = sheetCtx.skill; saveUi(); const r = save('sessions', { title: (sk ? sk.title : 'Practice') + ' · ' + m + ' min', skill: sheetCtx.skill, minutes: m, date: today(), result: 'Not a check' }); closeSheet(); toast(`Logged ${m} min`, 'Undo', () => remove('sessions', r.id)); },
     'a-next': () => { const x = get('applications', id); const i = APP_STAGES.indexOf(x.stage || 'Saved'); save('applications', Object.assign({}, x, { stage: APP_STAGES[i + 1], appliedOn: x.appliedOn || (APP_STAGES[i + 1] === 'Applied' ? today() : ''), followUp: addDays(today(), 7) })); closeSheet(); toast('Moved to ' + APP_STAGES[i + 1]); },
@@ -1238,7 +1425,7 @@ document.addEventListener('click', async e => {
     'plan-day': () => planDay(a.dataset.day || today(), false),
     closeout: () => closeDay(),
     quick: () => quickAdd(),
-    go: () => { location.hash = '#/' + a.dataset.to; if (a.dataset.to === 'plan') { ui.planTab = 'roadmap'; saveUi(); } },
+    go: () => { closeSheet(true); location.hash = '#/' + a.dataset.to; if (a.dataset.to === 'plan') { ui.planTab = 'roadmap'; saveUi(); } },
     't-repeat': () => { closeSheet(true); repeatSheet(id); },
     't-rep': () => { const t = get('tasks', id); setTask(id, { repeat: a.dataset.v, due: t.due || (a.dataset.v ? today() : t.due) }, a.dataset.v ? 'Repeats ' + REPEATS.find(r => r[0] === a.dataset.v)[1].toLowerCase() : 'No longer repeats'); },
     't-focus': () => focusStart(id, 25),
@@ -1267,9 +1454,29 @@ document.addEventListener('click', async e => {
     siri: () => siriSheet(),
     'siri-rotate': async () => { if (!confirm('Make new links? Shortcuts using the old links stop working until you paste the new ones.')) return; try { await api('shortkey', { method: 'POST', q: '&rotate=1', body: {} }); closeSheet(true); siriSheet(); } catch (err) { toast(err.message); } },
     'set-lang': () => { ui.lang = a.dataset.v; saveUi(); applyLang(); render(); },
+    'new-course': () => newCourseSheet(),
+    'c-starter': () => { const s = COURSE_STARTERS.find(x => x.key === a.dataset.v); if (!s) return; const sk = list('skills').find(k => s.skill.test(k.title)); const r = save('courses', { title: s.title, status: s.gate ? 'Planned' : 'Active', skillId: sk ? sk.id : '', provider: s.provider, gate: s.gate, perWeek: s.perWeek, reviewEvery: 30, nextReview: addDays(today(), 30), lessons: s.lessons() }); closeSheet(); toast('Course created'); location.hash = '#/course/' + encodeURIComponent(r.id); },
+    'c-from-note': () => lessonsFromNote(id),
+    'c-blank': () => { closeSheet(true); courseForm({ status: 'Active', perWeek: 2, reviewEvery: 30 }); },
+    'c-edit': () => courseForm(get('courses', id)),
+    'c-lessons': () => { const c = get('courses', id); form('Edit lessons', [{ k: 'txt', label: 'Lessons, one per line (finished ones stay ticked)', type: 'big' }], { txt: cLessons(c).map(l => l.t).join('\n') }, v => { const old = cLessons(c); const lines = String(v.txt || '').split('\n').map(x => x.trim()).filter(Boolean); const used = new Set(); const ls = lines.map((t, i) => { const o = old.find(l => l.t === t && !used.has(l.id)); if (o) { used.add(o.id); return o; } return { id: 'l' + Date.now().toString(36) + i, t, done: false, doneOn: '' }; }); save('courses', Object.assign({}, c, { lessons: ls })); toast('Lessons saved'); }); },
+    'c-tick': () => { lessonDone(id, a.dataset.l); },
+    'l-done': () => { lessonDone(id, a.dataset.l, Number(a.dataset.v)); closeSheet(); toast('Lesson done ✓'); },
+    'c-start': () => { e.stopPropagation(); courseStart(id, a.dataset.l); },
+    'c-review': () => courseReview(id),
+    'c-decide': () => { const c = get('courses', id); const note = (sheetCtx.el.querySelector('[name=rn]') || {}).value || ''; const d = { Active: 'Keep going', Paused: 'Paused', Done: 'Finished', Dropped: 'Dropped' }[a.dataset.v]; save('courses', Object.assign({}, c, { status: a.dataset.v, lastReview: today(), nextReview: ['Active', 'Paused'].includes(a.dataset.v) ? addDays(today(), Number(c.reviewEvery) || 30) : '', reviews: (c.reviews || []).concat([{ date: today(), decision: d, note: note.trim() }]) })); closeSheet(); toast('Review saved: ' + d); },
+    setup: () => setupSheet(),
+    'setup-mark': () => { ui.calDone = true; ui.siriDone = true; saveUi(); closeSheet(); render(); },
+    'setup-hide': () => { ui.setupHidden = true; saveUi(); closeSheet(); render(); },
+    'go-settings': () => { closeSheet(true); location.hash = '#/settings'; },
+    'ics-setup': () => { closeSheet(true); location.hash = '#/settings'; setTimeout(() => { const b = document.querySelector('[data-act=ics]'); if (b) { b.click(); b.scrollIntoView({ block: 'center' }); } }, 300); },
+    back: () => { const pg = route().page; location.hash = '#/' + (pg === 'note' ? 'notes' : pg === 'course' || pg === 'report' ? 'progress' : 'more'); },
+    'toggle-sec': () => { const h = hidden(); if (h.has(a.dataset.v)) h.delete(a.dataset.v); else h.add(a.dataset.v); save('settings', Object.assign({}, prefs(), { id: 'prefs', hidden: [...h] })); },
     'od-today': () => { const od = list('tasks').filter(x => isOpen(x) && x.due && x.due < today()); od.forEach(x => save('tasks', Object.assign({}, x, { due: today() }))); toast(`${od.length} moved to today`); },
     'p-tab': () => { ui.pTab = a.dataset.t; saveUi(); if (route().page !== 'progress') location.hash = '#/progress'; else render(); window.scrollTo(0, 0); },
     search: () => searchSheet(),
+    'next-lesson': () => { closeSheet(true); const c = courseLive().filter(x => cNext(x))[0]; if (c) courseStart(c.id); else toast('No course with a next lesson'); },
+    'course-open': () => { closeSheet(true); location.hash = '#/course/' + encodeURIComponent(id); },
     'open-note': () => { closeSheet(true); location.hash = '#/note/' + encodeURIComponent(id); },
     print: () => window.print(),
     hab: () => { const h = get('habits', id); if (!h) return; const d = Object.assign({}, h.done || {}); const t = today(); if (d[t]) delete d[t]; else d[t] = true; save('habits', Object.assign({}, h, { done: d })); },
@@ -1297,7 +1504,7 @@ document.addEventListener('click', async e => {
         const perm = await Notification.requestPermission(); if (perm !== 'granted') { toast('Notifications were not allowed. Change it in Settings → Notifications → MILAD 2031.'); return; }
         const reg = await navigator.serviceWorker.ready; const { key } = await api('vapid');
         const sub = (await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uBytes(key) });
-        await pushPost(sub); toast('Notifications on'); pushRender();
+        await pushPost(sub); ui.pushOn = true; saveUi(); toast('Notifications on'); pushRender();
       } catch (err) { toast('Could not turn on: ' + err.message); }
     },
     'push-save': async () => { const s = await pushSub(); if (!s) return pushRender(); try { await pushPost(s); toast('Times saved'); } catch (err) { toast(err.message); } },
@@ -1306,12 +1513,12 @@ document.addEventListener('click', async e => {
     'sync-now': () => { toast('Syncing…'); sync().then(() => toast(syncState === 'ok' ? 'Up to date' : 'Sync failed: ' + lastError)); },
     reload: async () => { if (Object.keys(outbox).length && !confirm('Some changes have not synced yet. Reload anyway? Unsynced changes are kept and sent first.')) return; ls.del(K.rev); await sync(); render(); toast('Reloaded'); },
     export: () => { const blob = new Blob([JSON.stringify({ app: 'milad2031', version: 1, exportedAt: nowIso(), collections: db }, null, 2)], { type: 'application/json' }); const u = URL.createObjectURL(blob); const l = document.createElement('a'); l.href = u; l.download = `milad2031-backup-${today()}.json`; ui.lastBackup = today(); saveUi(); document.body.appendChild(l); l.click(); l.remove(); setTimeout(() => URL.revokeObjectURL(u), 2000); },
-    ics: async () => { try { const j = await api('icskey'); const url = new URL(`${API}?action=ics&k=${j.key}`, location.href).href; $('#icsbox').innerHTML = `<div class="mono" style="word-break:break-all;margin-bottom:8px">${esc(url)}</div><div class="btns"><button class="btn small" data-act="copy" data-text="${esc(url)}">Copy link</button><a class="btn small" href="${esc(url.replace(/^https?:/, 'webcal:'))}">Subscribe now</a></div><div style="margin-top:8px">iPhone/iPad: tap <b>Subscribe now</b>, or Settings → Calendar → Accounts → Add Account → Other → Add Subscribed Calendar, and paste the link. Keep this link private.</div>`; } catch (err) { toast(err.message === 'offline' ? 'You are offline' : err.message); } },
+    ics: async () => { try { const j = await api('icskey'); const url = new URL(`${API}?action=ics&k=${j.key}`, location.href).href; ui.calDone = true; saveUi(); $('#icsbox').innerHTML = `<div class="mono" style="word-break:break-all;margin-bottom:8px">${esc(url)}</div><div class="btns"><button class="btn small" data-act="copy" data-text="${esc(url)}">Copy link</button><a class="btn small" href="${esc(url.replace(/^https?:/, 'webcal:'))}">Subscribe now</a></div><div style="margin-top:8px">iPhone/iPad: tap <b>Subscribe now</b>, or Settings → Calendar → Accounts → Add Account → Other → Add Subscribed Calendar, and paste the link. Keep this link private.</div>`; } catch (err) { toast(err.message === 'offline' ? 'You are offline' : err.message); } },
     copy: async () => { try { await navigator.clipboard.writeText(a.dataset.text); toast('Copied'); } catch { prompt('Copy this link', a.dataset.text); } },
     password: () => form('Change password', [{ k: 'current', label: 'Current password', type: 'password', req: true }, { k: 'next', label: 'New password (10+ characters)', type: 'password', req: true }], {}, v => { api('password', { body: v }).then(j => { ls.set(K.tok, j.token); toast('Password changed. Other devices must sign in again.'); }).catch(err => toast(err.message)); }),
     logout: async () => { if (!confirm('Sign out on this device? Data stays on the server.')) return; if (Object.keys(outbox).length) await sync(); try { await api('logout', { method: 'POST' }); } catch {} ls.del(K.tok); ls.del(K.db); ls.del(K.out); ls.del(K.rev); db = blankDb(); outbox = {}; showAuth(); }
   };
-  if (map[act]) { if (act !== 'sheet-close' && act !== 'form-save' && act !== 'form-del' && sheetCtx && ['new-task', 'new-event', 'new-note', 'new-decision', 'new-evidence', 'new-session', 'closeout', 'log-time', 'new-application', 'new-milestone', 'new-immig', 'weekly', 'money-add', 'from-tpl'].includes(act)) closeSheet(true); map[act](); }
+  if (map[act]) { if (act !== 'sheet-close' && act !== 'form-save' && act !== 'form-del' && sheetCtx && ['new-task', 'new-event', 'new-note', 'new-decision', 'new-evidence', 'new-session', 'closeout', 'log-time', 'new-application', 'new-milestone', 'new-immig', 'weekly', 'money-add', 'from-tpl', 'new-course'].includes(act)) closeSheet(true); map[act](); }
 });
 document.addEventListener('input', e => { const k = e.target.dataset && e.target.dataset.input; if (k) { ui[k] = e.target.value; saveUi(); if (e.target.dataset.norender) return; clearTimeout(render.t); render.t = setTimeout(render, 180); } });
 document.addEventListener('change', e => {

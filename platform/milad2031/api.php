@@ -7,11 +7,11 @@
  */
 declare(strict_types=1);
 
-const APP_VERSION = '3.0.0';
+const APP_VERSION = '3.1.0';
 const TOKEN_DAYS = 180;
 const MAX_BODY = 8 * 1024 * 1024;          // 8 MB per request
 const BACKUPS_KEEP = 30;                   // daily snapshots kept
-const COLLECTIONS = ['tasks','events','projects','goals','skills','logs','evidence','decisions','notes','ielts','sessions','settings','milestones','applications','immigration','habits','money','templates'];
+const COLLECTIONS = ['tasks','events','projects','goals','skills','logs','evidence','decisions','notes','ielts','sessions','settings','milestones','applications','immigration','habits','money','templates','courses'];
 const HISTORY_KEEP = 15;
 const DONE_STATES = ['Done', 'Cancelled', 'Completed & Verified', 'Completed - Not Verified'];
 

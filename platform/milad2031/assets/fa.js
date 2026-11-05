@@ -83,9 +83,18 @@ window.M2031_FA = {
     'Due in the next 30 days': 'موعد در ۳۰ روز آینده', 'Nothing due.': 'موعدی نیست.', 'Log weekly review': 'ثبت مرور هفتگی', 'Log monthly review': 'ثبت مرور ماهانه', 'Daily close-out': 'بستن روز',
     '1. What moved forward?': '۱. چه چیزی جلو رفت؟', '2. What slipped, and why?': '۲. چه چیزی عقب افتاد و چرا؟', '3. Top 3 for next week': '۳. سه کار مهم هفته بعد', 'One per line': 'هر خط یکی',
     'Weekly review saved': 'مرور هفتگی ذخیره شد', 'Nothing on this day.': 'در این روز چیزی نیست.', 'Task on this day': 'کار در این روز', 'Copied': 'کپی شد', 'Syncing…': 'در حال همگام‌سازی…',
+    'Courses': 'دوره‌ها', 'Course': 'دوره', 'Up next': 'درس بعدی', 'Lessons': 'درس‌ها', 'Edit list': 'ویرایش فهرست', 'Review course': 'بازنگری دوره', 'Keep going': 'ادامه می‌دهم', 'Pause for now': 'فعلاً متوقف', 'Finished': 'تمام شد', 'Drop it': 'کنارش بگذار',
+    'New course': 'دوره جدید', 'Blank course': 'دوره خالی', 'Start from a plan you already have': 'از برنامه‌ای که داری شروع کن', "Or turn a note's list into lessons": 'یا فهرست یک یادداشت را به درس تبدیل کن', 'Lesson finished': 'درس تمام شد', 'Not finished yet': 'هنوز تمام نشده',
+    'Lessons per week': 'درس در هفته', 'Start next lesson': 'شروع درس بعدی', 'Reviews': 'بازنگری‌ها', 'Create course': 'ساخت دوره', 'Course name': 'نام دوره', 'Untick anything that is not a lesson.': 'هر چه درس نیست را بردار.',
+    'Set up MILAD 2031': 'راه‌اندازی MILAD 2031', 'Hide this': 'پنهان کن', 'I did calendar and Siri': 'تقویم و Siri را انجام دادم', 'Sign in with Face ID': 'ورود با Face ID', 'Morning and evening reminders': 'یادآور صبح و عصر', 'Calendar on your iPhone': 'تقویم در آیفون',
+    'Siri shortcuts': 'میانبرهای Siri', 'One daily habit': 'یک عادت روزانه', 'First 2031 milestone': 'اولین نقطه عطف ۲۰۳۱', 'Your courses': 'دوره‌هایت', 'First backup copy': 'اولین نسخه پشتیبان', 'Sections': 'بخش‌ها', 'Hide what you do not use. Nothing is deleted.': 'هر چه استفاده نمی‌کنی پنهان کن. چیزی پاک نمی‌شود.',
+    'Career': 'شغل', 'Knowledge': 'دانش', 'System': 'سیستم', 'New task': 'کار جدید', 'New event': 'رویداد جدید', 'Update savings': 'به‌روزرسانی پس‌انداز', '↓ Pull to sync': '↓ بکش تا همگام شود', '↻ Release to sync': '↻ رها کن تا همگام شود', 'Up to date': 'به‌روز است', 'Lesson done ✓': 'درس انجام شد ✓', 'Course saved': 'دوره ذخیره شد', 'Course created': 'دوره ساخته شد',
     'Save as PDF / Print': 'ذخیره PDF / چاپ', 'Back': 'بازگشت', 'Summary': 'خلاصه', 'Full form': 'فرم کامل', 'Document': 'سند', 'Decision': 'تصمیم', 'Note': 'یادداشت', 'Session': 'جلسه', 'Minutes': 'دقیقه', 'Result': 'نتیجه'
   },
+  more: 0,
   rx: [
+    [/^Finish setting up · (\d+) of (\d+)$/, 'تکمیل راه‌اندازی · $1 از $2'], [/^Next: (.+)$/, 'بعدی: $1'], [/^Course review: (.+)$/, 'بازنگری دوره: $1'], [/^(\d+)\/(\d+) this week$/, '$1 از $2 این هفته'],
+    [/^Go to (.+)$/, 'برو به $1'], [/^→ Task(.*)$/, '→ کار$1'], [/^→ Event(.*)$/, '→ رویداد$1'], [/^→ Practice(.*)$/, '→ تمرین$1'], [/^→ Job ad.*$/, '→ آگهی شغلی، در کاریابی ذخیره می‌شود'], [/^→ Note with link$/, '→ یادداشت با لینک'], [/^→ Note$/, '→ یادداشت'],
     [/^synced (\d\d:\d\d)$/, 'همگام $1'], [/^synced$/, 'همگام'], [/^offline$/, 'آفلاین'], [/^(\d+) to sync$/, '$1 در صف ارسال'],
     [/^(\d+) open$/, '$1 باز'], [/^(\d+) of (\d+) ready$/, '$1 از $2 آماده'], [/^(\d+) of (\d+) milestones done$/, '$1 از $2 نقطه عطف انجام شد'],
     [/^(\d+) overdue tasks?$/, '$1 کار عقب‌افتاده'], [/^(\d+) waiting on others$/, '$1 منتظر دیگران'], [/^(\d+) job follow-ups? due$/, '$1 پیگیری شغلی'],
