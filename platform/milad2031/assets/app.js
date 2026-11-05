@@ -5,7 +5,7 @@
 (() => {
 'use strict';
 
-const VERSION = '2.1.0';
+const VERSION = '2.1.1';
 const API = 'api.php';
 const K = { db: 'm2031.db', out: 'm2031.outbox', tok: 'm2031.token', rev: 'm2031.rev', ui: 'm2031.ui', last: 'm2031.lastSync' };
 const COLS = ['tasks','events','projects','goals','skills','logs','evidence','decisions','notes','ielts','sessions','settings','milestones','applications','immigration'];
@@ -123,6 +123,10 @@ async function sync() {
     if (sent.length) j = await api('push', { body: { changes: Object.entries(outbox).map(([k, r]) => ({ c: k.split(':')[0], r })) } });
     else j = await api('pull', { q: '&since=' + encodeURIComponent(ls.get(K.rev) ?? '') });
     for (const [k, ts] of sent) { if (outbox[k] && outbox[k].updatedAt === ts) delete outbox[k]; }
+    if (!sent.length && !j.unchanged && Number(j.rev) === 0) {   // server was reset or reinstalled: restore it from this device instead of wiping the device
+      let n = 0; for (const c of COLS) for (const r of Object.values(db[c] || {})) { if (r && r.id) { outbox[c + ':' + r.id] = r; n++; } }
+      if (n) { persist(); toast(`The server was empty. Restoring ${n} records from this device…`); syncAgain = true; return; }
+    }
     if (!j.unchanged && j.collections) {
       const server = normalise(j.collections);
       for (const [k, r] of Object.entries(outbox)) { server[k.split(':')[0]][r.id] = r; }

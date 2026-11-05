@@ -7,7 +7,7 @@
  */
 declare(strict_types=1);
 
-const APP_VERSION = '2.1.0';
+const APP_VERSION = '2.1.1';
 const TOKEN_DAYS = 180;
 const MAX_BODY = 8 * 1024 * 1024;          // 8 MB per request
 const BACKUPS_KEEP = 30;                   // daily snapshots kept
