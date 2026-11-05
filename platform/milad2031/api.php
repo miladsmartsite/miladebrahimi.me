@@ -7,7 +7,7 @@
  */
 declare(strict_types=1);
 
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.1.0';
 const TOKEN_DAYS = 180;
 const MAX_BODY = 8 * 1024 * 1024;          // 8 MB per request
 const BACKUPS_KEEP = 30;                   // daily snapshots kept
@@ -27,6 +27,12 @@ function out(int $code, $payload): void {
     exit;
 }
 function fail(int $code, string $msg): void { out($code, ['ok' => false, 'error' => $msg]); }
+const COOKIE = 'm2031_t';
+function is_https(): bool { return (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https') || (($_SERVER['SERVER_PORT'] ?? '') == 443); }
+function cookie_path(): string { $d = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/')), '/'); return $d === '' ? '/' : $d . '/'; }
+function set_auth_cookie(string $tok, int $days): void {
+    setcookie(COOKIE, $tok, ['expires' => $tok === '' ? time() - 3600 : time() + $days * 86400, 'path' => cookie_path(), 'secure' => is_https(), 'httponly' => true, 'samesite' => 'Strict']);
+}
 
 function ensure_dir(): void {
     if (!is_dir(DATA_DIR) && !@mkdir(DATA_DIR, 0750, true)) { fail(500, 'Cannot create data folder'); }
@@ -95,6 +101,7 @@ function throttle_hit(bool $ok): void {
 /* ---------- tokens ---------- */
 function issue_token(string $device): string {
     $tok = bin2hex(random_bytes(32));
+    set_auth_cookie($tok, TOKEN_DAYS);
     with_lock(function () use ($tok, $device) {
         $t = read_json('tokens.json', []); $now = time();
         $t = array_filter($t, fn($r) => ($r['exp'] ?? 0) > $now);
@@ -106,8 +113,13 @@ function issue_token(string $device): string {
 function bearer(): string {
     $h = $_SERVER['HTTP_AUTHORIZATION'] ?? ($_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '');
     if ($h === '' && function_exists('getallheaders')) { foreach (getallheaders() as $k => $v) { if (strtolower($k) === 'authorization') { $h = $v; } } }
-    if ($h === '') { $h = 'Bearer ' . ($_SERVER['HTTP_X_AUTH_TOKEN'] ?? ''); }
+    if ($h === '' || !preg_match('/Bearer\s+[a-f0-9]{64}/i', $h)) { $x = $_SERVER['HTTP_X_AUTH_TOKEN'] ?? ''; $h = 'Bearer ' . ($x !== '' ? $x : ($_COOKIE[COOKIE] ?? '')); }
     return preg_match('/Bearer\s+([a-f0-9]{64})/i', $h, $m) ? strtolower($m[1]) : '';
+}
+function token_valid(string $tok): bool {
+    if ($tok === '') { return false; }
+    $t = read_json('tokens.json', []); $r = $t[hash('sha256', $tok)] ?? null;
+    return $r && ($r['exp'] ?? 0) >= time();
 }
 function require_auth(): string {
     $tok = bearer(); if ($tok === '') { fail(401, 'Not signed in'); }
@@ -204,7 +216,8 @@ $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
 switch ($action) {
     case 'status':
-        out(200, ['ok' => true, 'setup' => is_setup(), 'version' => APP_VERSION, 'time' => gmdate('c')]);
+        $tk = bearer(); $authed = token_valid($tk);
+        out(200, ['ok' => true, 'setup' => is_setup(), 'authed' => $authed, 'token' => $authed ? $tk : null, 'version' => APP_VERSION, 'time' => gmdate('c')]);
 
     case 'setup':
         if ($method !== 'POST') { fail(405, 'POST only'); }
@@ -231,6 +244,7 @@ switch ($action) {
     case 'logout':
         $k = require_auth();
         with_lock(function () use ($k) { $t = read_json('tokens.json', []); unset($t[$k]); write_json('tokens.json', $t); });
+        set_auth_cookie('', 0);
         out(200, ['ok' => true]);
 
     case 'pull':

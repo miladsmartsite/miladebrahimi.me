@@ -163,3 +163,11 @@ nav.tabs a.on{color:var(--brass-ink)}
 .pill-list{display:flex;gap:6px;flex-wrap:wrap}
 [dir=auto]{unicode-bidi:plaintext}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* optional fields folded away */
+details.more{margin:6px 0 4px;border-top:1px solid var(--line,rgba(0,0,0,.1));padding-top:10px}
+details.more>summary{cursor:pointer;list-style:none;font-weight:600;color:var(--brass-ink,#8a6d12);padding:6px 0 10px;-webkit-tap-highlight-color:transparent}
+details.more>summary::-webkit-details-marker{display:none}
+details.more>summary::before{content:"+ ";}
+details.more[open]>summary::before{content:"− ";}
+.fgrid>.f{min-width:0}.f input[type=date],.f input[type=datetime-local]{min-width:0;width:100%;box-sizing:border-box}

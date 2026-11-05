@@ -5,7 +5,7 @@
 (() => {
 'use strict';
 
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 const API = 'api.php';
 const K = { db: 'm2031.db', out: 'm2031.outbox', tok: 'm2031.token', rev: 'm2031.rev', ui: 'm2031.ui', last: 'm2031.lastSync' };
 const COLS = ['tasks','events','projects','goals','skills','logs','evidence','decisions','notes','ielts','sessions','settings'];
@@ -84,7 +84,12 @@ async function api(action, opts = {}) {
   catch { throw new Error('offline'); }
   let j = null; try { j = await r.json(); } catch {}
   if (!j) throw new Error(`Server error (${r.status})`);
-  if (r.status === 401 && action !== 'login' && action !== 'setup') { ls.del(K.tok); showAuth(j.error || 'Please sign in again'); throw new Error('auth'); }
+  if (r.status === 401 && action !== 'login' && action !== 'setup' && action !== 'password') {
+    // Only sign out when the server says the token itself is no longer valid.
+    if (j.error === 'Session expired' || !tok) { ls.del(K.tok); showAuth(j.error || 'Please sign in again'); }
+    else setSyncState('err', 'Server did not receive the sign-in token (' + (j.error || 401) + ')');
+    throw new Error('auth');
+  }
   if (!j.ok) throw new Error(j.error || `HTTP ${r.status}`);
   return j;
 }
@@ -443,8 +448,12 @@ function readForm(fields, el) {
   return o;
 }
 function form(title, fields, rec, onSave, opts = {}) {
-  const body = fields.map(f => Array.isArray(f) ? `<div class="fgrid">${f.map(x => field(x, rec[x.k])).join('')}</div>` : f.html ? f.html : field(f, rec[f.k])).join('') + `<div class="err" id="formerr"></div>`;
-  const flat = fields.flat().filter(f => f.k);
+  const draw = fs => fs.map(f => Array.isArray(f) ? `<div class="fgrid">${f.map(x => field(x, rec[x.k])).join('')}</div>` : f.html ? f.html : field(f, rec[f.k])).join('');
+  const cut = fields.indexOf('MORE');
+  const main = cut < 0 ? fields : fields.slice(0, cut), extra = cut < 0 ? [] : fields.slice(cut + 1);
+  const filled = extra.flat().filter(f => f.k && rec[f.k] !== undefined && rec[f.k] !== '' && rec[f.k] !== null && rec[f.k] !== false && !(Array.isArray(rec[f.k]) && !rec[f.k].length)).length;
+  const body = draw(main) + (extra.length ? `<details class="more"><summary>More details${filled ? ` <span class="small">(${filled} filled)</span>` : ''}</summary>${draw(extra)}</details>` : '') + `<div class="err" id="formerr"></div>`;
+  const flat = fields.filter(f => f !== 'MORE').flat().filter(f => f.k);
   const foot = `${opts.onDelete ? '<button class="btn danger" data-act="form-del">Delete</button><span style="flex:1"></span>' : ''}${opts.extra || ''}<button class="btn" data-act="sheet-close">Cancel</button><button class="btn primary" data-act="form-save">Save</button>`;
   openSheet(title, body, foot, { onSave: () => { const v = readForm(flat, sheetCtx.el); const err = onSave(v); if (err) { $('#formerr', sheetCtx.el).textContent = err; return; } closeSheet(); }, onDelete: opts.onDelete, noFocus: opts.noFocus });
 }
@@ -455,12 +464,13 @@ const skillOpts = () => list('skills').map(s => [s.id, s.title]);
 function taskForm(t = {}) {
   const fields = [
     { k: 'title', label: 'Task', req: true },
-    [{ k: 'state', label: 'Workflow state', type: 'select', options: STATES, blank: false, def: 'Not Started' }, { k: 'priority', label: 'Priority', type: 'select', options: PRI, def: 'P2' }],
-    [{ k: 'owner', label: 'Owner', type: 'select', options: OWNERS, def: 'Milad' }, { k: 'area', label: 'Strategic area', type: 'select', options: AREAS }],
+    [{ k: 'state', label: 'Status', type: 'select', options: STATES, blank: false, def: 'Not Started' }, { k: 'priority', label: 'Priority', type: 'select', options: PRI, def: 'P2' }],
+    [{ k: 'due', label: 'Due date', type: 'date' }, { k: 'focusDate', label: 'Top 3 on day', type: 'date' }],
+    { k: 'nextAction', label: 'Next step', ph: 'One concrete next step' },
+    'MORE',
+    [{ k: 'owner', label: 'Owner', type: 'select', options: OWNERS, def: 'Milad' }, { k: 'area', label: 'Area', type: 'select', options: AREAS }],
     [{ k: 'projectId', label: 'Project', type: 'select', options: projOpts }, { k: 'goalId', label: 'Goal', type: 'select', options: goalOpts }],
-    { k: 'nextAction', label: 'Next action', type: 'textarea', ph: 'One concrete next step' },
-    { k: 'criterion', label: 'Completion criterion', type: 'textarea', ph: 'What must exist for this to count as done?' },
-    [{ k: 'due', label: 'Due date', type: 'date' }, { k: 'focusDate', label: 'Top 3 day (Focus Date)', type: 'date' }],
+    { k: 'criterion', label: 'Done when…', type: 'textarea', ph: 'What must exist for this to count as done?' },
     [{ k: 'scheduled', label: 'Scheduled start', type: 'datetime' }, { k: 'scheduledEnd', label: 'Scheduled end', type: 'datetime' }],
     [{ k: 'schedType', label: 'Schedule type', type: 'select', options: SCHED }, { k: 'estMinutes', label: 'Estimate (minutes)', type: 'number', step: 5 }],
     { k: 'dueAlert', label: 'Show the due date in my phone calendar', type: 'check' },
@@ -496,11 +506,12 @@ function eventForm(e = {}, day) {
   const rec = Object.assign({ start: day ? day + 'T09:00' + tzOffset() : '', alarm: 15 }, e, { repeat: r.FREQ || '', interval: r.INTERVAL || '', byday: r.BYDAY || '', count: r.COUNT || '', until: r.UNTIL ? `${r.UNTIL.slice(0, 4)}-${r.UNTIL.slice(4, 6)}-${r.UNTIL.slice(6, 8)}` : '', exlist: (e.exdates || []).map(dayOf).join(', ') });
   const fields = [
     { k: 'title', label: 'Title', req: true },
-    { k: 'allDay', label: 'All-day event', type: 'check' },
     [{ k: 'start', label: 'Starts', type: 'datetime' }, { k: 'end', label: 'Ends', type: 'datetime' }],
-    [{ k: 'repeat', label: 'Repeats', type: 'select', options: [['DAILY', 'Daily'], ['WEEKLY', 'Weekly'], ['MONTHLY', 'Monthly'], ['YEARLY', 'Yearly']] }, { k: 'interval', label: 'Every (n)', type: 'number' }],
-    [{ k: 'byday', label: 'On days (weekly)', ph: 'e.g. TH or SA,TH' }, { k: 'count', label: 'Number of times', type: 'number' }],
-    [{ k: 'until', label: 'Repeat until', type: 'date' }, { k: 'alarm', label: 'Reminder', type: 'select', options: [[0, 'None'], [5, '5 min before'], [15, '15 min before'], [30, '30 min before'], [60, '1 hour before'], [1440, '1 day before']], blank: false }],
+    [{ k: 'repeat', label: 'Repeats', type: 'select', options: [['DAILY', 'Daily'], ['WEEKLY', 'Weekly'], ['MONTHLY', 'Monthly'], ['YEARLY', 'Yearly']] }, { k: 'alarm', label: 'Reminder', type: 'select', options: [[0, 'None'], [5, '5 min before'], [15, '15 min before'], [30, '30 min before'], [60, '1 hour before'], [1440, '1 day before']], blank: false }],
+    'MORE',
+    { k: 'allDay', label: 'All-day event', type: 'check' },
+    [{ k: 'interval', label: 'Every (n)', type: 'number' }, { k: 'count', label: 'Number of times', type: 'number' }],
+    [{ k: 'byday', label: 'On days (weekly)', ph: 'e.g. TH or SA,TH' }, { k: 'until', label: 'Repeat until', type: 'date' }],
     { k: 'exlist', label: 'Skip these dates', ph: '2026-12-31, 2027-01-07', hint: 'Comma-separated dates on which a repeating event does not happen.' },
     { k: 'taskId', label: 'Linked task', type: 'select', options: () => list('tasks').filter(isOpen).map(t => [t.id, t.title]) },
     { k: 'notes', label: 'Notes', type: 'textarea' }
@@ -508,6 +519,7 @@ function eventForm(e = {}, day) {
   form(e.id ? 'Edit event' : 'New event', fields, rec, v => {
     if (!v.title || !v.start) return 'Title and start are required.';
     if (v.allDay) { v.start = v.start.slice(0, 10); v.end = v.end ? v.end.slice(0, 10) : ''; }
+    else if (!v.end) { const d = new Date(v.start); if (!isNaN(d)) { d.setHours(d.getHours() + 1); v.end = fromInput(toInput(d.toISOString())); } }
     let rr = ''; if (v.repeat) { rr = 'FREQ=' + v.repeat; if (v.interval > 1) rr += ';INTERVAL=' + v.interval; if (v.byday && v.repeat === 'WEEKLY') rr += ';BYDAY=' + v.byday.toUpperCase().replace(/[^A-Z,]/g, ''); if (v.count) rr += ';COUNT=' + v.count; if (v.until) rr += ';UNTIL=' + v.until.replace(/-/g, '') + 'T235959Z'; }
     const ex = v.exlist ? v.exlist.split(/[,\s]+/).filter(x => /^\d{4}-\d{2}-\d{2}$/.test(x)) : [];
     const out = Object.assign({}, e, { title: v.title, allDay: v.allDay, start: v.start, end: v.end, rrule: rr, exdates: ex, alarm: Number(v.alarm) || 0, taskId: v.taskId, notes: v.notes });
@@ -515,19 +527,19 @@ function eventForm(e = {}, day) {
   }, { onDelete: e.id ? () => { if (confirm('Delete this event?')) { remove('events', e.id); closeSheet(); } } : null });
 }
 function simpleForm(c, title, fields, rec) {
-  form((rec.id ? 'Edit ' : 'New ') + title, fields, rec, v => { const req = fields.flat().find(f => f.req && !v[f.k]); if (req) return `${req.label} is required.`; save(c, Object.assign({}, rec, v)); toast('Saved'); },
+  form((rec.id ? 'Edit ' : 'New ') + title, fields, rec, v => { const req = fields.flat().find(f => f && f.req && !v[f.k]); if (req) return `${req.label} is required.`; save(c, Object.assign({}, rec, v)); toast('Saved'); },
     { onDelete: rec.id ? () => { if (confirm('Delete this ' + title + '?')) { remove(c, rec.id); closeSheet(); } } : null });
 }
 const FORMS = {
-  goal: r => simpleForm('goals', 'goal', [{ k: 'title', label: 'Goal', req: true }, [{ k: 'code', label: 'Code', ph: 'G1' }, { k: 'status', label: 'Status', type: 'select', options: GOAL_STATES }], [{ k: 'area', label: 'Strategic area', type: 'select', options: AREAS }, { k: 'target', label: 'Target date', type: 'date' }], { k: 'success', label: 'Success criteria', type: 'textarea' }, { k: 'notes', label: 'Notes', type: 'textarea' }], r),
-  project: r => simpleForm('projects', 'project', [{ k: 'title', label: 'Project', req: true }, [{ k: 'status', label: 'Status', type: 'select', options: PROJECT_STATES }, { k: 'goalId', label: 'Goal', type: 'select', options: goalOpts }], [{ k: 'start', label: 'Start', type: 'date' }, { k: 'target', label: 'Target', type: 'date' }], { k: 'deliverable', label: 'Deliverable', type: 'textarea' }, { k: 'dependencies', label: 'Dependencies', type: 'textarea' }, { k: 'notes', label: 'Notes', type: 'textarea' }], r),
-  skill: r => simpleForm('skills', 'skill', [{ k: 'title', label: 'Skill', req: true }, [{ k: 'status', label: 'Status', type: 'select', options: SKILL_STATES }, { k: 'priority', label: 'Priority', type: 'select', options: PRI }], [{ k: 'current', label: 'Current level (0-5)', type: 'number', hint: 'Raise only after a passed practical check.' }, { k: 'target', label: 'Target level', type: 'number' }], [{ k: 'weeklyHours', label: 'Weekly hours', type: 'number', step: 0.1 }, { k: 'category', label: 'Category', type: 'select', options: ['Technical', 'Language', 'Domain', 'Commercial', 'Leadership'] }], { k: 'evidenceNeeded', label: 'Evidence of competence', type: 'textarea' }, { k: 'plan', label: 'Learning plan', type: 'big' }], r),
-  session: r => simpleForm('sessions', 'session', [{ k: 'title', label: 'Session', req: true, ph: 'SQL S1: core queries' }, [{ k: 'date', label: 'Date', type: 'date', def: today() }, { k: 'skill', label: 'Skill', type: 'select', options: skillOpts }], [{ k: 'number', label: 'Session no.', type: 'number' }, { k: 'result', label: 'Pass check', type: 'select', options: ['Pass', 'Partial', 'Not yet', 'Not a check'] }], { k: 'done', label: 'What I did', type: 'textarea' }, { k: 'difficulty', label: 'Difficulties / next time', type: 'textarea' }], r),
-  ielts: r => simpleForm('ielts', 'IELTS entry', [[{ k: 'date', label: 'Date', type: 'date', def: today(), req: true }, { k: 'skill', label: 'Skill', type: 'select', options: ['Listening', 'Reading', 'Writing Task 1', 'Writing Task 2', 'Speaking', 'Overall'] }], [{ k: 'kind', label: 'Type', type: 'select', options: IELTS_KINDS, blank: false }, { k: 'band', label: 'Band / raw score', ph: 'e.g. 31/40 or 6.5' }], { k: 'assessor', label: 'Assessor / source' }, { k: 'feedback', label: 'Feedback by criterion', type: 'textarea' }, { k: 'actions', label: 'Next actions', type: 'textarea' }], r),
-  evidence: r => simpleForm('evidence', 'evidence item', [[{ k: 'code', label: 'ID', ph: 'A1' }, { k: 'status', label: 'Status', type: 'select', options: EVIDENCE_STATES }], { k: 'title', label: 'Document', req: true }, { k: 'why', label: 'Why it is needed', type: 'textarea' }, { k: 'proves', label: 'Exact facts it can prove', type: 'textarea' }, [{ k: 'conflicts', label: 'Related conflicts', ph: 'C1, C2' }, { k: 'priority', label: 'Priority', type: 'select', options: PRI }], { k: 'source', label: 'Likely source / issuer' }, { k: 'recovery', label: 'Recovery action', type: 'textarea' }, { k: 'alternative', label: 'Alternative (proposed, not confirmed accepted)', type: 'textarea' }, [{ k: 'target', label: 'Target date', type: 'date' }, { k: 'location', label: 'Where the file is stored', ph: 'Private vault, not this app' }], { k: 'notes', label: 'Notes', type: 'textarea' }], r),
-  decision: r => simpleForm('decisions', 'decision', [{ k: 'title', label: 'Decision', req: true }, [{ k: 'status', label: 'Status', type: 'select', options: DECISION_STATES }, { k: 'date', label: 'Date', type: 'date', def: today() }], { k: 'category', label: 'Category', type: 'select', options: ['Career', 'Migration', 'Learning', 'Finance', 'Tathmeer', 'Personal', 'System'] }, { k: 'decision', label: 'What was decided', type: 'textarea' }, { k: 'evidence', label: 'Evidence used', type: 'textarea' }, { k: 'alternatives', label: 'Alternatives considered', type: 'textarea' }, { k: 'risks', label: 'Risks and assumptions', type: 'textarea' }, [{ k: 'nextAction', label: 'Next action' }, { k: 'review', label: 'Review date', type: 'date' }]], r),
-  note: r => simpleForm('notes', 'document', [{ k: 'title', label: 'Title', req: true }, [{ k: 'tags', label: 'Tags', ph: 'CV, career' }, { k: 'pinned', label: 'Pin to top', type: 'check' }], { k: 'body', label: 'Content (Markdown)', type: 'big' }, { k: 'source', label: 'Original source link', type: 'url' }], r),
-  logitem: r => simpleForm('logs', 'log', [[{ k: 'date', label: 'Date', type: 'date', req: true }, { k: 'type', label: 'Type', type: 'select', options: ['closeout', 'weekly', 'monthly', 'session', 'note'] }], { k: 'title', label: 'Title' }, { k: 'done', label: 'Done / outcome', type: 'textarea' }, { k: 'blockers', label: 'Blockers', type: 'textarea' }, { k: 'notes', label: 'Notes', type: 'textarea' }], r)
+  goal: r => simpleForm('goals', 'goal', [{ k: 'title', label: 'Goal', req: true }, [{ k: 'status', label: 'Status', type: 'select', options: GOAL_STATES }, { k: 'target', label: 'Target date', type: 'date' }], 'MORE', [{ k: 'code', label: 'Code', ph: 'G1' }, { k: 'area', label: 'Area', type: 'select', options: AREAS }], { k: 'success', label: 'Success criteria', type: 'textarea' }, { k: 'notes', label: 'Notes', type: 'textarea' }], r),
+  project: r => simpleForm('projects', 'project', [{ k: 'title', label: 'Project', req: true }, [{ k: 'status', label: 'Status', type: 'select', options: PROJECT_STATES }, { k: 'target', label: 'Target date', type: 'date' }], 'MORE', [{ k: 'goalId', label: 'Goal', type: 'select', options: goalOpts }, { k: 'start', label: 'Start', type: 'date' }], { k: 'deliverable', label: 'Deliverable', type: 'textarea' }, { k: 'dependencies', label: 'Dependencies', type: 'textarea' }, { k: 'notes', label: 'Notes', type: 'textarea' }], r),
+  skill: r => simpleForm('skills', 'skill', [{ k: 'title', label: 'Skill', req: true }, [{ k: 'status', label: 'Status', type: 'select', options: SKILL_STATES }, { k: 'current', label: 'Level now (0-5)', type: 'number' }], 'MORE', [{ k: 'priority', label: 'Priority', type: 'select', options: PRI }, { k: 'target', label: 'Target level', type: 'number' }], [{ k: 'weeklyHours', label: 'Weekly hours', type: 'number', step: 0.1 }, { k: 'category', label: 'Category', type: 'select', options: ['Technical', 'Language', 'Domain', 'Commercial', 'Leadership'] }], { k: 'evidenceNeeded', label: 'Evidence of competence', type: 'textarea' }, { k: 'plan', label: 'Learning plan', type: 'big' }], r),
+  session: r => simpleForm('sessions', 'session', [{ k: 'title', label: 'Session', req: true, ph: 'SQL S1: core queries' }, [{ k: 'date', label: 'Date', type: 'date', def: today() }, { k: 'result', label: 'Result', type: 'select', options: ['Pass', 'Partial', 'Not yet', 'Not a check'] }], { k: 'done', label: 'What I did', type: 'textarea' }, 'MORE', [{ k: 'skill', label: 'Skill', type: 'select', options: skillOpts }, { k: 'number', label: 'Session no.', type: 'number' }], { k: 'difficulty', label: 'Difficulties / next time', type: 'textarea' }], r),
+  ielts: r => simpleForm('ielts', 'IELTS entry', [[{ k: 'date', label: 'Date', type: 'date', def: today(), req: true }, { k: 'skill', label: 'Skill', type: 'select', options: ['Listening', 'Reading', 'Writing Task 1', 'Writing Task 2', 'Speaking', 'Overall'] }], [{ k: 'kind', label: 'Type', type: 'select', options: IELTS_KINDS, blank: false }, { k: 'band', label: 'Band / raw score', ph: 'e.g. 31/40 or 6.5' }], 'MORE', { k: 'assessor', label: 'Assessor / source' }, { k: 'feedback', label: 'Feedback by criterion', type: 'textarea' }, { k: 'actions', label: 'Next actions', type: 'textarea' }], r),
+  evidence: r => simpleForm('evidence', 'evidence item', [{ k: 'title', label: 'Document', req: true }, { k: 'status', label: 'Status', type: 'select', options: EVIDENCE_STATES }, 'MORE', { k: 'code', label: 'ID', ph: 'A1' }, { k: 'why', label: 'Why it is needed', type: 'textarea' }, { k: 'proves', label: 'Exact facts it can prove', type: 'textarea' }, [{ k: 'conflicts', label: 'Related conflicts', ph: 'C1, C2' }, { k: 'priority', label: 'Priority', type: 'select', options: PRI }], { k: 'source', label: 'Likely source / issuer' }, { k: 'recovery', label: 'Recovery action', type: 'textarea' }, { k: 'alternative', label: 'Alternative (proposed, not confirmed accepted)', type: 'textarea' }, [{ k: 'target', label: 'Target date', type: 'date' }, { k: 'location', label: 'Where the file is stored', ph: 'Private vault, not this app' }], { k: 'notes', label: 'Notes', type: 'textarea' }], r),
+  decision: r => simpleForm('decisions', 'decision', [{ k: 'title', label: 'Decision', req: true }, { k: 'decision', label: 'What was decided', type: 'textarea' }, 'MORE', [{ k: 'status', label: 'Status', type: 'select', options: DECISION_STATES }, { k: 'date', label: 'Date', type: 'date', def: today() }], { k: 'category', label: 'Category', type: 'select', options: ['Career', 'Migration', 'Learning', 'Finance', 'Tathmeer', 'Personal', 'System'] }, { k: 'evidence', label: 'Evidence used', type: 'textarea' }, { k: 'alternatives', label: 'Alternatives considered', type: 'textarea' }, { k: 'risks', label: 'Risks and assumptions', type: 'textarea' }, [{ k: 'nextAction', label: 'Next action' }, { k: 'review', label: 'Review date', type: 'date' }]], r),
+  note: r => simpleForm('notes', 'document', [{ k: 'title', label: 'Title', req: true }, { k: 'body', label: 'Content', type: 'big' }, 'MORE', [{ k: 'tags', label: 'Tags', ph: 'CV, career' }, { k: 'pinned', label: 'Pin to top', type: 'check' }], { k: 'source', label: 'Original source link', type: 'url' }], r),
+  logitem: r => simpleForm('logs', 'log', [{ k: 'date', label: 'Date', type: 'date', req: true }, { k: 'done', label: 'Done / outcome', type: 'textarea' }, 'MORE', { k: 'type', label: 'Type', type: 'select', options: ['closeout', 'weekly', 'monthly', 'session', 'note'] }, { k: 'title', label: 'Title' }, { k: 'blockers', label: 'Blockers', type: 'textarea' }, { k: 'notes', label: 'Notes', type: 'textarea' }], r)
 };
 
 function planDay(day, isCloseout) {
@@ -613,7 +625,7 @@ setInterval(() => { if (document.visibilityState === 'visible') sync(); }, 45000
 async function showAuth(msg) {
   closeSheet(true);
   let setup = true;
-  try { const s = await api('status'); setup = s.setup; } catch (e) { if (e.message === 'offline' && ls.get(K.tok)) return start(); }
+  try { const s = await api('status'); setup = s.setup; if (s.authed && s.token) { ls.set(K.tok, s.token); return start(); } } catch (e) { if (e.message === 'offline' && ls.get(K.tok)) return start(); }
   $('#app').innerHTML = `<div class="login"><form class="box" id="authform"><h1>MILAD 2031</h1><p>${setup ? 'Sign in to your personal operating system.' : 'First run: create the owner password for this platform. Use a long password you do not use elsewhere.'}</p>
     <div class="f"><label for="pw">${setup ? 'Password' : 'New password (10+ characters)'}</label><input id="pw" type="password" autocomplete="${setup ? 'current-password' : 'new-password'}" required></div>
     ${setup ? '' : '<div class="f"><label for="pw2">Repeat password</label><input id="pw2" type="password" autocomplete="new-password" required></div>'}
@@ -631,5 +643,6 @@ function start() { db = normalise(ls.get(K.db, null)); outbox = ls.get(K.out, {}
 
 /* ---------------- boot ---------------- */
 if ('serviceWorker' in navigator && location.protocol === 'https:') { navigator.serviceWorker.register('sw.js').catch(() => {}); }
+try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch {}
 if (ls.get(K.tok)) start(); else showAuth();
 })();

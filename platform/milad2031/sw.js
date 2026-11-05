@@ -1,6 +1,6 @@
 /* MILAD 2031 OS service worker: app shell offline; never caches api.php (data syncs through the outbox). */
-const CACHE = 'm2031-shell-v1.0.0';
-const SHELL = ['./', 'index.html', 'assets/app.css?v=1.0.0', 'assets/app.js?v=1.0.0', 'manifest.webmanifest', 'icons/apple-touch-icon.png', 'icons/icon-192.png', 'icons/favicon.png'];
+const CACHE = 'm2031-shell-v1.1.0';
+const SHELL = ['./', 'index.html', 'assets/app.css?v=1.1.0', 'assets/app.js?v=1.1.0', 'manifest.webmanifest', 'icons/apple-touch-icon.png', 'icons/icon-192.png', 'icons/favicon.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', e => {
