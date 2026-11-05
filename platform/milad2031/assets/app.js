@@ -5,7 +5,7 @@
 (() => {
 'use strict';
 
-const VERSION = '2.0.0';
+const VERSION = '2.1.0';
 const API = 'api.php';
 const K = { db: 'm2031.db', out: 'm2031.outbox', tok: 'm2031.token', rev: 'm2031.rev', ui: 'm2031.ui', last: 'm2031.lastSync' };
 const COLS = ['tasks','events','projects','goals','skills','logs','evidence','decisions','notes','ielts','sessions','settings','milestones','applications','immigration'];
@@ -62,7 +62,12 @@ function fromInput(v) { return v ? v.slice(0, 16) + tzOffset() : ''; }
 function fmtDate(s, withYear) { const d = parseD(s); if (!d) return ''; return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', ...(withYear ? { year: 'numeric' } : {}) }); }
 function fmtTime(s) { if (!s || s.length <= 10) return ''; const d = parseD(s); return d ? `${pad(d.getHours())}:${pad(d.getMinutes())}` : ''; }
 function rel(s) { const t = today(); if (!s) return ''; const n = Math.round((parseD(s) - parseD(t)) / 86400000); if (n === 0) return 'today'; if (n === 1) return 'tomorrow'; if (n === -1) return 'yesterday'; return n < 0 ? `${-n}d late` : `in ${n}d`; }
-function toast(msg) { document.querySelectorAll('.toast').forEach(x => x.remove()); const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 2600); }
+function toast(msg, label, fn) {
+  document.querySelectorAll('.toast').forEach(x => x.remove());
+  const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
+  if (label && fn) { const b = document.createElement('button'); b.textContent = label; b.onclick = () => { t.remove(); fn(); }; t.appendChild(b); }
+  document.body.appendChild(t); setTimeout(() => t.remove(), label ? 5000 : 2400);
+}
 const list = c => Object.values(db[c] || {}).filter(r => r && !r.deleted);
 const get = (c, id) => { const r = db[c] && db[c][id]; return r && !r.deleted ? r : null; };
 const isOpen = t => !DONE.has(t.state);
@@ -234,14 +239,14 @@ const NAV_MORE = [['jobs', 'Job search', I.jobs], ['immigration', 'Immigration',
 /* ---------------- chips ---------------- */
 function stateChip(s0) { const s = STATES.includes(s0) ? s0 : (LEGACY[s0] || 'To do'); const c = s === 'Done' ? 's-done' : s === 'Waiting' ? 's-wait' : s === 'Doing' ? 's-prog' : ''; return s === 'To do' ? '' : `<span class="chip ${c}">${esc(s)}</span>`; }
 const priChip = p => p ? `<span class="chip ${esc(p.toLowerCase())}">${esc(p)}</span>` : '';
-function dueChip(t) { if (!t.due) return ''; const late = isOpen(t) && t.due < today(); return `<span class="chip ${late ? 'late' : ''}">Due ${esc(fmtDate(t.due))} · ${esc(rel(t.due))}</span>`; }
+function dueChip(t) { if (!t.due) return ''; const late = isOpen(t) && t.due < today(); const r = rel(t.due); return `<span class="chip ${late ? 'late' : ''}">${esc(/^(today|tomorrow|yesterday)$/.test(r) ? r[0].toUpperCase() + r.slice(1) : fmtDate(t.due))}</span>`; }
 
 function taskRow(t, opts = {}) {
   const proj = t.projectId && get('projects', t.projectId);
   return `<div class="row" data-act="task" data-id="${esc(t.id)}">
     <button class="check ${DONE.has(t.state) ? 'done' : ''}" data-act="complete" data-id="${esc(t.id)}" aria-label="Complete">${I.tick}</button>
     <div class="main"><div class="t" dir="auto">${esc(t.title)}</div>
-      <div class="m">${priChip(t.priority)}${stateChip(t.state)}${dueChip(t)}${t.scheduled ? `<span>🕘 ${esc(fmtDate(t.scheduled))} ${esc(fmtTime(t.scheduled))}</span>` : ''}${proj ? `<span dir="auto">${esc(proj.title)}</span>` : ''}${t.owner && t.owner !== 'Milad' ? `<span>${esc(t.owner)}</span>` : ''}</div>
+      <div class="m">${isOpen(t) && t.focusDate === today() ? '<span class="chip s-rev">★ Top 3</span>' : ''}${t.priority === 'P1' && isOpen(t) ? priChip('P1') : ''}${stOf(t) === 'Waiting' ? stateChip('Waiting') : ''}${isOpen(t) ? dueChip(t) : ''}${t.scheduled && isOpen(t) ? `<span>🕘 ${esc(fmtTime(t.scheduled))}</span>` : ''}</div>
       ${opts.na !== false && t.nextAction ? `<div class="na" dir="auto">→ ${esc(t.nextAction)}</div>` : ''}</div></div>`;
 }
 const sortTasks = arr => arr.sort((a, b) => (a.priority || 'P9').localeCompare(b.priority || 'P9') || (a.due || '9999').localeCompare(b.due || '9999') || String(a.title).localeCompare(String(b.title)));
@@ -297,15 +302,19 @@ function parseQuick(s) {
   r.title = x.replace(/\s+/g, ' ').trim(); return r;
 }
 function quickBar(ph) {
+  const w = ui.qWhen || '';
   return `<form class="qadd" data-form="qadd"><input name="q" enterkeyhint="done" autocomplete="off" dir="auto" placeholder="${esc(ph || 'Add a task…')}" value="${esc(ui.quick || '')}" data-input="quick" data-norender="1"><button class="btn primary" type="submit" aria-label="Add">${I.plus}</button></form>
-  <div class="qhint">Tip: <b>!1</b> priority · <b>@fri</b> or <b>@tomorrow</b> due · <b>*</b> Top 3 today</div>`;
+  <div class="qchips">${[['today', 'Today'], ['tomorrow', 'Tomorrow'], ['week', 'Next week'], ['top', '★ Top 3']].map(([k, l]) => `<button type="button" class="${w === k ? 'on' : ''}" data-act="qwhen" data-v="${k}">${l}</button>`).join('')}</div>`;
 }
 function quickSubmit(form) {
   const inp = form.querySelector('input'); const p = parseQuick(inp.value || ''); if (!p.title) return;
   const rec = { title: p.title, state: 'To do', priority: p.priority || 'P2', owner: 'Milad' };
+  const w = ui.qWhen || '';
+  if (!p.due && w === 'today') p.due = today(); if (!p.due && w === 'tomorrow') p.due = addDays(today(), 1); if (!p.due && w === 'week') p.due = addDays(weekStart(), 7);
+  if (w === 'top') { p.top = true; if (!p.due) p.due = today(); }
   if (p.due) rec.due = p.due;
   if (p.top) { const n = list('tasks').filter(x => isOpen(x) && x.focusDate === today()).length; if (n >= 3) toast('Top 3 is full; added without it'); else rec.focusDate = today(); }
-  ui.quick = ''; saveUi(); save('tasks', rec); toast('Added: ' + p.title);
+  ui.quick = ''; saveUi(); const nr = save('tasks', rec); toast('Added', 'Undo', () => remove('tasks', nr.id));
   setTimeout(() => { const i = document.querySelector('.qadd input'); if (i) i.focus(); }, 30);
 }
 document.addEventListener('submit', e => { const f = e.target.closest('[data-form="qadd"]'); if (f) { e.preventDefault(); quickSubmit(f); } });
@@ -350,42 +359,39 @@ function vToday() {
   const t = today(), open = list('tasks').filter(isOpen);
   const top = sortTasks(open.filter(x => x.focusDate === t));
   const doneTop = list('tasks').filter(x => !isOpen(x) && x.focusDate === t);
-  const sched = agenda(t, t).filter(a => a.kind !== 'due' || !top.some(x => x.id === a.id));
+  const ids = new Set(top.map(x => x.id));
+  const dueToday = sortTasks(open.filter(x => x.due === t && !ids.has(x.id)));
+  const sched = agenda(t, t).filter(a => a.kind !== 'due' && !ids.has(a.id));
+  const overdue = sortTasks(open.filter(x => x.due && x.due < t && !ids.has(x.id)));
   const closed = list('logs').some(l => l.type === 'closeout' && l.date === t);
-  const att = attention();
-  const ws = weekStart(), mins = weekMinutes(ws), tgt = weekTarget(), st = streak();
+  const att = attention().filter(a => a[0] !== 'filter');
   const dl = daysTo(visionDate());
   return header(new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }), '') + `
-  <a class="vision" href="#/plan" data-act="go" data-to="plan"><b>${dl.toLocaleString('en-GB')}</b> days to MILAD 2031 <span>${I.right}</span></a>
-  ${quickBar('Add a task…')}
-  <div class="card"><h2>Top 3 today <span class="count">${doneTop.length}/${top.length + doneTop.length || 3}</span><span style="flex:1"></span><button class="btn small ghost" data-act="plan-day" data-day="${t}">${top.length ? 'Change' : 'Choose'}</button></h2>
-    ${top.length ? `<div class="list">${top.map(x => taskRow(x)).join('')}</div>` : doneTop.length ? '<div class="empty">All of today\'s Top 3 are done. 🎉</div>' : `<div class="empty">Pick up to three things that matter most today.</div><div class="btns" style="margin-top:8px"><button class="btn primary" data-act="plan-day" data-day="${t}">Choose today's Top 3</button></div>`}</div>
-  <div class="card" style="margin-top:12px"><h2>Today <span class="count">${sched.length}</span><span style="flex:1"></span><button class="btn small ghost" data-act="new-event" data-day="${t}">${I.plus} Event</button></h2>${sched.length ? `<div class="list">${sched.map(agendaRow).join('')}</div>` : '<div class="empty">Nothing scheduled.</div>'}</div>
-  ${att.length ? `<div class="card" style="margin-top:12px"><h2>Needs attention <span class="count">${att.length}</span></h2><div class="list">${att.map(attRow).join('')}</div></div>` : ''}
-  <div role="button" tabindex="0" class="card learnmini" data-act="go" data-to="learn" style="margin-top:12px"><span class="att-i">${I.learn}</span><div class="main"><div class="t">Learning this week: ${hrs(mins)} h${tgt ? ` of ${hrs(tgt)} h` : ''}</div>${tgt ? `<div class="bar"><i style="width:${Math.min(100, Math.round(100 * mins / tgt))}%"></i></div>` : ''}<div class="m">${st ? `🔥 ${st}-day streak` : 'Log a session to start a streak'}</div></div><button class="btn small" data-act="log-time">${I.plus} Log time</button></div>
-  <div style="margin-top:14px">${closed ? `<div class="card closed">✓ Day closed. Tomorrow's Top 3 is set.<button class="btn small ghost" data-act="closeout">Edit</button></div>` : `<button class="btn primary wide" data-act="closeout">Close the day</button>`}</div>`;
+  <a class="vision" href="#/plan"><b>${dl.toLocaleString('en-GB')}</b> days to MILAD 2031 <span>${I.right}</span></a>
+  ${quickBar('What needs doing?')}
+  <div class="card"><h2>★ Top 3 <span class="count">${doneTop.length}/${top.length + doneTop.length}</span><span style="flex:1"></span>${top.length + doneTop.length ? `<button class="btn small ghost" data-act="plan-day" data-day="${t}">Change</button>` : ''}</h2>
+    ${top.length ? `<div class="list">${top.map(x => taskRow(x)).join('')}</div>` : doneTop.length ? '<div class="empty">All done for today. 🎉</div>' : `<button class="btn primary wide" data-act="plan-day" data-day="${t}">Pick today's Top 3</button>`}</div>
+  ${sched.length || dueToday.length ? `<div class="card" style="margin-top:12px"><h2>Also today <span class="count">${sched.length + dueToday.length}</span></h2><div class="list">${sched.map(agendaRow).join('')}${dueToday.map(x => taskRow(x)).join('')}</div></div>` : ''}
+  ${overdue.length ? `<div class="card" style="margin-top:12px"><h2>Overdue <span class="count">${overdue.length}</span><span style="flex:1"></span><button class="btn small ghost" data-act="od-today">Move all to today</button></h2><div class="list">${overdue.slice(0, 5).map(x => taskRow(x)).join('')}</div>${overdue.length > 5 ? `<a class="btn small ghost" href="#/tasks">See all ${overdue.length}</a>` : ''}</div>` : ''}
+  ${att.length ? `<div class="card" style="margin-top:12px"><div class="list">${att.map(attRow).join('')}</div></div>` : ''}
+  <div style="margin-top:14px">${closed ? `<div class="card closed">✓ Day closed<button class="btn small ghost" data-act="closeout">Again</button></div>` : `<button class="btn primary wide" data-act="closeout">Close the day</button>`}</div>`;
 }
 function agendaRow(a) {
   const tag = a.kind === 'event' ? '' : a.kind === 'due' ? '<span class="chip late">Due</span>' : a.kind === 'follow' ? '<span class="chip s-wait">Job</span>' : a.kind === 'ms' ? '<span class="chip s-rev">2031</span>' : '<span class="chip s-prog">Task</span>';
   const act = { event: 'event', follow: 'application', ms: 'milestone' }[a.kind] || 'task';
-  return `<div class="row" data-act="${act}" data-id="${esc(a.id)}"><div class="time">${esc(a.time || 'all day')}${a.end ? `<br><span class="small">${esc(a.end)}</span>` : ''}</div><div class="main"><div class="t" dir="auto">${esc(a.title)}</div><div class="m">${tag}${(a.kind === 'task' || a.kind === 'due') && a.rec.nextAction ? `<span dir="auto">${esc(a.rec.nextAction).slice(0, 120)}</span>` : ''}${a.kind === 'event' && a.rec.rrule ? '<span>repeats</span>' : ''}</div></div></div>`;
+  return `<div class="row" data-act="${act}" data-kind="${a.kind}" data-id="${esc(a.id)}"><div class="time">${esc(a.time || 'all day')}${a.end ? `<br><span class="small">${esc(a.end)}</span>` : ''}</div><div class="main"><div class="t" dir="auto">${esc(a.title)}</div><div class="m">${tag}${(a.kind === 'task' || a.kind === 'due') && a.rec.nextAction ? `<span dir="auto">${esc(a.rec.nextAction).slice(0, 120)}</span>` : ''}${a.kind === 'event' && a.rec.rrule ? '<span>repeats</span>' : ''}</div></div></div>`;
 }
-const TASK_FILTERS = [['active', 'Open'], ['top', 'Top 3'], ['doing', 'Doing'], ['ext', 'Waiting'], ['overdue', 'Overdue'], ['week', 'Next 7 days'], ['done', 'Done'], ['all', 'All']];
 function vTasks() {
-  const t = today(), f = ui.taskFilter, q = (ui.taskQuery || '').toLowerCase();
-  let arr = list('tasks');
-  const by = {
-    active: x => isOpen(x), top: x => isOpen(x) && x.focusDate === t, doing: x => stOf(x) === 'Doing', mine: x => stOf(x) === 'Doing', ext: x => stOf(x) === 'Waiting', month: x => isOpen(x) && x.due && x.due <= addDays(t, 30),
-    overdue: x => isOpen(x) && x.due && x.due < t, week: x => isOpen(x) && x.due && x.due <= addDays(t, 7), done: x => DONE.has(x.state), all: () => true
-  };
-  arr = arr.filter(by[f] || by.active);
-  if (q) arr = arr.filter(x => [x.title, x.nextAction, x.notes, x.area].join(' ').toLowerCase().includes(q));
-  if (f === 'done') arr.sort((a, b) => String(b.completedOn || '').localeCompare(String(a.completedOn || ''))); else sortTasks(arr);
-  return header('Tasks', `${arr.length} shown`) + `
-  <div class="seg">${TASK_FILTERS.map(([k, l]) => `<button class="${f === k ? 'on' : ''}" data-act="filter" data-f="${k}">${l}</button>`).join('')}</div>
+  const t = today(), tm = addDays(t, 1), wk = addDays(t, 7), q = (ui.taskQuery || '').toLowerCase();
+  let arr = list('tasks'); if (q) arr = arr.filter(x => [x.title, x.nextAction, x.notes].join(' ').toLowerCase().includes(q));
+  const open = arr.filter(isOpen), waiting = sortTasks(open.filter(x => stOf(x) === 'Waiting')), act = open.filter(x => stOf(x) !== 'Waiting');
+  const groups = [['Overdue', act.filter(x => x.due && x.due < t)], ['Today', act.filter(x => x.due === t || (!x.due && x.focusDate === t))], ['Tomorrow', act.filter(x => x.due === tm)], ['This week', act.filter(x => x.due > tm && x.due <= wk)], ['Later', act.filter(x => x.due > wk)], ['No date', act.filter(x => !x.due && x.focusDate !== t)], ['Waiting on others', waiting]];
+  const done = arr.filter(x => !isOpen(x)).sort((a, b) => String(b.completedOn || '').localeCompare(String(a.completedOn || '')));
+  return header('Tasks', `${open.length} open`) + `
   ${quickBar()}
-  <div class="toolbar"><input class="search" type="search" placeholder="Search tasks" value="${esc(ui.taskQuery)}" data-input="taskQuery"><button class="btn" data-act="new-task">${I.plus} Full form</button></div>
-  <div class="card">${arr.length ? `<div class="list">${arr.map(x => taskRow(x)).join('')}</div>` : '<div class="empty">No tasks in this view.</div>'}</div>`;
+  <input class="search" type="search" placeholder="Search" value="${esc(ui.taskQuery)}" data-input="taskQuery" style="width:100%;margin:2px 0 12px">
+  ${groups.filter(([, g]) => g.length).map(([n, g]) => `<div class="grp-h ${n === 'Overdue' ? 'bad' : ''}">${n} <span>${g.length}</span></div><div class="card tight"><div class="list">${sortTasks(g).map(x => taskRow(x)).join('')}</div></div>`).join('') || '<div class="card empty">Nothing here. Add a task above.</div>'}
+  ${done.length ? `<details class="donebox"><summary>Done (${done.length})</summary><div class="card tight"><div class="list">${done.slice(0, 40).map(x => taskRow(x)).join('')}</div></div></details>` : ''}`;
 }
 function vCalendar() {
   const t = today();
@@ -652,10 +658,11 @@ const skillOpts = () => list('skills').map(s => [s.id, s.title]);
 function taskForm(t = {}) {
   const fields = [
     { k: 'title', label: 'Task', req: true },
-    [{ k: 'state', label: 'Status', type: 'select', options: STATES, blank: false, def: 'To do' }, { k: 'priority', label: 'Priority', type: 'select', options: PRI, def: 'P2' }],
-    [{ k: 'due', label: 'Due date', type: 'date' }, { k: 'focusDate', label: 'Top 3 on day', type: 'date' }],
-    { k: 'nextAction', label: 'Next step', ph: 'One concrete next step' },
+    { k: 'due', label: 'Date', type: 'date' },
+    { k: 'nextAction', label: 'Note', ph: 'Next step or a short note (optional)' },
     'MORE',
+    [{ k: 'state', label: 'Status', type: 'select', options: STATES, blank: false, def: 'To do' }, { k: 'priority', label: 'Priority', type: 'select', options: PRI, def: 'P2' }],
+    { k: 'focusDate', label: 'Top 3 on day', type: 'date' },
     [{ k: 'owner', label: 'Owner', type: 'select', options: OWNERS, def: 'Milad' }, { k: 'area', label: 'Area', type: 'select', options: AREAS }],
     [{ k: 'projectId', label: 'Project', type: 'select', options: projOpts }, { k: 'goalId', label: 'Goal', type: 'select', options: goalOpts }],
     { k: 'criterion', label: 'Done when…', type: 'textarea', ph: 'What must exist for this to count as done?' },
@@ -663,18 +670,70 @@ function taskForm(t = {}) {
     [{ k: 'schedType', label: 'Schedule type', type: 'select', options: SCHED }, { k: 'estMinutes', label: 'Estimate (minutes)', type: 'number', step: 5 }],
     { k: 'dueAlert', label: 'Show the due date in my phone calendar', type: 'check' },
     { k: 'blockedBy', label: 'Waiting on (who / what)' },
-    { k: 'evidence', label: 'Evidence of completion', type: 'textarea', hint: 'Required before a task can be marked Done.' }, { k: 'verified', label: 'Evidence verified by a document', type: 'check' },
+    { k: 'evidence', label: 'Proof of completion (optional)', type: 'textarea' }, { k: 'verified', label: 'Evidence verified by a document', type: 'check' },
     [{ k: 'completedOn', label: 'Completed on', type: 'date' }, { k: 'docLink', label: 'Document link', type: 'url' }],
     { k: 'notes', label: 'Notes', type: 'textarea' }
   ];
   form(t.id ? 'Edit task' : 'New task', fields, t, v => {
     if (!v.title) return 'Give the task a title.';
-    if (v.state === 'Done' && !v.evidence) return 'To mark it Done, add the evidence under More details, or use the ✓ button in the list.';
     if (DONE.has(v.state) && !v.completedOn) v.completedOn = today();
     if (!DONE.has(v.state) && DONE.has(t.state || '')) v.completedOn = '';
     save('tasks', Object.assign({}, t, v));
     toast('Saved');
   }, { onDelete: t.id ? () => { if (confirm('Delete this task? It can be restored from a backup.')) { remove('tasks', t.id); closeSheet(); } } : null });
+}
+function setTask(id, patch, msg) { const t = get('tasks', id); if (!t) return; const before = Object.assign({}, t); save('tasks', Object.assign({}, t, patch)); closeSheet(); if (msg) toast(msg, 'Undo', () => save('tasks', before)); }
+function toggleDone(id) {
+  const t = get('tasks', id); if (!t) return;
+  if (DONE.has(t.state)) return setTask(id, { state: 'To do', completedOn: '' }, 'Reopened');
+  setTask(id, { state: 'Done', completedOn: today() }, 'Done ✓');
+}
+function taskSheet(id) {
+  const t = get('tasks', id); if (!t) return;
+  const open = isOpen(t), top = t.focusDate === today(), wait = stOf(t) === 'Waiting';
+  const b = (act, ic, l, cls = '') => `<button class="act ${cls}" data-act="${act}" data-id="${esc(id)}"><span>${ic}</span>${l}</button>`;
+  const info = [t.due ? 'Due ' + fmtDate(t.due, true) : '', t.nextAction ? '→ ' + t.nextAction : '', t.blockedBy ? 'Waiting on: ' + t.blockedBy : ''].filter(Boolean);
+  openSheet(t.title, `${info.length ? `<div class="small" dir="auto" style="margin:-4px 0 12px">${info.map(esc).join('<br>')}</div>` : ''}
+  <div class="acts">${open ? b('t-done', '✓', 'Done', 'pri') : b('t-done', '↺', 'Reopen', 'pri')}
+  ${open ? b('t-top', '★', top ? 'Remove from Top 3' : 'Top 3 today') : ''}
+  ${open ? b('t-today', '●', 'Do today') : ''}
+  ${open ? b('t-tom', '→', 'Tomorrow') : ''}
+  ${open ? b('t-week', '⇥', 'Next week') : ''}
+  ${open ? `<label class="act"><span>📅</span>Pick a date<input type="date" data-change="t-date" data-id="${esc(id)}" value="${esc(t.due || '')}"></label>` : ''}
+  ${open ? b('t-wait', wait ? '▶' : '⏸', wait ? 'Not waiting' : 'Waiting on someone') : ''}
+  ${b('t-edit', '✎', 'Edit details')}
+  ${b('t-del', '🗑', 'Delete', 'danger')}</div>`, '', { noFocus: true });
+}
+function closeDay() {
+  const t = today(), tm = addDays(t, 1), open = list('tasks').filter(isOpen);
+  const left = open.filter(x => x.focusDate === t || x.due === t);
+  const doneN = list('tasks').filter(x => !isOpen(x) && x.completedOn === t).length;
+  openSheet('Close the day', `<div class="closeday"><div class="big">${doneN}</div><div class="small">done today</div></div>
+  ${left.length ? `<div class="small" style="margin:10px 0 6px">${left.length} still open from today. They move to tomorrow:</div><div class="list">${left.map(x => `<div class="row"><div class="main"><div class="t" dir="auto">${esc(x.title)}</div></div></div>`).join('')}</div>` : '<div class="small" style="margin:10px 0">Nothing left over. Well done.</div>'}
+  <div class="f" style="margin-top:12px"><label>One line about today (optional)</label><input name="note" dir="auto" placeholder="e.g. CV section 2 finished"></div>`,
+  `<button class="btn primary wide" data-act="form-save">${left.length ? 'Move to tomorrow and close' : 'Close the day'}</button>`, { noFocus: true, onSave: () => {
+    const note = (sheetCtx.el.querySelector('[name=note]') || {}).value || '';
+    for (const x of left) save('tasks', Object.assign({}, x, x.focusDate === t ? { focusDate: tm, due: x.due && x.due <= t ? tm : x.due } : { due: tm }));
+    save('logs', { type: 'closeout', date: t, title: 'Close-out ' + fmtDate(t), done: note.trim(), notes: left.length ? 'Moved to tomorrow: ' + left.map(x => x.title).join('; ') : '' });
+    closeSheet(); toast('Day closed. See you tomorrow.');
+  } });
+}
+function logTimeSheet() {
+  const sk = list('skills').sort((a, b) => (Number(b.weeklyHours) || 0) - (Number(a.weeklyHours) || 0) || String(a.title).localeCompare(String(b.title)));
+  if (!sk.length) { toast('Add a skill first in Learning'); return; }
+  const cur = ui.lastSkill && get('skills', ui.lastSkill) ? ui.lastSkill : sk[0].id;
+  const used = new Set(list('sessions').map(s => s.skill)); const main = sk.filter((s, i) => s.id === cur || i < 5 || used.has(s.id)); const rest = sk.filter(s => !main.includes(s));
+  const btn = s => `<button class="${s.id === cur ? 'on' : ''}" data-act="lt-skill" data-id="${esc(s.id)}" dir="auto">${esc(s.title)}</button>`;
+  openSheet('Log practice', `<div class="small" style="margin-bottom:6px">Skill</div><div class="pick">${main.map(btn).join('')}</div>${rest.length ? `<details class="more" style="border:0;padding-top:4px;margin:4px 0 0"><summary>Other skills (${rest.length})</summary><div class="pick">${rest.map(btn).join('')}</div></details>` : ''}
+  <div class="small" style="margin:14px 0 6px">How long? Tap to save.</div><div class="pick mins">${[15, 30, 45, 60, 90].map(m => `<button data-act="lt-min" data-v="${m}">${m} min</button>`).join('')}</div>`, '', { noFocus: true });
+  sheetCtx.skill = cur;
+}
+function appSheet(id) {
+  const a = get('applications', id); if (!a) return;
+  const i = APP_STAGES.indexOf(a.stage || 'Saved'); const next = i >= 0 && i < 4 ? APP_STAGES[i + 1] : null;
+  const b = (act, ic, l, extra = '', cls = '') => `<button class="act ${cls}" data-act="${act}" data-id="${esc(id)}" ${extra}><span>${ic}</span>${l}</button>`;
+  openSheet(`${a.role || 'Role'} · ${a.company || ''}`, `<div class="small" style="margin:-4px 0 12px">Stage: <b>${esc(a.stage || 'Saved')}</b>${a.followUp ? ' · follow up ' + esc(fmtDate(a.followUp, true)) : ''}</div><div class="acts">
+  ${next ? b('a-next', '→', 'Move to ' + next, '', 'pri') : ''}${b('a-fu', '⏰', 'Follow up in 1 week')}${b('a-fudone', '✓', 'Followed up today')}${b('a-rej', '✕', 'Rejected')}${b('a-edit', '✎', 'Edit details')}</div>`, '', { noFocus: true });
 }
 function completeTask(id) {
   const t = get('tasks', id); if (!t) return;
@@ -772,7 +831,7 @@ function weeklyReview() {
 }
 const IMM_STARTER = [['Passport', 'Identity'], ['National ID / birth certificate', 'Identity'], ['Degree certificate', 'Education'], ['Academic transcripts', 'Education'], ['Employment reference letters', 'Employment'], ['English test report (IELTS)', 'English test'], ['Police clearance certificates', 'Police & health'], ['Medical examination', 'Police & health'], ['Proof of funds', 'Finance'], ['Passport-style photos', 'Forms & fees']];
 function quickAdd() {
-  openSheet('Add', `<div class="grid two">${[['new-task', 'Task', I.tasks], ['new-event', 'Event', I.cal], ['log-time', 'Log practice time', I.clock], ['new-application', 'Job application', I.jobs], ['new-milestone', '2031 milestone', I.flag], ['new-immig', 'Immigration document', I.imm], ['new-note', 'Document', I.notes], ['new-decision', 'Decision', I.dec], ['weekly', 'Weekly review', I.review], ['closeout', 'Close the day', I.today]].map(([a, l, ic]) => `<button class="card row" data-act="${a}" style="align-items:center;text-align:left"><span style="width:24px;color:var(--brass-ink)">${ic}</span><div class="main"><div class="t">${l}</div></div></button>`).join('')}</div>`, '', { noFocus: true });
+  openSheet('Add', `<div class="grid two">${[['new-task', 'Task', I.tasks], ['new-event', 'Event', I.cal], ['log-time', 'Log practice', I.clock], ['new-application', 'Job application', I.jobs], ['new-note', 'Note', I.notes], ['weekly', 'Weekly review', I.review]].map(([a, l, ic]) => `<button class="card row" data-act="${a}" style="align-items:center;text-align:left"><span style="width:24px;color:var(--brass-ink)">${ic}</span><div class="main"><div class="t">${l}</div></div></button>`).join('')}</div>`, '', { noFocus: true });
 }
 
 /* ---------------- events (delegated) ---------------- */
@@ -780,12 +839,28 @@ document.addEventListener('click', async e => {
   const a = e.target.closest('[data-act]'); if (!a) return;
   const act = a.dataset.act, id = a.dataset.id;
   if ((act !== 'task' && act !== 'event' && a.tagName !== 'A') || a.getAttribute('href') === '#' || act === 'go') e.preventDefault();
-  if (act === 'complete') { e.stopPropagation(); e.preventDefault(); return completeTask(id); }
+  if (act === 'complete') { e.stopPropagation(); e.preventDefault(); return toggleDone(id); }
   const map = {
     'sheet-close': () => closeSheet(),
     'form-save': () => sheetCtx && sheetCtx.onSave && sheetCtx.onSave(),
     'form-del': () => sheetCtx && sheetCtx.onDelete && sheetCtx.onDelete(),
-    task: () => taskForm(get('tasks', id) || {}),
+    task: () => taskSheet(id),
+    't-done': () => toggleDone(id),
+    't-top': () => { const t = get('tasks', id); if (!t) return; if (t.focusDate === today()) return setTask(id, { focusDate: '' }, 'Removed from Top 3'); if (list('tasks').filter(x => isOpen(x) && x.focusDate === today()).length >= 3) { toast('Top 3 is full. Remove one first.'); return; } setTask(id, { focusDate: today() }, '★ In Top 3 today'); },
+    't-today': () => setTask(id, { due: today() }, 'Moved to today'),
+    't-tom': () => { const t = get('tasks', id); setTask(id, Object.assign({ due: addDays(today(), 1) }, t && t.focusDate === today() ? { focusDate: addDays(today(), 1) } : {}), 'Moved to tomorrow'); },
+    't-week': () => setTask(id, { due: addDays(weekStart(), 7), focusDate: '' }, 'Moved to next week'),
+    't-wait': () => { const t = get('tasks', id); setTask(id, { state: stOf(t) === 'Waiting' ? 'To do' : 'Waiting' }, stOf(t) === 'Waiting' ? 'Back to To do' : 'Marked as waiting'); },
+    't-edit': () => { closeSheet(true); taskForm(get('tasks', id) || {}); },
+    't-del': () => { const t = get('tasks', id); remove('tasks', id); closeSheet(); toast('Deleted', 'Undo', () => save('tasks', Object.assign({}, t, { deleted: false }))); },
+    qwhen: () => { ui.qWhen = ui.qWhen === a.dataset.v ? '' : a.dataset.v; saveUi(); render(); const i = document.querySelector('.qadd input'); if (i && i.value) i.focus(); },
+    'lt-skill': () => { sheetCtx.skill = id; ui.lastSkill = id; saveUi(); sheetCtx.el.querySelectorAll('[data-act="lt-skill"]').forEach(x => x.classList.toggle('on', x.dataset.id === id)); },
+    'lt-min': () => { const sk = get('skills', sheetCtx.skill); const m = Number(a.dataset.v); ui.lastSkill = sheetCtx.skill; saveUi(); const r = save('sessions', { title: (sk ? sk.title : 'Practice') + ' · ' + m + ' min', skill: sheetCtx.skill, minutes: m, date: today(), result: 'Not a check' }); closeSheet(); toast(`Logged ${m} min`, 'Undo', () => remove('sessions', r.id)); },
+    'a-next': () => { const x = get('applications', id); const i = APP_STAGES.indexOf(x.stage || 'Saved'); save('applications', Object.assign({}, x, { stage: APP_STAGES[i + 1], appliedOn: x.appliedOn || (APP_STAGES[i + 1] === 'Applied' ? today() : ''), followUp: addDays(today(), 7) })); closeSheet(); toast('Moved to ' + APP_STAGES[i + 1]); },
+    'a-fu': () => { const x = get('applications', id); save('applications', Object.assign({}, x, { followUp: addDays(today(), 7) })); closeSheet(); toast('Follow-up in 1 week'); },
+    'a-fudone': () => { const x = get('applications', id); save('applications', Object.assign({}, x, { followUp: addDays(today(), 7), notes: ((x.notes || '') + '\nFollowed up ' + today()).trim() })); closeSheet(); toast('Noted. Next follow-up in 1 week'); },
+    'a-rej': () => { const x = get('applications', id); save('applications', Object.assign({}, x, { stage: 'Rejected', followUp: '' })); closeSheet(); toast('Marked rejected'); },
+    'a-edit': () => { closeSheet(true); FORMS.application(get('applications', id) || {}); },
     'new-task': () => taskForm(a.dataset.day ? { scheduled: a.dataset.day + 'T09:00' + tzOffset(), due: a.dataset.day } : {}),
     event: () => eventForm(get('events', id) || {}),
     'new-event': () => eventForm({}, a.dataset.day || today()),
@@ -799,25 +874,26 @@ document.addEventListener('click', async e => {
     'new-note': () => FORMS.note({}), 'edit-note': () => FORMS.note(get('notes', id) || {}),
     logitem: () => FORMS.logitem(get('logs', id) || {}),
     log: () => a.dataset.type === 'weekly' ? weeklyReview() : FORMS.logitem({ type: a.dataset.type, date: today(), title: (a.dataset.type === 'weekly' ? 'Weekly review ' : 'Monthly review ') + fmtDate(today(), true) }),
-    filter: () => { ui.taskFilter = a.dataset.f; saveUi(); if (route().page !== 'tasks') location.hash = '#/tasks'; else render(); },
+    filter: () => { if (route().page !== 'tasks') location.hash = '#/tasks'; else render(); },
     'cal-move': () => { const [y, m] = ui.calMonth.split('-').map(Number); const d = new Date(y, m - 1 + Number(a.dataset.d), 1); ui.calMonth = `${d.getFullYear()}-${pad(d.getMonth() + 1)}`; saveUi(); render(); },
     'cal-today': () => { ui.calMonth = today().slice(0, 7); ui.calSel = today(); saveUi(); render(); },
     'cal-sel': () => { ui.calSel = a.dataset.day; if (a.dataset.day.slice(0, 7) !== ui.calMonth) ui.calMonth = a.dataset.day.slice(0, 7); saveUi(); render(); },
     'plan-day': () => planDay(a.dataset.day || today(), false),
-    closeout: () => planDay(addDays(today(), 1), true),
+    closeout: () => closeDay(),
     quick: () => quickAdd(),
     go: () => { location.hash = '#/' + a.dataset.to; if (a.dataset.to === 'plan') { ui.planTab = 'roadmap'; saveUi(); } },
+    'od-today': () => { const od = list('tasks').filter(x => isOpen(x) && x.due && x.due < today()); od.forEach(x => save('tasks', Object.assign({}, x, { due: today() }))); toast(`${od.length} moved to today`); },
     'plan-tab': () => { ui.planTab = a.dataset.t; saveUi(); render(); },
     'job-filter': () => { ui.jobFilter = ui.jobFilter === a.dataset.f && a.dataset.f !== 'active' ? 'active' : a.dataset.f; saveUi(); render(); },
     milestone: () => FORMS.milestone(get('milestones', id) || {}), 'new-milestone': () => FORMS.milestone(a.dataset.year ? { target: a.dataset.year + '-12-31' } : {}),
     'ms-done': () => { e.stopPropagation(); const m = get('milestones', id); if (m) save('milestones', Object.assign({}, m, { status: m.status === 'Done' ? 'In progress' : 'Done', doneOn: m.status === 'Done' ? '' : today() })); },
     'ms-from-goals': () => { let n = 0; for (const g of list('goals')) { if (!g.target || list('milestones').some(m => m.goalId === g.id)) continue; save('milestones', { title: g.title, target: g.target, goalId: g.id, status: 'Planned', area: g.area || '' }); n++; } toast(n ? `${n} milestone${n > 1 ? 's' : ''} created` : 'Every dated goal already has a milestone'); },
     vision: () => form('MILAD 2031 target date', [{ k: 'visionDate', label: 'Target date', type: 'date', req: true }], { visionDate: visionDate() }, v => { if (!v.visionDate) return 'Choose a date.'; save('settings', Object.assign({}, prefs(), { id: 'prefs', visionDate: v.visionDate })); }),
-    application: () => FORMS.application(get('applications', id) || {}), 'new-application': () => FORMS.application({ appliedOn: '', stage: 'Saved' }),
+    application: () => a.dataset.kind === 'follow' || route().page === 'jobs' || route().page === 'today' || route().page === 'calendar' ? appSheet(id) : FORMS.application(get('applications', id) || {}), 'new-application': () => FORMS.application({ appliedOn: '', stage: 'Saved' }),
     immig: () => FORMS.immig(get('immigration', id) || {}), 'new-immig': () => FORMS.immig({}),
     'imm-ready': () => { e.stopPropagation(); const x = get('immigration', id); if (x) save('immigration', Object.assign({}, x, { status: ['Ready', 'Submitted', 'Not needed'].includes(x.status) ? 'Collecting' : 'Ready' })); },
     'imm-starter': () => { if (!confirm('Add 10 common document types? They are generic placeholders; confirm each against the official checklist for your pathway.')) return; for (const [title, category] of IMM_STARTER) save('immigration', { title, category, status: 'Not started', notes: 'Generic starter item. Confirm the exact requirement on the official website.' }); },
-    'log-time': () => { e.stopPropagation(); FORMS.logtime({}); },
+    'log-time': () => { e.stopPropagation(); logTimeSheet(); },
     weekly: () => weeklyReview(),
     'set-theme': () => { ui.theme = a.dataset.v; saveUi(); applyTheme(); render(); },
     'set-size': () => { ui.size = a.dataset.v; saveUi(); applyTheme(); render(); },
@@ -844,6 +920,7 @@ document.addEventListener('click', async e => {
 });
 document.addEventListener('input', e => { const k = e.target.dataset && e.target.dataset.input; if (k) { ui[k] = e.target.value; saveUi(); if (e.target.dataset.norender) return; clearTimeout(render.t); render.t = setTimeout(render, 180); } });
 document.addEventListener('change', e => {
+  if (e.target.dataset && e.target.dataset.change === 't-date' && e.target.value) { setTask(e.target.dataset.id, { due: e.target.value }, 'Moved to ' + fmtDate(e.target.value)); return; }
   if (e.target.dataset && e.target.dataset.change === 'import') {
     const file = e.target.files[0]; if (!file) return;
     file.text().then(txt => {

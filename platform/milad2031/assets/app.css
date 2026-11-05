@@ -222,3 +222,24 @@ html.dark{color-scheme:dark;--chart:#e3c25a}
 html.dark .vision{background:#0b121c;border:1px solid var(--line)}
 html.dark .hero-n,html.dark .yr-h b,html.dark .funnel b,html.dark .mini-h b,html.dark .learnmini .t{color:#edebe3}
 html.large main,html.large .sheet{zoom:1.12}
+
+/* 2.1 simple mode */
+.qchips{display:flex;gap:6px;margin:6px 0 14px;flex-wrap:wrap}
+.qchips button,.pick button{border:1px solid var(--line);background:var(--card);border-radius:20px;padding:7px 12px;font-size:14px;font-weight:600;color:var(--meta);cursor:pointer}
+.qchips button.on,.pick button.on{background:var(--brass-tint);border-color:var(--brass);color:var(--brass-ink)}
+.acts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.act{position:relative;display:flex;align-items:center;gap:10px;min-height:56px;padding:10px 14px;border:1px solid var(--line);background:var(--card);border-radius:14px;font-size:15.5px;font-weight:650;color:var(--ink);cursor:pointer;text-align:left;overflow:hidden}
+.act span{width:22px;text-align:center;font-size:18px;color:var(--brass-ink)}
+.act.pri{grid-column:1/-1;background:var(--ink);border-color:var(--ink);color:#edebe3;justify-content:center;font-size:17px}.act.pri span{color:var(--brass)}
+.act.danger{color:var(--bad)}.act.danger span{color:var(--bad)}
+.act input[type=date]{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer}
+html.dark .act{color:#ece9df}html.dark .act.pri{background:var(--brass);border-color:var(--brass);color:#16202d}html.dark .act.pri span{color:#16202d}
+.pick{display:flex;flex-wrap:wrap;gap:8px}.pick.mins button{min-width:72px;padding:12px 14px;font-size:16px;color:var(--ink)}
+html.dark .pick.mins button{color:#ece9df}
+.closeday{text-align:center;padding:6px 0}.closeday .big{font:700 46px/1 var(--fd);color:var(--ok)}
+.grp-h{font:600 12px var(--fm);letter-spacing:.08em;text-transform:uppercase;color:var(--meta);margin:14px 4px 6px;display:flex;gap:6px}.grp-h span{opacity:.7}.grp-h.bad{color:var(--bad)}
+.card.tight{padding:4px 14px}
+.donebox{margin-top:16px}.donebox>summary{cursor:pointer;color:var(--meta);font-weight:600;padding:8px 4px;list-style:none}.donebox>summary::-webkit-details-marker{display:none}
+.toast{display:flex;align-items:center;gap:14px}.toast button{border:0;background:transparent;color:var(--brass);font-weight:700;font-size:14px;padding:2px 0;cursor:pointer}
+.row .check{width:28px;height:28px;border-radius:50%}
+.qchips{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.qchips::-webkit-scrollbar{display:none}.qchips button{white-space:nowrap;padding:6px 11px;font-size:13.5px}
