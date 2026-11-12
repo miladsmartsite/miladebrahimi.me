@@ -314,3 +314,26 @@ nav.tabs a{position:relative}
 main.pg-in{animation:pgin .18s ease-out}@keyframes pgin{from{opacity:.4;transform:translateY(4px)}to{opacity:1;transform:none}}
 html[dir=rtl] .grp-h{font-family:-apple-system,"SF Arabic",Tahoma,sans-serif;text-transform:none}
 .pg-course .top h1,.pg-note .top h1{font-size:19px}
+
+/* ===== 4.0 one design language ===== */
+main>.card+.card,main>.habits+.card,main>.card+.habits,main>.qchips+.card{margin-top:12px}
+.act span.ai{width:22px;height:22px;display:grid;place-items:center;flex:none}.act span.ai svg{width:20px;height:20px}
+.act.pri span.ai{color:var(--brass)}html.dark .act.pri span.ai{color:#16202d}
+.ii{display:inline-grid;vertical-align:-2px;margin-inline-end:3px;font-style:normal}.ii svg{width:14px;height:14px}.ii.fl{color:#c2571a}.ii.st{color:var(--brass-ink)}
+.card h2 .ii svg{width:17px;height:17px}.card h2 .ii{vertical-align:-3px;margin-inline-end:5px}
+.visionline{display:flex;justify-content:center;align-items:center;gap:6px;margin:18px 0 4px;color:var(--meta);font-size:13px;text-decoration:none}.visionline b{color:var(--brass-ink);font-family:var(--fd);font-size:15px}.visionline svg{width:14px;height:14px}
+.eve{display:flex;align-items:center;gap:12px;justify-content:space-between;border-color:var(--brass);margin-bottom:12px}.eve b{color:var(--ink)}html.dark .eve b{color:#ece9df}
+.done-day{margin-bottom:12px}.dd-h{display:flex;align-items:center;gap:12px}.dd-h b{color:var(--ink)}html.dark .dd-h b{color:#ece9df}.dd-h .hstat svg{width:16px;height:16px}
+main>.btn.wide{margin-top:14px}
+.ai{display:inline-grid;vertical-align:-2px}.ai svg{width:14px;height:14px}
+.empty{padding:10px 0}.empty.win{color:var(--ok);font-weight:650}
+.badge.inl{position:static;margin-inline-end:4px}
+.row:has(.check){position:relative;background:var(--card);touch-action:pan-y}
+.check{transition:background .15s,border-color .15s,transform .15s}.check:active{transform:scale(.86)}.check.done{animation:pop .28s ease-out}
+@keyframes pop{0%{transform:scale(.6)}60%{transform:scale(1.18)}100%{transform:scale(1)}}
+.btn,.act,.seg button,.qchips button,.pick button,.hab{transition:transform .08s,background .15s,border-color .15s}.btn:active,.act:active,.seg button:active,.qchips button:active,.pick button:active,.hab:active{transform:scale(.97)}
+.sheet-b .row .att-i{background:var(--brass-tint);color:var(--brass-ink)}
+.confetti{position:fixed;inset:0;pointer-events:none;z-index:90;overflow:hidden}.confetti i{position:absolute;top:-12px;width:8px;height:14px;border-radius:2px;animation:fall 1.4s ease-in forwards}
+@keyframes fall{to{top:105%;transform:rotate(540deg)}}
+.card{border-radius:16px}.btn{border-radius:12px}.act{border-radius:14px}
+.setup .main{flex:1;min-width:0}
