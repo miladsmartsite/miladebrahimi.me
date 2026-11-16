@@ -508,3 +508,4 @@ nav.tabs{grid-template-columns:repeat(5,1fr)}
 #focus .frounds{display:flex;gap:8px;justify-content:center;margin:-10px 0 18px}#focus .frounds i{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.25)}#focus .frounds i.on{background:#f2efe6}
 #focus .fopts{display:flex;flex-direction:column;gap:8px;margin-top:18px}#focus .fopts>div{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
 #focus .fttl{color:#fff}
+.pg-goal .top h1,.pg-area .top h1,.pg-course .top h1{font-size:19px;line-height:1.2}
