@@ -5,10 +5,10 @@
 (() => {
 'use strict';
 
-const VERSION = '4.0.0';
+const VERSION = '5.0.0';
 const API = 'api.php';
 const K = { db: 'm2031.db', out: 'm2031.outbox', tok: 'm2031.token', rev: 'm2031.rev', ui: 'm2031.ui', last: 'm2031.lastSync' };
-const COLS = ['tasks','events','projects','goals','skills','logs','evidence','decisions','notes','ielts','sessions','settings','milestones','applications','immigration','habits','money','templates','courses'];
+const COLS = ['tasks','events','projects','goals','skills','logs','evidence','decisions','notes','ielts','sessions','settings','milestones','applications','immigration','habits','money','templates','courses','areas','wheel','cycles'];
 const STATES = ['To do','Doing','Waiting','Done','Cancelled'];
 const LEGACY = { 'Not Started': 'To do', 'Waiting for Me': 'To do', 'In Progress': 'Doing', 'Ready for Review': 'Doing', 'Waiting for External Input': 'Waiting', 'Blocked': 'Waiting', 'Completed & Verified': 'Done', 'Completed - Not Verified': 'Done', 'Cancelled': 'Cancelled' };
 const stOf = t => STATES.includes(t.state) ? t.state : (LEGACY[t.state] || 'To do');
@@ -257,9 +257,9 @@ Object.assign(I, {
 });
 const GLYPH = { '✓': I.tick, '★': I.star, '●': I.dot, '→': I.arrow, '⇥': I.skip, '📅': I.cal, '⏸': I.pause, '▶': I.play, '◷': I.timer, '↻': I.repeat, '⟳': I.repeat, '✎': I.edit, '🗑': I.trash, '↺': I.undo, '✕': I.close, '≡': I.tasks, '+': I.plus, '⏰': I.bell };
 const icoize = h => String(h).replace(/<span>([^<]{1,3})<\/span>/gu, (m, g) => GLYPH[g] ? `<span class="ai">${GLYPH[g]}</span>` : m).replace(/🔥 ?/g, `<i class="ii fl">${I.flame}</i>`).replace(/🕘 ?/g, `<i class="ii">${I.clock}</i>`).replace(/📌 ?/g, `<i class="ii">${I.pin}</i>`).replace(/✨ ?/g, `<i class="ii">${I.spark}</i>`).replace(/★ /g, `<i class="ii st">${I.star}</i>`);
-const NAV_MAIN = [['today', 'Today', I.today], ['tasks', 'Tasks', I.tasks], ['calendar', 'Calendar', I.cal], ['progress', 'Progress', I.prog], ['more', 'More', I.more]];
+const NAV_MAIN = [['today', 'Today', I.today], ['tasks', 'Tasks', I.tasks], ['calendar', 'Calendar', I.cal], ['progress', 'Coach', I.prog], ['more', 'More', I.more]];
 const NAV_MORE = [['jobs', 'Job search', I.jobs], ['documents', 'Documents', I.imm], ['notes', 'Notes', I.notes], ['templates', 'Templates', I.tmpl], ['settings', 'Settings', I.set]];
-const P_TABS = [['overview', 'Overview'], ['roadmap', 'Roadmap'], ['goals', 'Goals'], ['learning', 'Learning'], ['money', 'Money']];
+const P_TABS = [['overview', 'Coach'], ['wheel', 'Wheel'], ['goals', 'Goals'], ['roadmap', 'Roadmap'], ['learning', 'Learning'], ['money', 'Money']];
 
 /* ---------------- chips ---------------- */
 function stateChip(s0) { const s = STATES.includes(s0) ? s0 : (LEGACY[s0] || 'To do'); const c = s === 'Done' ? 's-done' : s === 'Waiting' ? 's-wait' : s === 'Doing' ? 's-prog' : ''; return s === 'To do' ? '' : `<span class="chip ${c}">${esc(s)}</span>`; }
@@ -495,7 +495,14 @@ function quickSubmit(form) {
   ui.quick = ''; saveUi(); const nr = save('tasks', rec); toast('Added', 'Undo', () => remove('tasks', nr.id));
   setTimeout(() => { const i = document.querySelector('.qadd input'); if (i) i.focus(); }, 30);
 }
-document.addEventListener('submit', e => { const f = e.target.closest('[data-form="qadd"]'); if (f) { e.preventDefault(); quickSubmit(f); } });
+document.addEventListener('submit', e => {
+  const f = e.target.closest('[data-form]'); if (!f) return; e.preventDefault();
+  if (f.dataset.form === 'qadd') return quickSubmit(f);
+  const inp = f.querySelector('input'), p = parseQuick(inp.value || ''); if (!p.title) return; const g = get('goals', f.dataset.goal);
+  if (f.dataset.form === 'ms-add') save('milestones', { title: p.title, target: p.due || '', goalId: f.dataset.goal, status: 'Planned', area: g ? g.area || '' : '' });
+  if (f.dataset.form === 'gt-add') save('tasks', { title: p.title, due: p.due || '', state: 'To do', priority: p.priority || 'P2', owner: 'Milad', goalId: f.dataset.goal });
+  toast('Added');
+});
 
 /* ---------------- views ---------------- */
 /* ---------------- 2031 helpers ---------------- */
@@ -549,20 +556,23 @@ function vToday() {
   const hr = new Date().getHours(), greet = hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening';
   const tm = addDays(t, 1), tomTop = sortTasks(open.filter(x => x.focusDate === tm));
   const doneToday = list('tasks').filter(x => !isOpen(x) && x.completedOn === t).length;
-  const head = header(new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }), greet) + `
+  const cyc = activeCycle(), mlog = logOf('morning'), nlog = logOf('closeout');
+  const head = header(new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }), greet + (cyc ? ` · day ${cycleDay(cyc)} of ${cyc.days || 40}` : '')) + `
   ${setupCard()}
+  ${!closed && !mlog ? `<div class="card balcard morning" data-act="morning" role="button"><span class="bal-i">${I.today}</span><div class="main"><b>Morning Balance</b><div class="small">1 minute · expectation, focus, Top 3</div></div><button class="btn ${hr < 14 ? 'primary' : ''}" data-act="morning">Start</button></div>` : ''}
+  ${!closed && mlog ? `<div class="mline" data-act="morning" role="button"><span class="hstat ok">${I.tick}</span><div class="main">${mlog.focus || (mlog.focusAreas || []).length ? `<b>Focus:</b> <span dir="auto">${esc(mlog.focus || (mlog.focusAreas || []).map(id => (get('areas', id) || {}).title).filter(Boolean).join(', '))}</span>` : '<b>Morning Balance done</b>'}${mlog.expect ? `<div class="small" dir="auto">${esc(mlog.expect)}</div>` : ''}</div></div>` : ''}
   ${quickBar('What needs doing?')}`;
   const visionLine = `<a class="visionline" href="#/progress" data-act="p-tab" data-t="roadmap"><b>${dl.toLocaleString('en-GB')}</b> days to MILAD 2031 ${I.go}</a>`;
   if (closed) return head + `
-  <div class="card done-day"><div class="dd-h"><span class="hstat ok">${I.tick}</span><div><b>Day closed</b><div class="small">${doneToday} done today</div></div><span style="flex:1"></span><button class="btn small ghost" data-act="closeout">Edit</button></div></div>
+  <div class="card done-day"><div class="dd-h"><span class="hstat ok">${I.tick}</span><div><b>Day closed${nlog && nlog.score ? ` · ${nlog.score}/10` : ''}</b><div class="small">${doneToday} done today${nlog && nlog.better ? ` · tomorrow: <span dir="auto">${esc(nlog.better)}</span>` : ''}</div></div><span style="flex:1"></span><button class="btn small ghost" data-act="closeout">Edit</button></div></div>
   <div class="card"><h2>Tomorrow <span class="count">${tomTop.length}</span><span style="flex:1"></span><button class="btn small ghost" data-act="plan-day" data-day="${tm}">${tomTop.length ? 'Change' : 'Plan'}</button></h2>${tomTop.length ? `<div class="list">${tomTop.map(x => taskRow(x)).join('')}</div>` : '<div class="empty">Nothing picked yet for tomorrow.</div>'}</div>
   ${habitStrip()}
   ${att.length ? `<div class="card"><div class="list">${att.map(attRow).join('')}</div></div>` : ''}
   ${visionLine}`;
   const evening = hr >= 18;
-  const closeBtn = `<button class="btn primary wide" data-act="closeout">Close the day</button>`;
+  const closeBtn = `<button class="btn wide nightbtn" data-act="closeout">${I.moon} Night Balance · 1 min</button>`;
   return head + `
-  ${evening ? `<div class="card eve"><div><b>Ready to wrap up?</b><div class="small">${doneToday} done · ${top.length + dueToday.length} still open today</div></div><button class="btn primary" data-act="closeout">Close the day</button></div>` : ''}
+  ${evening ? `<div class="card balcard night" data-act="closeout" role="button"><span class="bal-i">${I.moon}</span><div class="main"><b>Night Balance</b><div class="small">1 minute · ${doneToday} done · ${top.length + dueToday.length} still open</div></div><button class="btn primary" data-act="closeout">Start</button></div>` : ''}
   <div class="card"><h2>★ Top 3 <span class="count">${doneTop.length}/${top.length + doneTop.length}</span><span style="flex:1"></span>${top.length + doneTop.length ? `<button class="btn small ghost" data-act="plan-day" data-day="${t}">Change</button>` : ''}</h2>
     ${top.length ? `<div class="list">${top.map(x => taskRow(x)).join('')}</div>` : doneTop.length ? '<div class="empty win">All three done. 🎉</div>' : (() => { const sg = suggestTop(t); return sg.length ? `<div class="small" style="margin-bottom:6px">Suggested for today</div><div class="list">${sg.map(x => `<div class="row sug"><span class="dotx warn"></span><div class="main"><div class="t" dir="auto">${esc(x.title)}</div><div class="m">${dueChip(x)}${x.priority === 'P1' ? priChip('P1') : ''}</div></div></div>`).join('')}</div><div class="btns" style="margin-top:10px"><button class="btn primary" data-act="accept-top" data-ids="${esc(sg.map(x => x.id).join(','))}">Use these</button><button class="btn" data-act="plan-day" data-day="${t}">Choose myself</button></div>` : `<div class="empty">Add a task above, then pick your three for today.</div>`; })()}</div>
   ${habitStrip()}
@@ -626,9 +636,224 @@ function planTabs() { return ''; }
 const stripHead = h => h.replace(/^<div class="top">[\s\S]*?<div class="spacer"[^>]*><\/div>/, '');
 function vProgress() {
   const p = ui.pTab || 'overview';
-  const body = p === 'roadmap' ? vRoadmap() : p === 'goals' ? (ui.planTab = 'goals', vPlan()) : p === 'learning' ? vLearn() : p === 'money' ? vMoney() : vOverview();
-  return header('Progress', 'Where you are, and where you are heading') + `<div class="seg ptabs">${P_TABS.filter(([k]) => !(k === 'money' && hidden().has('money'))).map(([k, l]) => `<button class="${p === k ? 'on' : ''}" data-act="p-tab" data-t="${k}">${l}</button>`).join('')}</div><div style="height:12px"></div>` + stripHead(body);
+  const body = p === 'roadmap' ? vRoadmap() : p === 'goals' ? vGoals() : p === 'wheel' ? vWheel() : p === 'learning' ? vLearn() : p === 'money' ? vMoney() : vOverview();
+  return header('Coach', 'Your self-coaching blueprint, applied daily') + `<div class="seg ptabs">${P_TABS.filter(([k]) => !(k === 'money' && hidden().has('money'))).map(([k, l]) => `<button class="${p === k ? 'on' : ''}" data-act="p-tab" data-t="${k}">${l}</button>`).join('')}</div><div style="height:12px"></div>` + stripHead(body);
 }
+/* ================= SELF-COACHING CORE ================= */
+const AREA_COL = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#6250d6', '#e34948'];
+const AREA_COL_D = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9', '#e66767'];
+const WHEEL_PRESETS = [['classic', 'Classic Wheel of Life', ['Career', 'Money', 'Health', 'Family', 'Relationships', 'Personal growth', 'Fun & recreation', 'Home & environment']], ['milad', 'My MILAD 2031 areas', AREAS]];
+const areas = () => list('areas').sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0) || String(a.title).localeCompare(String(b.title)));
+const areaColor = a => (document.documentElement.classList.contains('dark') ? AREA_COL_D : AREA_COL)[((Number(a && a.color) || 0) % 8 + 8) % 8];
+const wheels = () => list('wheel').filter(w => w.date && w.scores).sort((a, b) => String(b.date).localeCompare(String(a.date)) || String(b.updatedAt).localeCompare(String(a.updatedAt)));
+const areaScore = (id, w = wheels()[0]) => w && w.scores && w.scores[id] != null ? Number(w.scores[id]) : null;
+const areaTarget = a => Number(a.target) || 8;
+const areaGap = a => { const s = areaScore(a.id); return s == null ? 0 : Math.max(0, areaTarget(a) - s); };
+const goalArea = g => g ? (g.areaId && get('areas', g.areaId)) || areas().find(a => a.title === g.area) || null : null;
+const daysBetween = (a, b) => Math.round((parseD(b) - parseD(a)) / 86400000);
+const activeCycle = () => list('cycles').filter(c => c.status === 'active').sort((a, b) => String(b.start).localeCompare(String(a.start)))[0] || null;
+const cycleDay = c => Math.max(1, Math.min(Number(c.days) || 40, daysBetween(c.start, today()) + 1));
+const logOf = (type, d = today()) => list('logs').find(l => l.type === type && l.date === d) || null;
+const BAL_DEF = { m: { expect: 1, focus: 1, top: 1, improve: 1, thanks: 1, note: 0 }, n: { score: 1, better: 1, carry: 1, ideas: 1, persp: 0, thanks: 1, topics: 0 } };
+const balOn = (side, k) => { const p = (prefs().balance || {})[side] || {}; return p[k] === undefined ? !!BAL_DEF[side][k] : !!p[k]; };
+const BAL_LABEL = { m: { expect: 'My expectation today', focus: 'My focus today', top: 'My important tasks (Top 3)', improve: 'My improvement action', thanks: 'Thank you for', note: 'Note' }, n: { score: 'Score for today (1–10)', better: 'How can I get a better score tomorrow?', carry: 'Tasks carried over to tomorrow', ideas: 'Ideas', persp: 'Perspectives', thanks: 'Thank you for', topics: 'My interesting topics today' } };
+function goalProgress(g) {
+  const ms = list('milestones').filter(m => m.goalId === g.id && m.status !== 'Dropped');
+  if (ms.length) { const d = ms.filter(m => m.status === 'Done').length; return [d, ms.length, 'milestones']; }
+  const ts = list('tasks').filter(t => t.goalId === g.id); return [ts.filter(t => !isOpen(t)).length, ts.length, 'tasks'];
+}
+const pct = ([d, n]) => n ? Math.round(100 * d / n) : 0;
+function ring(p, size = 64, label = '') {
+  const r = size / 2 - 5, c = 2 * Math.PI * r;
+  return `<svg class="ring2" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" role="img" aria-label="${p}%"><circle cx="${size / 2}" cy="${size / 2}" r="${r}" class="rb"/><circle cx="${size / 2}" cy="${size / 2}" r="${r}" class="rf" stroke-dasharray="${(c * p / 100).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 ${size / 2} ${size / 2})"/><text x="50%" y="50%" dy=".35em" text-anchor="middle">${label || p + '%'}</text></svg>`;
+}
+/* ---------- wheel of life chart: one wedge per area, filled out to the score ---------- */
+function wheelSvg(w, prev, opts = {}) {
+  const as = areas(); if (!as.length) return '';
+  const S = opts.size || 340, cx = S / 2, cy = S / 2, R = S / 2 - (opts.labels === false ? 6 : 58), n = as.length, step = 2 * Math.PI / n;
+  const pt = (rad, ang) => [cx + rad * Math.sin(ang), cy - rad * Math.cos(ang)];
+  const wedge = (rad, a0, a1) => { if (rad <= 0) return ''; const [x0, y0] = pt(rad, a0), [x1, y1] = pt(rad, a1); return `M${cx},${cy}L${x0.toFixed(1)},${y0.toFixed(1)}A${rad.toFixed(1)},${rad.toFixed(1)} 0 0 1 ${x1.toFixed(1)},${y1.toFixed(1)}Z`; };
+  const arc = (rad, a0, a1) => { const [x0, y0] = pt(rad, a0), [x1, y1] = pt(rad, a1); return `M${x0.toFixed(1)},${y0.toFixed(1)}A${rad.toFixed(1)},${rad.toFixed(1)} 0 0 1 ${x1.toFixed(1)},${y1.toFixed(1)}`; };
+  let g = ''; for (let k = 2; k <= 10; k += 2) g += `<circle cx="${cx}" cy="${cy}" r="${(R * k / 10).toFixed(1)}" class="wg"/>`;
+  as.forEach((a, i) => {
+    const a0 = i * step + 0.012, a1 = (i + 1) * step - 0.012, s = areaScore(a.id, w), p = prev ? areaScore(a.id, prev) : null, col = areaColor(a), t = areaTarget(a);
+    g += `<g class="wedge" data-act="area-open" data-id="${esc(a.id)}"><path d="${wedge(R, a0, a1)}" class="wbg"/>${s ? `<path d="${wedge(R * s / 10, a0, a1)}" fill="${col}"/>` : ''}${p ? `<path d="${arc(R * p / 10, a0, a1)}" class="wprev"/>` : ''}<path d="${arc(R * t / 10, a0 + step * .3, a1 - step * .3)}" class="wtgt"/><title>${esc(a.title)}: ${s ?? '–'}/10${p ? ` (before ${p})` : ''} · target ${t}</title></g>`;
+    if (opts.labels !== false) { const mid = (a0 + a1) / 2, [lx, ly] = pt(R + 14, mid), anchor = Math.abs(Math.sin(mid)) < .2 ? 'middle' : Math.sin(mid) > 0 ? 'start' : 'end'; g += `<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="${anchor}" class="wl" dy="${Math.cos(mid) < -.5 ? '.9em' : Math.cos(mid) > .5 ? '-.2em' : '.35em'}"><tspan class="wls">${s ?? '–'}</tspan> ${esc(String(a.title).slice(0, 16))}</text>`; }
+  });
+  const padX = opts.labels === false ? 0 : 56;
+  return `<svg viewBox="${-padX} 0 ${S + 2 * padX} ${S}" class="wheel" role="img" aria-label="Wheel of Life">${g}</svg>`;
+}
+function wheelTable(w, prev) {
+  return `<div class="list">${areas().map(a => { const s = areaScore(a.id, w), p = prev ? areaScore(a.id, prev) : null; return `<div class="row" data-act="area-open" data-id="${esc(a.id)}"><span class="sw" style="background:${areaColor(a)}"></span><div class="main"><div class="t" dir="auto">${esc(a.title)}</div><div class="bar thin"><i style="width:${(s || 0) * 10}%;background:${areaColor(a)}"></i></div></div><div class="sc"><b>${s ?? '–'}</b><span>/${areaTarget(a)}</span>${s != null && p != null && s !== p ? `<em class="${s > p ? 'up' : 'down'}">${s > p ? '▲' : '▼'}${Math.abs(s - p)}</em>` : ''}</div></div>`; }).join('')}</div>`;
+}
+function vWheel() {
+  const as = areas(), ws = wheels(), w = ws[0], prev = ws[1];
+  if (!as.length) return header('Wheel of Life', '') + `<div class="card hero"><h2>Start with your Wheel of Life</h2><div class="small" style="margin-bottom:12px">Score each area of your life from 1 to 10. The wheel shows where you are balanced and where to focus your next 40 days.</div><div class="acts one">${WHEEL_PRESETS.map(([k, l, xs]) => `<button class="act" data-act="wheel-preset" data-v="${k}"><span>●</span>${l}<small class="sub2">${xs.length} areas · ${esc(xs.slice(0, 3).join(', '))}…</small></button>`).join('')}</div></div>`;
+  const avg = w ? Math.round(10 * as.reduce((n, a) => n + (areaScore(a.id, w) || 0), 0) / as.length) / 10 : null;
+  const low = w ? as.slice().sort((x, y) => areaGap(y) - areaGap(x)).filter(a => areaGap(a) > 0).slice(0, 2) : [];
+  return header('Wheel of Life', '') + `
+  <div class="card wheelcard">${w ? wheelSvg(w, prev) : '<div class="empty">Take the test to draw your wheel.</div>'}
+    <div class="wleg small">${w ? `Balance ${avg}/10 · tested ${esc(fmtDate(w.date, true))}` : ''}${prev ? ' · <span class="dash"></span> previous test' : ''} · <span class="tk"></span> target</div>
+    <div class="btns" style="justify-content:center;margin-top:10px"><button class="btn primary" data-act="wheel-test">${w ? 'Retake the test' : 'Take the test · 1 min'}</button><button class="btn" data-act="areas-edit">Edit areas</button></div></div>
+  ${low.length ? `<div class="card coachtip"><span class="att-i">${I.spark}</span><div class="main"><b>Coach</b><div class="small">Your biggest gaps are ${low.map(a => `<b>${esc(a.title)}</b> (${areaScore(a.id)} → ${areaTarget(a)})`).join(' and ')}. Make them the focus of your next 40-day cycle.</div></div></div>` : ''}
+  <div class="card">${wheelTable(w, prev)}</div>
+  ${ws.length > 1 ? `<div class="card"><h2>History <span class="count">${ws.length}</span></h2><div class="list">${ws.slice(0, 12).map(x => `<div class="row"><div class="main"><div class="t">${esc(fmtDate(x.date, true))}</div><div class="m">${esc(x.note || '')}</div></div><div class="sc"><b>${Math.round(10 * as.reduce((n, a) => n + (areaScore(a.id, x) || 0), 0) / as.length) / 10}</b><span>/10</span></div></div>`).join('')}</div></div>` : ''}`;
+}
+function wheelTest() {
+  const as = areas(); if (!as.length) { location.hash = '#/progress'; ui.pTab = 'wheel'; saveUi(); return; }
+  const last = wheels()[0];
+  openSheet('Wheel of Life test', `<div class="small" style="margin-bottom:10px">How satisfied are you with each area right now? 1 = not at all, 10 = fully.</div>${as.map(a => { const s = areaScore(a.id, last); return `<div class="wt" data-area="${esc(a.id)}"><div class="wt-h"><span class="sw" style="background:${areaColor(a)}"></span><b dir="auto">${esc(a.title)}</b>${s ? `<span class="small">last ${s}</span>` : ''}</div><div class="nums">${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(v => `<button data-act="wt-pick" data-v="${v}" class="${s === v ? 'on' : ''}">${v}</button>`).join('')}</div></div>`; }).join('')}
+    <div class="f" style="margin-top:12px"><label>One line about this test (optional)</label><input name="wn" dir="auto"></div>`,
+    '<button class="btn primary wide" data-act="form-save">Save my wheel</button>', { noFocus: true, onSave: () => {
+      const scores = {}; sheetCtx.el.querySelectorAll('.wt').forEach(r => { const b = r.querySelector('.nums .on'); if (b) scores[r.dataset.area] = Number(b.textContent); });
+      if (!Object.keys(scores).length) { toast('Tap a score for at least one area'); return; }
+      save('wheel', { date: today(), scores, note: (sheetCtx.el.querySelector('[name=wn]') || {}).value || '' }); closeSheet(); toast('Wheel saved'); ui.pTab = 'wheel'; saveUi(); if (route().page !== 'progress') location.hash = '#/progress';
+    } });
+}
+function areasEdit() {
+  openSheet('Areas of your life', `<div class="small" style="margin-bottom:8px">Rename, recolour or remove areas. Goals, courses and scores stay linked.</div><div class="list">${areas().map(a => `<div class="row" data-act="area-form" data-id="${esc(a.id)}"><span class="sw" style="background:${areaColor(a)}"></span><div class="main"><div class="t" dir="auto">${esc(a.title)}</div><div class="m">target ${areaTarget(a)}/10${a.vision ? ' · ' + esc(a.vision) : ''}</div></div><span class="att-go">${I.go}</span></div>`).join('')}</div>`,
+    '<button class="btn" data-act="area-form">+ Area</button><button class="btn primary" data-act="sheet-close">Done</button>', { noFocus: true });
+}
+function areaForm(a) {
+  formColl = 'areas';
+  form(a.id ? 'Edit area' : 'New area', [{ k: 'title', label: 'Area', req: true }, [{ k: 'color', label: 'Colour', type: 'select', options: AREA_COL.map((c, i) => [i, ['Blue', 'Orange', 'Aqua', 'Yellow', 'Pink', 'Green', 'Violet', 'Red'][i]]), blank: false }, { k: 'target', label: 'Target score', type: 'select', options: [5, 6, 7, 8, 9, 10], blank: false, def: 8 }], { k: 'vision', label: 'What 10/10 looks like', type: 'textarea', ph: 'One or two lines' }, 'MORE', { k: 'order', label: 'Order', type: 'number' }],
+    Object.assign({ color: areas().length % 8, order: areas().length + 1 }, a), v => { if (!v.title) return 'Name the area.'; save('areas', Object.assign({}, a, v, { color: Number(v.color), target: Number(v.target) })); toast('Area saved'); },
+    { onDelete: a.id ? () => { if (!confirm('Remove this area? Goals keep their data.')) return; remove('areas', a.id); closeSheet(); } : null });
+}
+function vArea(id) {
+  const a = get('areas', id); if (!a) return header('Area', '') + '<div class="card empty">Not found.</div>';
+  const gs = list('goals').filter(g => goalArea(g) && goalArea(g).id === id), cs = list('courses').filter(c => c.areaId === id), s = areaScore(id);
+  const hist = wheels().slice(0, 8).reverse().filter(w => areaScore(id, w) != null);
+  return header(a.title, a.vision || '') + `
+  <div class="card areahero" style="--ac:${areaColor(a)}"><div class="ah-n">${s ?? '–'}<span>/10</span></div><div class="main"><div class="small">Target ${areaTarget(a)} · gap ${areaGap(a)}</div><div class="spark">${hist.map(w => `<i style="height:${areaScore(id, w) * 10}%" title="${esc(fmtDate(w.date))}: ${areaScore(id, w)}"></i>`).join('')}</div></div><button class="btn small ghost" data-act="area-form" data-id="${esc(id)}">Edit</button></div>
+  <div class="card"><h2>Goals <span class="count">${gs.length}</span><span style="flex:1"></span><button class="btn small ghost" data-act="new-goal" data-area="${esc(id)}">${I.plus} Goal</button></h2>${gs.length ? `<div class="list">${gs.map(goalRow).join('')}</div>` : '<div class="empty">No goal for this area yet.</div>'}</div>
+  <div class="card"><h2>Courses <span class="count">${cs.length}</span><span style="flex:1"></span><button class="btn small ghost" data-act="new-course" data-area="${esc(id)}">${I.plus} Course</button></h2>${cs.length ? `<div class="list">${cs.map(courseRow).join('')}</div>` : '<div class="empty">No course linked to this area.</div>'}</div>`;
+}
+/* ---------- goals: per area, with milestones ---------- */
+function goalRow(g) {
+  const p = goalProgress(g), a = goalArea(g), nm = list('milestones').filter(m => m.goalId === g.id && !['Done', 'Dropped'].includes(m.status)).sort((x, y) => String(x.target || '9').localeCompare(String(y.target || '9')))[0];
+  return `<div class="row grow" data-act="go" data-to="goal/${encodeURIComponent(g.id)}" style="--ac:${a ? areaColor(a) : 'var(--line)'}"><div class="gbar"></div><div class="main"><div class="t" dir="auto">${esc(g.title)}</div><div class="bar thin" style="margin:6px 0 4px"><i style="width:${pct(p)}%;background:var(--ac)"></i></div><div class="m"><span>${p[0]}/${p[1]} ${p[2]}</span>${g.status && g.status !== 'Not started' ? `<span class="chip">${esc(g.status)}</span>` : ''}${g.target ? `<span>${esc(fmtDate(g.target, true))}</span>` : ''}${nm ? `<span dir="auto">Next: ${esc(nm.title).slice(0, 50)}</span>` : ''}</div></div></div>`;
+}
+function vGoals() {
+  const as = areas(), gs = list('goals').filter(g => !['Dropped'].includes(g.status));
+  const groups = as.map(a => [a, gs.filter(g => goalArea(g) && goalArea(g).id === a.id)]);
+  const loose = gs.filter(g => !goalArea(g));
+  return header('Goals', '') + `<div class="toolbar"><button class="btn primary" data-act="new-goal">${I.plus} Goal</button>${!as.length ? '<span class="small">Set up your Wheel of Life to group goals by area.</span>' : ''}</div>
+  ${groups.map(([a, g]) => `<div class="areahead" data-act="go" data-to="area/${encodeURIComponent(a.id)}" style="--ac:${areaColor(a)}"><span class="sw"></span><b dir="auto">${esc(a.title)}</b><span class="small">${areaScore(a.id) ?? '–'}/10</span><span style="flex:1"></span><span class="small">${g.length} goal${g.length === 1 ? '' : 's'}</span></div>${g.length ? `<div class="card tight"><div class="list">${g.map(goalRow).join('')}</div></div>` : ''}`).join('')}
+  ${loose.length ? `<div class="areahead"><span class="sw" style="background:var(--line)"></span><b>No area yet</b></div><div class="card tight"><div class="list">${loose.map(goalRow).join('')}</div></div>` : ''}`;
+}
+function vGoal(id) {
+  const g = get('goals', id); if (!g) return header('Goal', '') + '<div class="card empty">This goal does not exist.</div>';
+  const a = goalArea(g), p = goalProgress(g), ms = list('milestones').filter(m => m.goalId === id).sort((x, y) => String(x.target || '9').localeCompare(String(y.target || '9')));
+  const ts = sortTasks(list('tasks').filter(t => t.goalId === id && isOpen(t))), cs = list('courses').filter(c => c.goalId === id || (a && c.areaId === a.id));
+  const left = g.target ? daysTo(g.target) : null;
+  return header(g.title, a ? a.title : '') + `
+  <div class="card goalhero" style="--ac:${a ? areaColor(a) : 'var(--brass)'}">${ring(pct(p), 84)}<div class="main"><div class="small">${p[0]} of ${p[1]} ${p[2]} done</div>${left !== null ? `<div class="gl"><b>${left >= 0 ? left : Math.abs(left)}</b> days ${left >= 0 ? 'left' : 'past target'} · ${esc(fmtDate(g.target, true))}</div>` : ''}<div class="m small">${esc(g.status || 'Not started')}</div></div></div>
+  ${g.why || g.measure ? `<div class="card">${g.why ? `<div class="small"><b>Why it matters</b></div><div dir="auto" style="margin:2px 0 10px">${esc(g.why)}</div>` : ''}${g.measure ? `<div class="small"><b>How I will measure it</b></div><div dir="auto">${esc(g.measure)}</div>` : ''}</div>` : ''}
+  <div class="acts" style="margin-bottom:12px"><button class="act" data-act="goal-status" data-id="${esc(id)}"><span>●</span>Status</button><button class="act" data-act="goal-edit" data-id="${esc(id)}"><span>✎</span>Edit</button></div>
+  <div class="card"><h2>Milestones <span class="count">${ms.filter(m => m.status === 'Done').length}/${ms.length}</span></h2>
+    <div class="mlist">${ms.map(m => { const late = m.target && m.target < today() && !['Done', 'Dropped'].includes(m.status); return `<div class="row mrow2" data-act="milestone" data-id="${esc(m.id)}"><button class="check ${m.status === 'Done' ? 'done' : ''}" data-act="ms-done" data-id="${esc(m.id)}" aria-label="Done">${I.tick}</button><div class="main"><div class="t" dir="auto">${esc(m.title)}</div><div class="m">${m.target ? `<span class="chip ${late ? 'late' : ''}">${esc(fmtDate(m.target, true))}</span>` : ''}${m.status && !['Planned', 'Done'].includes(m.status) ? `<span class="chip">${esc(m.status)}</span>` : ''}</div></div></div>`; }).join('') || '<div class="empty">Break the goal into 3–5 milestones.</div>'}</div>
+    <form class="qadd" data-form="ms-add" data-goal="${esc(id)}" style="margin-top:10px"><input name="q" placeholder="Add a milestone… (add a date like @2027-03-01)" dir="auto" autocomplete="off"><button class="btn primary" type="submit">${I.plus}</button></form></div>
+  <div class="card"><h2>Next actions <span class="count">${ts.length}</span></h2>${ts.length ? `<div class="list">${ts.slice(0, 8).map(x => taskRow(x)).join('')}</div>` : '<div class="empty">No open task for this goal.</div>'}
+    <form class="qadd" data-form="gt-add" data-goal="${esc(id)}" style="margin-top:10px"><input name="q" placeholder="Add a task for this goal…" dir="auto" autocomplete="off"><button class="btn primary" type="submit">${I.plus}</button></form></div>
+  ${cs.length ? `<div class="card"><h2>Courses</h2><div class="list">${cs.map(courseRow).join('')}</div></div>` : ''}`;
+}
+/* ---------- 40-day cycle ---------- */
+function cycleCells(c) {
+  const n = Number(c.days) || 40, out = [];
+  for (let i = 0; i < n; i++) { const d = addDays(c.start, i), nl = logOf('closeout', d), ml = logOf('morning', d), sc = nl && Number(nl.score);
+    out.push(`<i class="${d === today() ? 'today' : ''} ${d > today() ? 'fut' : ''}" style="${sc ? `background:color-mix(in srgb,var(--brass) ${20 + sc * 8}%,var(--paper-dim))` : ''}" title="Day ${i + 1} · ${esc(fmtDate(d, true))}${sc ? ' · score ' + sc : ''}${ml ? ' · morning done' : ''}">${ml ? '<b></b>' : ''}</i>`); }
+  return `<div class="cells">${out.join('')}</div>`;
+}
+function cycleStats(c) {
+  const n = cycleDay(c); let m = 0, nn = 0, sum = 0, k = 0;
+  for (let i = 0; i < n; i++) { const d = addDays(c.start, i); if (logOf('morning', d)) m++; const nl = logOf('closeout', d); if (nl) { nn++; if (Number(nl.score)) { sum += Number(nl.score); k++; } } }
+  return { day: n, morning: m, night: nn, avg: k ? Math.round(10 * sum / k) / 10 : null };
+}
+function cycleCard(c, big) {
+  const st = cycleStats(c), total = Number(c.days) || 40, gs = (c.goals || []).map(id => get('goals', id)).filter(Boolean);
+  return `<div class="card cycle"><div class="cy-h">${ring(Math.round(100 * st.day / total), big ? 92 : 64, `${st.day}/${total}`)}<div class="main"><div class="small">40-day cycle · day ${st.day}</div><div class="cy-i" dir="auto">${esc(c.intention || 'My next 40 days')}</div><div class="m small">${st.morning} mornings · ${st.night} nights${st.avg ? ` · avg day ${st.avg}/10` : ''}</div></div></div>
+    ${big ? cycleCells(c) + '<div class="small cleg">Each square is a day. Darker = higher day score. A dot = morning done.</div>' : ''}
+    ${gs.length ? `<div class="list" style="margin-top:8px">${gs.map(goalRow).join('')}</div>` : ''}
+    ${big ? `<div class="btns" style="margin-top:10px"><button class="btn small" data-act="cycle-edit" data-id="${esc(c.id)}">Edit</button><button class="btn small ${st.day >= total ? 'primary' : ''}" data-act="cycle-end" data-id="${esc(c.id)}">${st.day >= total ? 'Finish cycle and retest' : 'End early'}</button></div>` : ''}</div>`;
+}
+function cycleWizard() {
+  const as = areas(); if (!as.length) { ui.pTab = 'wheel'; saveUi(); location.hash = '#/progress'; toast('First set up your Wheel of Life'); return; }
+  const w = wheels()[0], fresh = w && daysBetween(w.date, today()) <= 14;
+  const sorted = as.slice().sort((x, y) => areaGap(y) - areaGap(x)), picks = new Set(sorted.filter(a => areaGap(a) > 0).slice(0, 2).map(a => a.id));
+  openSheet('Start a 40-day cycle', `${fresh ? '' : `<div class="card warnbox small" style="margin-bottom:12px">Your wheel is ${w ? 'older than two weeks' : 'empty'}. <a href="#" data-act="wheel-test">Take the test first</a> so the coach can suggest your focus.</div>`}
+    <div class="small" style="margin-bottom:6px"><b>1. Focus areas</b> · pick 1 to 3</div>
+    <div class="pick" id="cyAreas">${sorted.map(a => `<button class="${picks.has(a.id) ? 'on' : ''}" data-act="cy-area" data-id="${esc(a.id)}" style="--ac:${areaColor(a)}"><span class="sw"></span>${esc(a.title)}${areaScore(a.id) != null ? ` <small>${areaScore(a.id)}→${areaTarget(a)}</small>` : ''}</button>`).join('')}</div>
+    <div class="small" style="margin:14px 0 6px"><b>2. One goal per focus area</b></div><div id="cyGoals"></div>
+    <div class="f" style="margin-top:12px"><label>3. My intention for these 40 days</label><input name="intent" dir="auto" placeholder="In 40 days I will…"></div>
+    <div class="f"><label>Start date</label><input name="start" type="date" value="${today()}"></div>`,
+    '<button class="btn primary wide" data-act="form-save">Start my 40 days</button>', { noFocus: true, onSave: () => {
+      const el = sheetCtx.el, ids = [...el.querySelectorAll('#cyAreas .on')].map(b => b.dataset.id); if (!ids.length) { toast('Pick at least one focus area'); return; }
+      const start = el.querySelector('[name=start]').value || today(), goals = [];
+      for (const aid of ids) { const sel = el.querySelector(`[name="g-${aid}"]`), txt = el.querySelector(`[name="gn-${aid}"]`); let gid = sel && sel.value;
+        if ((!gid || gid === '__new') && txt && txt.value.trim()) gid = save('goals', { title: txt.value.trim(), areaId: aid, area: (get('areas', aid) || {}).title || '', status: 'In progress', target: addDays(start, 39) }).id;
+        if (gid && gid !== '__new') goals.push(gid); }
+      list('cycles').filter(c => c.status === 'active').forEach(c => save('cycles', Object.assign({}, c, { status: 'done' })));
+      save('cycles', { start, days: 40, focus: ids, goals, intention: el.querySelector('[name=intent]').value.trim(), status: 'active' });
+      closeSheet(); toast('Your 40 days start now'); ui.pTab = 'overview'; saveUi(); location.hash = '#/progress';
+    } });
+  drawCyGoals();
+}
+function drawCyGoals() {
+  if (!sheetCtx) return; const box = $('#cyGoals', sheetCtx.el); if (!box) return;
+  const ids = [...sheetCtx.el.querySelectorAll('#cyAreas .on')].map(b => b.dataset.id);
+  box.innerHTML = ids.map(aid => { const a = get('areas', aid), gs = list('goals').filter(g => goalArea(g) && goalArea(g).id === aid && !['Achieved', 'Dropped'].includes(g.status));
+    return `<div class="f"><label style="color:${areaColor(a)}">${esc(a.title)}</label>${gs.length ? `<select name="g-${aid}">${gs.map(g => `<option value="${esc(g.id)}">${esc(g.title)}</option>`).join('')}<option value="__new">+ New goal…</option></select>` : ''}<input name="gn-${aid}" dir="auto" placeholder="${gs.length ? 'Or type a new goal' : 'Goal for this area'}"></div>`; }).join('') || '<div class="small">Pick a focus area above.</div>';
+}
+/* ---------- morning & night balance (one minute each) ---------- */
+function chipsFor(name, items, sel = [], max = 9) { return `<div class="pick bal" data-name="${name}">${items.slice(0, max).map(([v, l]) => `<button type="button" data-act="bal-chip" data-v="${esc(v)}" class="${sel.includes(v) ? 'on' : ''}" dir="auto">${esc(l)}</button>`).join('')}</div>`; }
+function recentVals(field, n = 8) { const seen = new Set(); return list('logs').filter(l => l.type === 'morning' && Array.isArray(l[field])).sort((a, b) => String(b.date).localeCompare(String(a.date))).flatMap(l => l[field]).filter(x => x && !seen.has(x) && seen.add(x)).slice(0, n); }
+function morningSheet() {
+  const t = today(), ex = logOf('morning') || {}, c = activeCycle(), open = list('tasks').filter(isOpen);
+  const top = open.filter(x => x.focusDate === t).map(x => x.id), cand = sortTasks(open.filter(x => x.focusDate === t || (x.due && x.due <= t))).concat(suggestTop(t)).filter((x, i, arr) => arr.findIndex(y => y.id === x.id) === i).slice(0, 8);
+  const focusAreas = (c ? c.focus.map(id => get('areas', id)).filter(Boolean) : []).concat(areas()).filter((a, i, arr) => arr.findIndex(b => b.id === a.id) === i);
+  const imp = list('habits').map(h => [h.title, h.title]).concat(recentVals('improve').map(x => [x, x])).filter((x, i, arr) => arr.findIndex(y => y[0] === x[0]) === i);
+  const f = (k, html) => balOn('m', k) ? `<div class="bq"><div class="bl">${BAL_LABEL.m[k]}</div>${html}</div>` : '';
+  openSheet('Morning Balance', `<div class="small bal-sub">${esc(fmtDate(t, true))}${c ? ` · day ${cycleDay(c)} of ${c.days || 40}` : ''}</div>
+    ${f('expect', `<input name="expect" dir="auto" value="${esc(ex.expect || '')}" placeholder="Today will be good because…">`)}
+    ${f('focus', chipsFor('focusAreas', focusAreas.map(a => [a.id, a.title]), ex.focusAreas || (c ? c.focus : []), 8) + `<input name="focus" dir="auto" value="${esc(ex.focus || '')}" placeholder="In one line…" style="margin-top:6px">`)}
+    ${f('top', cand.length ? chipsFor('top', cand.map(x => [x.id, x.title]), top, 8) + '<div class="small" style="margin-top:4px">Tap up to three.</div>' : '<div class="small">No open tasks. Add some from Today.</div>')}
+    ${f('improve', (imp.length ? chipsFor('improve', imp, ex.improve || [], 8) : '') + `<input name="improve" dir="auto" placeholder="One small improvement…" style="margin-top:6px">`)}
+    ${f('thanks', `<input name="thanks" dir="auto" value="${esc(ex.thanks || '')}" placeholder="I am grateful for…">`)}
+    ${f('note', `<input name="note" dir="auto" value="${esc(ex.note || '')}">`)}`,
+    '<button class="btn primary wide" data-act="form-save">Start my day</button>', { noFocus: true, onSave: () => {
+      const el = sheetCtx.el, val = n => (el.querySelector(`[name=${n}]`) || {}).value || '', on = n => [...el.querySelectorAll(`.bal[data-name=${n}] .on`)].map(b => b.dataset.v);
+      const tops = on('top'); if (tops.length > 3) { toast('Keep it to three'); return; }
+      if (balOn('m', 'top')) { for (const x of open) { const want = tops.includes(x.id); if (want && x.focusDate !== t) save('tasks', Object.assign({}, x, { focusDate: t })); if (!want && x.focusDate === t) save('tasks', Object.assign({}, x, { focusDate: '' })); } }
+      const improve = on('improve').concat(val('improve').trim() ? [val('improve').trim()] : []);
+      save('logs', Object.assign({}, ex, { type: 'morning', date: t, title: 'Morning Balance ' + fmtDate(t), expect: val('expect').trim(), focus: val('focus').trim(), focusAreas: on('focusAreas'), improve, thanks: val('thanks').trim(), note: val('note').trim() }));
+      closeSheet(); toast('Have a great day ☀');
+    } });
+}
+function nightSheet() {
+  const t = today(), tm = addDays(t, 1), ex = logOf('closeout') || {}, open = list('tasks').filter(isOpen);
+  const left = open.filter(x => x.focusDate === t || x.due === t), doneN = list('tasks').filter(x => !isOpen(x) && x.completedOn === t).length;
+  const m = logOf('morning'), f = (k, html) => balOn('n', k) ? `<div class="bq"><div class="bl">${BAL_LABEL.n[k]}</div>${html}</div>` : '';
+  openSheet('Night Balance', `<div class="small bal-sub">${doneN} done today${m && m.expect ? ` · this morning: “${esc(m.expect)}”` : ''}</div>
+    ${f('score', `<div class="nums score">${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(v => `<button data-act="score-pick" data-v="${v}" class="${Number(ex.score) === v ? 'on' : ''}">${v}</button>`).join('')}</div>`)}
+    ${f('better', `<input name="better" dir="auto" value="${esc(ex.better || '')}" placeholder="Tomorrow I will…">`)}
+    ${f('carry', left.length ? `<div class="list">${left.map(x => `<label class="row" style="cursor:pointer;padding:6px 2px"><input type="checkbox" name="carry" value="${esc(x.id)}" checked style="width:20px;height:20px"><div class="main"><div class="t" dir="auto">${esc(x.title)}</div></div></label>`).join('')}</div>` : '<div class="small">Nothing left over. Well done.</div>')}
+    ${f('ideas', `<input name="ideas" dir="auto" value="${esc(ex.ideas || '')}">`)}${f('persp', `<input name="persp" dir="auto" value="${esc(ex.persp || '')}">`)}
+    ${f('thanks', `<input name="thanks" dir="auto" value="${esc(ex.thanks || '')}" placeholder="I am grateful for…">`)}${f('topics', `<input name="topics" dir="auto" value="${esc(ex.topics || '')}">`)}`,
+    '<button class="btn primary wide" data-act="form-save">Close the day</button>', { noFocus: true, onSave: () => {
+      const el = sheetCtx.el, val = n => ((el.querySelector(`[name=${n}]`) || {}).value || '').trim();
+      const carry = [...el.querySelectorAll('[name=carry]:checked')].map(x => x.value), sc = el.querySelector('.nums.score .on'), score = sc ? Number(sc.textContent) : (Number(ex.score) || '');
+      for (const x of left) if (carry.includes(x.id)) save('tasks', Object.assign({}, x, x.focusDate === t ? { focusDate: tm, due: x.due && x.due <= t ? tm : x.due } : { due: tm }));
+      save('logs', Object.assign({}, ex, { type: 'closeout', date: t, title: 'Night Balance ' + fmtDate(t), score, mood: score ? Math.ceil(score / 2) : ex.mood || '', better: val('better'), ideas: val('ideas'), persp: val('persp'), thanks: val('thanks'), topics: val('topics'), done: ex.done || '', notes: carry.length ? 'Carried over: ' + left.filter(x => carry.includes(x.id)).map(x => x.title).join('; ') : '' }));
+      closeSheet(); toast('Day closed. Sleep well.');
+      const tp = list('tasks').filter(x => x.focusDate === t); if (score >= 8 || (tp.length >= 3 && tp.every(x => !isOpen(x)))) celebrate();
+    } });
+}
+function balanceSettings() {
+  const row = (side, k) => `<button class="${balOn(side, k) ? 'on' : ''}" data-act="bal-toggle" data-s="${side}" data-k="${k}">${balOn(side, k) ? '✓ ' : ''}${BAL_LABEL[side][k]}</button>`;
+  return `<div class="small" style="margin-bottom:6px">Morning</div><div class="pick">${Object.keys(BAL_DEF.m).map(k => row('m', k)).join('')}</div><div class="small" style="margin:12px 0 6px">Night</div><div class="pick">${Object.keys(BAL_DEF.n).map(k => row('n', k)).join('')}</div>`;
+}
+
 /* ---------- habits ---------- */
 function habitWeek(h, ws = weekStart()) { let n = 0; for (let i = 0; i < 7; i++) if ((h.done || {})[addDays(ws, i)]) n++; return n; }
 function habitStreak(h) { const d0 = h.done || {}; let d = today(); if (!d0[d]) d = addDays(d, -1); let n = 0; while (d0[d]) { n++; d = addDays(d, -1); } return n; }
@@ -695,13 +920,16 @@ function forecasts() {
   return out;
 }
 function vOverview() {
-  const ws = weekStart(), s = weekScore(ws), p = weekScore(addDays(ws, -7)); const hs = list('habits');
+  const ws = weekStart(), s = weekScore(ws), p = weekScore(addDays(ws, -7)); const hs = list('habits'); const c = activeCycle(), w = wheels()[0];
   return header('Overview', '') + `
-  <div class="card score"><div class="score-n">${s.total ?? '—'}</div><div><b>This week's score</b><div class="small">${p.total !== null && s.total !== null ? (s.total >= p.total ? '▲ ' : '▼ ') + Math.abs(s.total - p.total) + ' vs last week' : 'Average of the areas below'}</div></div></div>
+  ${c ? cycleCard(c, true) : `<div class="card hero"><h2>Your next 40 days</h2><div class="small" style="margin-bottom:12px">A repeatable plan: test your wheel, pick 1–3 focus areas, set one goal for each, then run a one-minute Morning and Night Balance every day.</div><button class="btn primary" data-act="cycle-new">Start a 40-day cycle</button></div>`}
+  <div class="card wheelmini" data-act="p-tab" data-t="wheel" role="button">${areas().length && w ? wheelSvg(w, wheels()[1], { size: 200, labels: false }) : `<div class="empty">${areas().length ? 'Take the Wheel of Life test' : 'Set up your Wheel of Life'}</div>`}<div class="main"><b>Wheel of Life</b><div class="small">${w ? `Tested ${esc(fmtDate(w.date, true))}` : 'Score each area of your life in one minute.'}</div><span class="att-go">${I.go}</span></div></div>
+  <div class="card score">
+<div class="score-n">${s.total ?? '—'}</div><div><b>This week's score</b><div class="small">${p.total !== null && s.total !== null ? (s.total >= p.total ? '▲ ' : '▼ ') + Math.abs(s.total - p.total) + ' vs last week' : 'Average of the areas below'}</div></div></div>
   <div class="tiles">${s.rows.map((r, i) => { const pv = p.rows[i][1]; return `<div class="tile"><div class="tl">${r[0]}</div><div class="tv">${r[1] === null ? '—' : r[1]}</div><div class="bar"><i style="width:${r[1] || 0}%"></i></div><div class="small" dir="auto">${esc(r[2])}${r[1] !== null && pv !== null && pv !== r[1] ? ` · ${r[1] > pv ? '▲' : '▼'} ${Math.abs(r[1] - pv)}` : ''}</div></div>`; }).join('')}</div>
   <div class="card" style="margin-top:12px"><h2>Projections</h2><div class="small" style="margin-bottom:6px">Straight-line projections from your own records. Not promises.</div><div class="list">${forecasts().map(([t, m, tone]) => `<div class="row"><span class="dotx ${tone}"></span><div class="main"><div class="t">${esc(t)}</div><div class="m">${esc(m)}</div></div></div>`).join('')}</div></div>
   <div class="card" style="margin-top:12px"><h2>Habits <span class="count">${hs.length}</span><span style="flex:1"></span><button class="btn small ghost" data-act="new-habit">${I.plus} Habit</button></h2>${hs.length ? `<div class="list">${hs.map(h => `<div class="row" data-act="habit" data-id="${esc(h.id)}"><div class="main"><div class="t" dir="auto">${esc(h.title)}</div><div class="m"><span>${habitWeek(h)} of ${Number(h.perWeek) || 7} this week</span>${habitStreak(h) ? `<span>🔥 ${habitStreak(h)} days</span>` : ''}</div></div><div class="week7">${[0, 1, 2, 3, 4, 5, 6].map(i => `<i class="${(h.done || {})[addDays(ws, i)] ? 'on' : ''}"></i>`).join('')}</div></div>`).join('')}</div>` : '<div class="empty">Small daily habits: exercise, sleep by 11, 20 min reading. Tick them on Today.</div>'}</div>
-  <div class="btns" style="margin-top:12px"><a class="btn" href="#/report">Progress report (PDF)</a><button class="btn" data-act="weekly">Weekly review</button></div>`;
+  <div class="btns" style="margin-top:12px"><a class="btn" href="#/report">Progress report (PDF)</a><button class="btn" data-act="weekly">Weekly review</button>${c ? '' : '<button class="btn" data-act="cycle-new">Start a cycle</button>'}</div>`;
 }
 /* ---------- courses ---------- */
 const COURSE_STATES = ['Planned', 'Active', 'Paused', 'Done', 'Dropped'];
@@ -729,8 +957,8 @@ function parseNoteLessons(md) {
   return out.filter(Boolean).slice(0, 120);
 }
 function courseRow(c) {
-  const n = cNext(c), ls = cLessons(c);
-  return `<div class="row crow" data-act="go" data-to="course/${encodeURIComponent(c.id)}"><div class="main"><div class="t" dir="auto">${esc(c.title)}</div><div class="bar" style="margin:6px 0 4px"><i style="width:${cPct(c)}%"></i></div><div class="m"><span>${ls.filter(l => l.done).length}/${ls.length}</span>${c.status && c.status !== 'Active' ? `<span class="chip">${esc(c.status)}</span>` : ''}${n ? `<span dir="auto">Next: ${esc(n.t).slice(0, 70)}</span>` : '<span>All lessons done 🎉</span>'}</div></div>${n && (c.status || 'Planned') !== 'Paused' ? `<button class="icon-btn playb" data-act="c-start" data-id="${esc(c.id)}" aria-label="Start next lesson">${I.play}</button>` : ''}</div>`;
+  const n = cNext(c), ls = cLessons(c), ca = c.areaId && get('areas', c.areaId);
+  return `<div class="row crow" data-act="go" data-to="course/${encodeURIComponent(c.id)}"><div class="main"><div class="t" dir="auto">${esc(c.title)}</div><div class="bar" style="margin:6px 0 4px"><i style="width:${cPct(c)}%"></i></div><div class="m"><span>${ls.filter(l => l.done).length}/${ls.length}</span>${ca ? `<span class="achip" style="--ac:${areaColor(ca)}"><span class="sw"></span>${esc(ca.title)}</span>` : ''}${c.status && c.status !== 'Active' ? `<span class="chip">${esc(c.status)}</span>` : ''}${n ? `<span dir="auto">Next: ${esc(n.t).slice(0, 70)}</span>` : '<span>All lessons done 🎉</span>'}</div></div>${n && (c.status || 'Planned') !== 'Paused' ? `<button class="icon-btn playb" data-act="c-start" data-id="${esc(c.id)}" aria-label="Start next lesson">${I.play}</button>` : ''}</div>`;
 }
 function vCourses() {
   const cs = list('courses').sort((a, b) => COURSE_STATES.indexOf(a.status || 'Planned') - COURSE_STATES.indexOf(b.status || 'Planned') || String(a.title).localeCompare(String(b.title)));
@@ -753,18 +981,21 @@ function vCourse(id) {
 }
 function courseForm(c) {
   formColl = 'courses';
-  form(c.id ? 'Edit course' : 'New course', [{ k: 'title', label: 'Course', req: true }, [{ k: 'status', label: 'Status', type: 'select', options: COURSE_STATES, blank: false, def: 'Active' }, { k: 'skillId', label: 'Skill', type: 'select', options: skillOpts }], { k: 'perWeek', label: 'Lessons per week', type: 'select', options: [1, 2, 3, 4, 5, 6, 7], def: 2 }, 'MORE', { k: 'provider', label: 'Provider / platform' }, { k: 'link', label: 'Course link', type: 'url' }, { k: 'gate', label: 'Start condition', ph: 'e.g. after Power BI Page 1' }, { k: 'reviewEvery', label: 'Review every (days)', type: 'number', def: 30 }, ...(c.id ? [] : [{ k: 'lessonText', label: 'Lessons, one per line', type: 'textarea' }])], c, v => {
+  form(c.id ? 'Edit course' : 'New course', [{ k: 'title', label: 'Course', req: true }, [{ k: 'status', label: 'Status', type: 'select', options: COURSE_STATES, blank: false, def: 'Active' }, { k: 'areaId', label: 'Area of life', type: 'select', options: () => areas().map(a => [a.id, a.title]) }], [{ k: 'skillId', label: 'Skill', type: 'select', options: skillOpts }, { k: 'goalId', label: 'Goal', type: 'select', options: goalOpts }], { k: 'perWeek', label: 'Lessons per week', type: 'select', options: [1, 2, 3, 4, 5, 6, 7], def: 2 }, 'MORE', { k: 'provider', label: 'Provider / platform' }, { k: 'link', label: 'Course link', type: 'url' }, { k: 'gate', label: 'Start condition', ph: 'e.g. after Power BI Page 1' }, { k: 'reviewEvery', label: 'Review every (days)', type: 'number', def: 30 }, ...(c.id ? [] : [{ k: 'lessonText', label: 'Lessons, one per line', type: 'textarea' }])], c, v => {
     if (!v.title) return 'Give the course a name.';
     const rec = Object.assign({}, c, v); if (!c.id) { rec.lessons = L(String(v.lessonText || '').split('\n').map(x => x.trim()).filter(Boolean)); delete rec.lessonText; rec.nextReview = addDays(today(), Number(v.reviewEvery) || 30); }
     const r = save('courses', rec); toast('Course saved'); if (!c.id) setTimeout(() => { location.hash = '#/course/' + encodeURIComponent(r.id); }, 50);
   }, { onDelete: c.id ? () => { remove('courses', c.id); closeSheet(); location.hash = '#/progress'; } : null });
 }
-function newCourseSheet() {
+function newCourseSheet(areaId) {
   const notes = list('notes').sort((a, b) => String(a.title).localeCompare(String(b.title)));
-  openSheet('New course', `<div class="small" style="margin-bottom:6px">Start from a plan you already have</div><div class="acts one">${COURSE_STARTERS.map(s => `<button class="act" data-act="c-starter" data-v="${s.key}"><span>★</span>${esc(s.title)}</button>`).join('')}</div>
+  const as = areas().slice().sort((x, y) => areaGap(y) - areaGap(x)), coachPick = as.find(a => areaGap(a) > 0 && !list('courses').some(c => c.areaId === a.id && ['Active', 'Planned'].includes(c.status)));
+  const cur = areaId || (coachPick && coachPick.id) || '';
+  openSheet('New course', `${as.length ? `<div class="small" style="margin-bottom:6px"><b>Which area of life is it for?</b></div><div class="pick" id="ncArea">${as.map(a => `<button class="${a.id === cur ? 'on' : ''}" data-act="nc-area" data-id="${esc(a.id)}" style="--ac:${areaColor(a)}"><span class="sw"></span>${esc(a.title)}${coachPick && coachPick.id === a.id ? ' <small>coach pick</small>' : ''}</button>`).join('')}</div><div style="height:12px"></div>` : ''}<div class="small" style="margin-bottom:6px">Start from a plan you already have</div><div class="acts one">${COURSE_STARTERS.map(s => `<button class="act" data-act="c-starter" data-v="${s.key}"><span>★</span>${esc(s.title)}</button>`).join('')}</div>
     ${notes.length ? `<div class="small" style="margin:14px 0 6px">Or turn a note's list into lessons</div><div class="acts one">${notes.map(n => `<button class="act" data-act="c-from-note" data-id="${esc(n.id)}"><span>≡</span><span dir="auto" style="width:auto;text-align:inherit;color:inherit;font-size:inherit">${esc(n.title)}</span></button>`).join('')}</div>` : ''}
     <div class="acts one" style="margin-top:12px"><button class="act" data-act="c-blank"><span>+</span>Blank course</button></div>`, '', { noFocus: true });
 }
+const ncArea = () => { const b = sheetCtx && sheetCtx.el.querySelector('#ncArea .on'); return b ? b.dataset.id : ''; };
 function lessonsFromNote(id) {
   const n = get('notes', id); if (!n) return; const items = parseNoteLessons(n.body);
   if (!items.length) { toast('No list found in this note'); return; }
@@ -772,7 +1003,7 @@ function lessonsFromNote(id) {
   openSheet('Lessons from note', `<div class="small" style="margin-bottom:8px">Untick anything that is not a lesson.</div><div class="f"><label>Course name</label><input name="ct" dir="auto" value="${esc(n.title)}"></div><div class="list">${items.map((t, i) => `<label class="row" style="cursor:pointer"><input type="checkbox" name="li" value="${i}" checked style="width:22px;height:22px;margin-top:2px"><div class="main"><div class="t" dir="auto">${esc(t)}</div></div></label>`).join('')}</div>`,
     '<button class="btn" data-act="sheet-close">Cancel</button><button class="btn primary" data-act="form-save">Create course</button>', { noFocus: true, onSave: () => {
       const el = sheetCtx.el; const pick = [...el.querySelectorAll('input[name=li]:checked')].map(x => items[Number(x.value)]);
-      if (!pick.length) return; const r = save('courses', { title: el.querySelector('[name=ct]').value.trim() || n.title, status: 'Active', perWeek: 2, reviewEvery: 30, nextReview: addDays(today(), 30), lessons: L(pick), source: n.id });
+      if (!pick.length) return; const r = save('courses', { title: el.querySelector('[name=ct]').value.trim() || n.title, status: 'Active', perWeek: 2, reviewEvery: 30, nextReview: addDays(today(), 30), lessons: L(pick), source: n.id, areaId: ui.ncArea || '' });
       closeSheet(); toast('Course created'); location.hash = '#/course/' + encodeURIComponent(r.id);
     } });
 }
@@ -803,7 +1034,7 @@ function vJournal() {
   return header('Journal', 'One line a day, written when you close the day') + `
   <div class="card"><div class="heat">${days.map(d => { const l = byDay[d]; return `<i class="m${l && l.mood ? l.mood : l ? 'x' : ''}" title="${esc(fmtDate(d, true))}${l && l.mood ? ' ' + MOODS[l.mood] : ''}"></i>`; }).join('')}</div><div class="small" style="margin-top:8px">Last 16 weeks · colour = mood · ${Object.keys(byDay).length} days written</div>
     <div class="btns" style="margin-top:10px"><button class="btn small" data-act="journal-new">${I.plus} Write for today</button></div></div>
-  <div class="card" style="margin-top:12px">${logs.length ? `<div class="list">${logs.slice(0, 120).map(l => `<div class="row" data-act="logitem" data-id="${esc(l.id)}"><div class="time">${l.mood ? MOODS[l.mood] : '·'}</div><div class="main"><div class="t">${esc(fmtDate(l.date, true))}</div>${l.done ? `<div class="na" dir="auto">${esc(l.done)}</div>` : ''}${l.notes ? `<div class="m" dir="auto">${esc(l.notes).slice(0, 160)}</div>` : ''}</div></div>`).join('')}</div>` : '<div class="empty">Nothing yet. Close the day to write your first line.</div>'}</div>`;
+  <div class="card" style="margin-top:12px">${logs.length ? `<div class="list">${logs.slice(0, 120).map(l => { const ml = logOf('morning', l.date); return `<div class="row" data-act="logitem" data-id="${esc(l.id)}"><div class="time">${l.score ? `<b class="sc10">${l.score}</b>` : l.mood ? MOODS[l.mood] : '·'}</div><div class="main jl"><div class="t">${esc(fmtDate(l.date, true))}</div>${ml && ml.expect ? `<div class="m" dir="auto">☀ ${esc(ml.expect)}</div>` : ''}${[['Better', l.better], ['Thanks', l.thanks || (ml && ml.thanks)], ['Ideas', l.ideas], ['Perspective', l.persp], ['Topics', l.topics]].filter(x => x[1]).map(x => `<div class="m" dir="auto"><b>${x[0]}:</b> ${esc(x[1])}</div>`).join('')}${l.done ? `<div class="na" dir="auto">${esc(l.done)}</div>` : ''}${l.notes ? `<div class="m" dir="auto">${esc(l.notes).slice(0, 160)}</div>` : ''}</div></div>`; }).join('')}</div>` : '<div class="empty">Nothing yet. Close the day to write your first line.</div>'}</div>`;
 }
 /* ---------- printable report ---------- */
 function vReport() {
@@ -824,7 +1055,7 @@ function vReport() {
 }
 /* ---------- global search ---------- */
 const SEARCH_IN = [['courses', 'Course', r => [r.title, r.provider, cLessons(r).map(l => l.t).join(' ')], 'course-open'], ['tasks', 'Task', r => [r.title, r.nextAction, r.notes], 'task'], ['notes', 'Note', r => [r.title, r.body, r.tags], 'note'], ['applications', 'Job', r => [r.role, r.company, r.notes], 'application'], ['events', 'Event', r => [r.title, r.notes], 'event'], ['decisions', 'Decision', r => [r.title, r.decision], 'decision'], ['evidence', 'Evidence', r => [r.code, r.title, r.proves], 'evidence'], ['immigration', 'Document', r => [r.title, r.notes], 'immig'], ['milestones', 'Milestone', r => [r.title, r.notes], 'milestone'], ['skills', 'Skill', r => [r.title], 'skill'], ['goals', 'Goal', r => [r.title, r.success], 'goal'], ['logs', 'Journal', r => [r.title, r.done, r.notes], 'logitem']];
-const PALETTE = [['New task', 'new-task'], ['New event', 'new-event'], ['Log practice', 'log-time'], ['Start next lesson', 'next-lesson'], ['Close the day', 'closeout'], ['Weekly review', 'weekly'], ['New course', 'new-course'], ['Job application', 'new-application'], ['Update savings', 'money-add'], ['Go to Today', 'go', 'today'], ['Go to Tasks', 'go', 'tasks'], ['Go to Calendar', 'go', 'calendar'], ['Go to Progress', 'go', 'progress'], ['Go to Job search', 'go', 'jobs'], ['Go to Documents', 'go', 'documents'], ['Go to Notes', 'go', 'notes'], ['Go to Journal', 'go', 'journal'], ['Go to Templates', 'go', 'templates'], ['Go to Trash', 'go', 'trash'], ['Go to Settings', 'go', 'settings'], ['Go to System health', 'go', 'health']];
+const PALETTE = [['Morning Balance', 'morning'], ['Night Balance', 'closeout'], ['Wheel of Life test', 'wheel-test'], ['Start a 40-day cycle', 'cycle-new'], ['New goal', 'new-goal'], ['New task', 'new-task'], ['New event', 'new-event'], ['Log practice', 'log-time'], ['Start next lesson', 'next-lesson'], ['Close the day', 'closeout'], ['Weekly review', 'weekly'], ['New course', 'new-course'], ['Job application', 'new-application'], ['Update savings', 'money-add'], ['Go to Today', 'go', 'today'], ['Go to Tasks', 'go', 'tasks'], ['Go to Calendar', 'go', 'calendar'], ['Go to Progress', 'go', 'progress'], ['Go to Job search', 'go', 'jobs'], ['Go to Documents', 'go', 'documents'], ['Go to Notes', 'go', 'notes'], ['Go to Journal', 'go', 'journal'], ['Go to Templates', 'go', 'templates'], ['Go to Trash', 'go', 'trash'], ['Go to Settings', 'go', 'settings'], ['Go to System health', 'go', 'health']];
 function searchSheet() {
   openSheet('Search everything', `<input class="search" id="gsq" type="search" placeholder="Type to search" style="width:100%" autocomplete="off" dir="auto"><div id="gsr" class="list" style="margin-top:10px"></div>`, '', {});
   const inp = $('#gsq'); setTimeout(() => inp.focus(), 60);
@@ -889,7 +1120,7 @@ function badge(k) {
 }
 /* ---------- setup checklist ---------- */
 function setupItems() {
-  return [[!!ui.pkSet, 'Sign in with Face ID', 'pk-add'], [!!ui.pushOn, 'Morning and evening reminders', 'go-settings'], [!!ui.calDone, 'Calendar on your iPhone', 'ics-setup'], [!!ui.siriDone, 'Siri shortcuts', 'siri'], [list('habits').length > 0, 'One daily habit', 'new-habit'], [list('milestones').length > 0, 'First 2031 milestone', 'new-milestone'], [list('courses').length > 0, 'Your courses', 'new-course'], [!!ui.lastBackup, 'First backup copy', 'enc-backup']];
+  return [[!!ui.pkSet, 'Sign in with Face ID', 'pk-add'], [!!ui.pushOn, 'Morning and evening reminders', 'go-settings'], [!!ui.calDone, 'Calendar on your iPhone', 'ics-setup'], [!!ui.siriDone, 'Siri shortcuts', 'siri'], [wheels().length > 0, 'Wheel of Life test', 'wheel-start'], [!!activeCycle(), 'Start a 40-day cycle', 'cycle-new'], [!!list('logs').find(l => l.type === 'morning'), 'First Morning Balance', 'morning'], [list('habits').length > 0, 'One daily habit', 'new-habit'], [!!ui.lastBackup, 'First backup copy', 'enc-backup']];
 }
 function setupCard() {
   if (ui.setupHidden) return ''; const it = setupItems(), d = it.filter(x => x[0]).length; if (d === it.length) return '';
@@ -915,7 +1146,8 @@ function vLearn() {
   const ielts = list('ielts').sort((a, b) => String(b.date).localeCompare(String(a.date)));
   const ws = weekStart(), mins = weekMinutes(ws), tgt = weekTarget(), st = streak();
   const tracked = skills.filter(s => Number(s.weeklyHours) > 0 || weekMinutes(ws, s.id) > 0);
-  return header('Learning', 'Competence is shown by practical checks, not attendance') + vCourses() + `
+  const gapA = areas().slice().sort((x, y) => areaGap(y) - areaGap(x)).find(a => areaGap(a) > 0 && !list('courses').some(c => c.areaId === a.id && ['Active', 'Planned'].includes(c.status)));
+  return header('Learning', 'Competence is shown by practical checks, not attendance') + (gapA ? `<div class="card coachtip"><span class="att-i">${I.spark}</span><div class="main"><b>Coach</b><div class="small"><b>${esc(gapA.title)}</b> is ${areaScore(gapA.id)}/10 against a target of ${areaTarget(gapA)} and has no course. Pick one that moves it.</div></div><button class="btn small primary" data-act="new-course" data-area="${esc(gapA.id)}">Pick a course</button></div>` : '') + vCourses() + `
   <div class="card"><h2>This week <span class="count">${hrs(mins)} h${tgt ? ' / ' + hrs(tgt) + ' h' : ''}</span><span style="flex:1"></span><button class="btn small primary" data-act="log-time">${I.plus} Log time</button></h2>
     <div class="small" style="margin-bottom:8px">${st ? `🔥 ${st}-day streak` : 'No streak yet. Log any practice today to start one.'} · Week of ${esc(fmtDate(ws))}</div>
     ${tracked.length ? tracked.map(s => { const m = weekMinutes(ws, s.id), g = Math.round((Number(s.weeklyHours) || 0) * 60); return `<div style="margin:8px 0"><div class="small" style="display:flex;justify-content:space-between;gap:8px"><span dir="auto">${esc(s.title)}</span><b>${hrs(m)}${g ? ' / ' + hrs(g) : ''} h</b></div><div class="bar"><i style="width:${g ? Math.min(100, Math.round(100 * m / g)) : 100}%"></i></div></div>`; }).join('') : '<div class="empty">Set weekly hours on a skill to track it here.</div>'}</div>
@@ -1018,6 +1250,8 @@ function vSettings() {
     <div class="small mono" style="margin-top:8px">${esc(n)}</div></div>
   <div class="card"><h2>Siri & Shortcuts</h2><div class="small">Add tasks, hear your Top 3, log practice and save job ads by voice or from Safari's Share button.</div><div class="btns" style="margin-top:10px"><button class="btn small primary" data-act="siri">Set up Siri</button></div></div>
   <div class="card"><h2>Face ID sign-in</h2><div id="pkbox" class="small">Checking…</div></div>
+  <div class="card"><h2>Morning &amp; Night Balance</h2><div class="small" style="margin-bottom:8px">Choose the questions you answer. Fewer questions = faster.</div>${balanceSettings()}</div>
+  <div class="card"><h2>Areas of life</h2><div class="small" style="margin-bottom:8px">${areas().length} areas in your Wheel of Life.</div><div class="btns"><button class="btn small" data-act="areas-edit">Edit areas</button><button class="btn small" data-act="wheel-test">Retake the wheel</button></div></div>
   <div class="card"><h2>Sections</h2><div class="small" style="margin-bottom:8px">Hide what you do not use. Nothing is deleted.</div><div class="pick">${OPTIONAL.map(([k, l]) => `<button class="${hidden().has(k) ? '' : 'on'}" data-act="toggle-sec" data-v="${k}">${hidden().has(k) ? '' : '✓ '}${l}</button>`).join('')}</div></div>
   <div class="card"><h2>Language</h2><div class="seg">${[['en', 'English'], ['fa', 'فارسی']].map(([k, l]) => `<button class="${(ui.lang || 'en') === k ? 'on' : ''}" data-act="set-lang" data-v="${k}">${l}</button>`).join('')}</div></div>
   <div class="card"><h2>Security</h2><div class="btns"><button class="btn small" data-act="password">Change password</button><button class="btn small danger" data-act="logout">Sign out on this device</button></div>
@@ -1035,11 +1269,11 @@ function route() { const h = location.hash.replace(/^#\/?/, '') || 'today'; cons
 function render() {
   if (!ls.get(K.tok) && !document.querySelector('.shell')) return;
   const { page, arg } = route();
-  const views = { today: vToday, tasks: vTasks, calendar: vCalendar, plan: vPlan, more: vMore, learn: vLearn, evidence: vEvidence, decisions: vDecisions, notes: vNotes, note: () => vNote(arg), review: vReview, settings: vSettings, jobs: vJobs, immigration: vImmigration, progress: vProgress, journal: vJournal, report: vReport, templates: vTemplates, trash: vTrash, health: vHealth, course: () => vCourse(arg), documents: vDocuments, notes: vNotesHub };
+  const views = { today: vToday, tasks: vTasks, calendar: vCalendar, plan: vPlan, more: vMore, learn: vLearn, evidence: vEvidence, decisions: vDecisions, notes: vNotes, note: () => vNote(arg), review: vReview, settings: vSettings, jobs: vJobs, immigration: vImmigration, progress: vProgress, journal: vJournal, report: vReport, templates: vTemplates, trash: vTrash, health: vHealth, course: () => vCourse(arg), documents: vDocuments, notes: vNotesHub, goal: () => vGoal(arg), area: () => vArea(arg) };
   if (page === 'immigration' || page === 'evidence') { ui.dTab = page; views[page] = vDocuments; } if (page === 'journal' || page === 'decisions') { ui.nTab = page; views[page] = vNotesHub; }
   if (page === 'plan') { ui.pTab = ui.planTab === 'goals' ? 'goals' : 'roadmap'; views.plan = vProgress; } if (page === 'learn') { ui.pTab = 'learning'; views.learn = vProgress; }
   const html = icoize((views[page] || vToday)());
-  const active = NAV_MAIN.some(([k]) => k === page) ? page : ['plan', 'learn', 'report', 'course'].includes(page) ? 'progress' : page === 'note' ? 'more' : NAV_MORE.some(([k]) => k === page) ? 'more' : 'today';
+  const active = NAV_MAIN.some(([k]) => k === page) ? page : ['plan', 'learn', 'report', 'course', 'goal', 'area'].includes(page) ? 'progress' : page === 'note' ? 'more' : NAV_MORE.some(([k]) => k === page) ? 'more' : 'today';
   const focusKey = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.input : null;
   const sel = focusKey ? [document.activeElement.selectionStart, document.activeElement.selectionEnd] : null;
   const scrollY = window.scrollY;
@@ -1142,7 +1376,7 @@ function celebrate() {
 function tour() {
   if (ui.tourDone || sheetCtx) return;
   const row = (ic, t, m) => `<div class="row"><span class="att-i">${ic}</span><div class="main"><div class="t">${t}</div><div class="m">${m}</div></div></div>`;
-  openSheet('Welcome to MILAD 2031', `<div class="list">${row(I.plus, 'One box for everything', 'Type a task, “fri 10:30 meeting”, “30 min sql” or paste a job link.')}${row(I.tasks, 'Tap for actions, swipe to finish', 'Swipe right to finish. Swipe a task left to move it to tomorrow.')}${row(I.star, 'Three things each morning', 'Pick your Top 3, then close the day each evening.')}${row(I.search, 'Search does everything', 'Find anything, or type “close” to close the day.')}</div>`, '<button class="btn primary wide" data-act="tour-ok">Start</button>', { noFocus: true });
+  openSheet('Welcome to MILAD 2031', `<div class="list">${row(I.plus, 'One box for everything', 'Type a task, “fri 10:30 meeting”, “30 min sql” or paste a job link.')}${row(I.tasks, 'Tap for actions, swipe to finish', 'Swipe right to finish. Swipe a task left to move it to tomorrow.')}${row(I.star, 'One minute morning and night', 'Morning Balance sets your focus and Top 3. Night Balance scores the day and carries over the rest.')}${row(I.prog, 'Coach', 'Wheel of Life, 40-day cycles, goals by area and milestones.')}${row(I.search, 'Search does everything', 'Find anything, or type “close” to close the day.')}</div>`, '<button class="btn primary wide" data-act="tour-ok">Start</button>', { noFocus: true });
 }
 function setTask(id, patch, msg) { const t = get('tasks', id); if (!t) return; const before = Object.assign({}, t); save('tasks', Object.assign({}, t, patch)); closeSheet(); if (msg) toast(msg, 'Undo', () => save('tasks', before)); }
 const REPEATS = [['', 'Does not repeat'], ['daily', 'Every day'], ['weekdays', 'Weekdays (Mon–Fri)'], ['weekly', 'Every week'], ['monthly', 'Every month']];
@@ -1359,7 +1593,7 @@ const FORMS = {
     if (!v.skill) return 'Add a skill first (Learning → Skill).'; if (!(Number(v.minutes) > 0)) return 'Enter the minutes.';
     const sk = get('skills', v.skill); save('sessions', Object.assign({ title: v.title || ((sk ? sk.title : 'Practice') + ' · ' + v.minutes + ' min'), result: 'Not a check' }, v)); toast('Logged ' + v.minutes + ' min');
   }),
-  goal: r => simpleForm('goals', 'goal', [{ k: 'title', label: 'Goal', req: true }, [{ k: 'status', label: 'Status', type: 'select', options: GOAL_STATES }, { k: 'target', label: 'Target date', type: 'date' }], 'MORE', [{ k: 'code', label: 'Code', ph: 'G1' }, { k: 'area', label: 'Area', type: 'select', options: AREAS }], { k: 'success', label: 'Success criteria', type: 'textarea' }, { k: 'notes', label: 'Notes', type: 'textarea' }], r),
+  goal: r => simpleForm('goals', 'goal', [{ k: 'title', label: 'Goal', req: true }, [{ k: 'areaId', label: 'Area of life', type: 'select', options: () => areas().map(a => [a.id, a.title]) }, { k: 'target', label: 'Target date', type: 'date' }], { k: 'why', label: 'Why it matters', type: 'textarea', ph: 'The reason that keeps you going' }, 'MORE', { k: 'measure', label: 'How I will measure it', type: 'textarea' }, [{ k: 'status', label: 'Status', type: 'select', options: GOAL_STATES }, { k: 'code', label: 'Code', ph: 'G1' }], { k: 'success', label: 'Success criteria', type: 'textarea' }, { k: 'notes', label: 'Notes', type: 'textarea' }], Object.assign({}, r, !r.areaId && goalArea(r) ? { areaId: goalArea(r).id } : {})),
   project: r => simpleForm('projects', 'project', [{ k: 'title', label: 'Project', req: true }, [{ k: 'status', label: 'Status', type: 'select', options: PROJECT_STATES }, { k: 'target', label: 'Target date', type: 'date' }], 'MORE', [{ k: 'goalId', label: 'Goal', type: 'select', options: goalOpts }, { k: 'start', label: 'Start', type: 'date' }], { k: 'deliverable', label: 'Deliverable', type: 'textarea' }, { k: 'dependencies', label: 'Dependencies', type: 'textarea' }, { k: 'notes', label: 'Notes', type: 'textarea' }], r),
   skill: r => simpleForm('skills', 'skill', [{ k: 'title', label: 'Skill', req: true }, [{ k: 'status', label: 'Status', type: 'select', options: SKILL_STATES }, { k: 'weeklyHours', label: 'Hours per week', type: 'number', step: 0.5 }], 'MORE', [{ k: 'current', label: 'Level now (0-5)', type: 'number' }, { k: 'target', label: 'Target level', type: 'number' }], [{ k: 'priority', label: 'Priority', type: 'select', options: PRI }, { k: 'category', label: 'Category', type: 'select', options: ['Technical', 'Language', 'Domain', 'Commercial', 'Leadership'] }], { k: 'evidenceNeeded', label: 'Evidence of competence', type: 'textarea' }, { k: 'plan', label: 'Learning plan', type: 'big' }], r),
   session: r => simpleForm('sessions', 'session', [{ k: 'title', label: 'Session', req: true, ph: 'SQL S1: core queries' }, [{ k: 'date', label: 'Date', type: 'date', def: today() }, { k: 'minutes', label: 'Minutes', type: 'number', step: 5 }], [{ k: 'skill', label: 'Skill', type: 'select', options: skillOpts }, { k: 'result', label: 'Result', type: 'select', options: ['Pass', 'Partial', 'Not yet', 'Not a check'] }], 'MORE', { k: 'done', label: 'What I did', type: 'textarea' }, { k: 'number', label: 'Session no.', type: 'number' }, { k: 'difficulty', label: 'Difficulties / next time', type: 'textarea' }], r),
@@ -1407,7 +1641,7 @@ function weeklyReview() {
 }
 const IMM_STARTER = [['Passport', 'Identity'], ['National ID / birth certificate', 'Identity'], ['Degree certificate', 'Education'], ['Academic transcripts', 'Education'], ['Employment reference letters', 'Employment'], ['English test report (IELTS)', 'English test'], ['Police clearance certificates', 'Police & health'], ['Medical examination', 'Police & health'], ['Proof of funds', 'Finance'], ['Passport-style photos', 'Forms & fees']];
 function quickAdd() {
-  openSheet('Add', `<div class="grid two">${[['new-task', 'Task', I.tasks], ['new-event', 'Event', I.cal], ['log-time', 'Log practice', I.clock], ['new-application', 'Job application', I.jobs], ['new-note', 'Note', I.notes], ['new-course', 'Course', I.course], ['from-tpl', 'From template', I.tmpl], ['money-add', 'Update savings', I.money], ['weekly', 'Weekly review', I.review]].map(([a, l, ic]) => `<button class="card row" data-act="${a}" style="align-items:center;text-align:left"><span style="width:24px;color:var(--brass-ink)">${ic}</span><div class="main"><div class="t">${l}</div></div></button>`).join('')}</div>`, '', { noFocus: true });
+  openSheet('Add', `<div class="grid two">${[['morning', 'Morning Balance', I.today], ['closeout', 'Night Balance', I.moon], ['new-task', 'Task', I.tasks], ['new-goal', 'Goal', I.flag], ['new-event', 'Event', I.cal], ['log-time', 'Log practice', I.clock], ['new-application', 'Job application', I.jobs], ['new-note', 'Note', I.notes], ['new-course', 'Course', I.course], ['from-tpl', 'From template', I.tmpl], ['money-add', 'Update savings', I.money], ['weekly', 'Weekly review', I.review]].map(([a, l, ic]) => `<button class="card row" data-act="${a}" style="align-items:center;text-align:left"><span style="width:24px;color:var(--brass-ink)">${ic}</span><div class="main"><div class="t">${l}</div></div></button>`).join('')}</div>`, '', { noFocus: true });
 }
 
 /* ---------------- navigation polish ---------------- */
@@ -1470,7 +1704,7 @@ document.addEventListener('click', async e => {
     'new-task': () => taskForm(a.dataset.day ? { scheduled: a.dataset.day + 'T09:00' + tzOffset(), due: a.dataset.day } : {}),
     event: () => { closeSheet(true); itemSheet('events', id); },
     'new-event': () => eventForm({}, a.dataset.day || today()),
-    goal: () => { closeSheet(true); itemSheet('goals', id); }, 'new-goal': () => FORMS.goal({}),
+    goal: () => { closeSheet(true); location.hash = '#/goal/' + encodeURIComponent(id); }, 'new-goal': () => FORMS.goal(a.dataset.area ? { areaId: a.dataset.area, status: 'In progress' } : { status: 'In progress' }),
     project: () => FORMS.project(get('projects', id) || {}), 'new-project': () => FORMS.project({}),
     skill: () => { closeSheet(true); itemSheet('skills', id); }, 'new-skill': () => FORMS.skill({}),
     session: () => FORMS.session(get('sessions', id) || {}), 'new-session': () => FORMS.session({}),
@@ -1485,7 +1719,8 @@ document.addEventListener('click', async e => {
     'cal-today': () => { ui.calMonth = today().slice(0, 7); ui.calSel = today(); saveUi(); render(); },
     'cal-sel': () => { ui.calSel = a.dataset.day; if (a.dataset.day.slice(0, 7) !== ui.calMonth) ui.calMonth = a.dataset.day.slice(0, 7); saveUi(); render(); },
     'plan-day': () => planDay(a.dataset.day || today(), false),
-    closeout: () => closeDay(),
+    closeout: () => nightSheet(),
+    morning: () => morningSheet(),
     quick: () => quickAdd(),
     go: () => { closeSheet(true); location.hash = '#/' + a.dataset.to; if (a.dataset.to === 'plan') { ui.planTab = 'roadmap'; saveUi(); } },
     't-repeat': () => { closeSheet(true); repeatSheet(id); },
@@ -1516,10 +1751,10 @@ document.addEventListener('click', async e => {
     siri: () => siriSheet(),
     'siri-rotate': async () => { if (!confirm('Make new links? Shortcuts using the old links stop working until you paste the new ones.')) return; try { await api('shortkey', { method: 'POST', q: '&rotate=1', body: {} }); closeSheet(true); siriSheet(); } catch (err) { toast(err.message); } },
     'set-lang': () => { ui.lang = a.dataset.v; saveUi(); applyLang(); render(); },
-    'new-course': () => newCourseSheet(),
-    'c-starter': () => { const s = COURSE_STARTERS.find(x => x.key === a.dataset.v); if (!s) return; const sk = list('skills').find(k => s.skill.test(k.title)); const r = save('courses', { title: s.title, status: s.gate ? 'Planned' : 'Active', skillId: sk ? sk.id : '', provider: s.provider, gate: s.gate, perWeek: s.perWeek, reviewEvery: 30, nextReview: addDays(today(), 30), lessons: s.lessons() }); closeSheet(); toast('Course created'); location.hash = '#/course/' + encodeURIComponent(r.id); },
-    'c-from-note': () => lessonsFromNote(id),
-    'c-blank': () => { closeSheet(true); courseForm({ status: 'Active', perWeek: 2, reviewEvery: 30 }); },
+    'new-course': () => newCourseSheet(a.dataset.area),
+    'c-starter': () => { const s = COURSE_STARTERS.find(x => x.key === a.dataset.v); if (!s) return; const sk = list('skills').find(k => s.skill.test(k.title)); const r = save('courses', { areaId: ncArea(), title: s.title, status: s.gate ? 'Planned' : 'Active', skillId: sk ? sk.id : '', provider: s.provider, gate: s.gate, perWeek: s.perWeek, reviewEvery: 30, nextReview: addDays(today(), 30), lessons: s.lessons() }); closeSheet(); toast('Course created'); location.hash = '#/course/' + encodeURIComponent(r.id); },
+    'c-from-note': () => { ui.ncArea = ncArea(); lessonsFromNote(id); },
+    'c-blank': () => { const ar = ncArea(); closeSheet(true); courseForm({ status: 'Active', perWeek: 2, reviewEvery: 30, areaId: ar }); },
     'c-edit': () => courseForm(get('courses', id)),
     'c-lessons': () => { const c = get('courses', id); form('Edit lessons', [{ k: 'txt', label: 'Lessons, one per line (finished ones stay ticked)', type: 'big' }], { txt: cLessons(c).map(l => l.t).join('\n') }, v => { const old = cLessons(c); const lines = String(v.txt || '').split('\n').map(x => x.trim()).filter(Boolean); const used = new Set(); const ls = lines.map((t, i) => { const o = old.find(l => l.t === t && !used.has(l.id)); if (o) { used.add(o.id); return o; } return { id: 'l' + Date.now().toString(36) + i, t, done: false, doneOn: '' }; }); save('courses', Object.assign({}, c, { lessons: ls })); toast('Lessons saved'); }); },
     'c-tick': () => { lessonDone(id, a.dataset.l); },
@@ -1528,11 +1763,12 @@ document.addEventListener('click', async e => {
     'c-review': () => courseReview(id),
     'c-decide': () => { const c = get('courses', id); const note = (sheetCtx.el.querySelector('[name=rn]') || {}).value || ''; const d = { Active: 'Keep going', Paused: 'Paused', Done: 'Finished', Dropped: 'Dropped' }[a.dataset.v]; save('courses', Object.assign({}, c, { status: a.dataset.v, lastReview: today(), nextReview: ['Active', 'Paused'].includes(a.dataset.v) ? addDays(today(), Number(c.reviewEvery) || 30) : '', reviews: (c.reviews || []).concat([{ date: today(), decision: d, note: note.trim() }]) })); closeSheet(); toast('Review saved: ' + d); },
     setup: () => setupSheet(),
+    'wheel-start': () => { closeSheet(true); ui.pTab = 'wheel'; saveUi(); location.hash = '#/progress'; if (areas().length) setTimeout(wheelTest, 300); },
     'setup-mark': () => { ui.calDone = true; ui.siriDone = true; saveUi(); closeSheet(); render(); },
     'setup-hide': () => { ui.setupHidden = true; saveUi(); closeSheet(); render(); },
     'go-settings': () => { closeSheet(true); location.hash = '#/settings'; },
     'ics-setup': () => { closeSheet(true); location.hash = '#/settings'; setTimeout(() => { const b = document.querySelector('[data-act=ics]'); if (b) { b.click(); b.scrollIntoView({ block: 'center' }); } }, 300); },
-    back: () => { const pg = route().page; if (pg === 'note') { ui.nTab = 'notes'; saveUi(); } location.hash = '#/' + (pg === 'note' ? 'notes' : pg === 'course' || pg === 'report' ? 'progress' : ['health', 'trash', 'review'].includes(pg) ? 'settings' : 'more'); },
+    back: () => { const pg = route().page; if (pg === 'note') { ui.nTab = 'notes'; saveUi(); } if (pg === 'goal') { ui.pTab = 'goals'; saveUi(); } if (pg === 'area') { ui.pTab = 'wheel'; saveUi(); } location.hash = '#/' + (pg === 'note' ? 'notes' : ['course', 'report', 'goal', 'area'].includes(pg) ? 'progress' : ['health', 'trash', 'review'].includes(pg) ? 'settings' : 'more'); },
     'sub-tab': () => { ui[a.dataset.k] = a.dataset.t; saveUi(); const base = a.dataset.k === 'dTab' ? 'documents' : 'notes'; if (route().page !== base) location.hash = '#/' + base; else render(); },
     'toggle-sec': () => { const h = hidden(); if (h.has(a.dataset.v)) h.delete(a.dataset.v); else h.add(a.dataset.v); save('settings', Object.assign({}, prefs(), { id: 'prefs', hidden: [...h] })); },
     'i-set': () => { const c = a.dataset.c, r = get(c, id); if (!r) return; const before = Object.assign({}, r); save(c, Object.assign({}, r, JSON.parse(a.dataset.p))); closeSheet(); toast('Updated', 'Undo', () => save(c, before)); },
@@ -1540,6 +1776,22 @@ document.addEventListener('click', async e => {
     'i-del': () => { const c = a.dataset.c, r = get(c, id); if (!r) return; remove(c, id); closeSheet(); toast('Deleted', 'Undo', () => save(c, Object.assign({}, r, { deleted: false }))); },
     'sk-log': () => { ui.lastSkill = id; saveUi(); closeSheet(true); logTimeSheet(); },
     'tour-ok': () => { ui.tourDone = true; saveUi(); closeSheet(); },
+    'wheel-preset': () => { const p = WHEEL_PRESETS.find(x => x[0] === a.dataset.v); if (!p) return; p[2].forEach((t, i) => save('areas', { title: t, color: i % 8, order: i + 1, target: 8 })); toast('Areas ready. Now score them.'); setTimeout(wheelTest, 300); },
+    'wheel-test': () => { closeSheet(true); wheelTest(); },
+    'wt-pick': () => { a.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === a)); },
+    'score-pick': () => { a.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === a)); },
+    'areas-edit': () => areasEdit(),
+    'area-form': () => { const ar = id ? get('areas', id) : {}; closeSheet(true); areaForm(ar || {}); },
+    'area-open': () => { location.hash = '#/area/' + encodeURIComponent(id); },
+    'cycle-new': () => cycleWizard(),
+    'cy-area': () => { const on = [...a.parentElement.querySelectorAll('.on')]; if (!a.classList.contains('on') && on.length >= 3) { toast('Up to three focus areas'); return; } a.classList.toggle('on'); drawCyGoals(); },
+    'cycle-edit': () => { const c = get('cycles', id); form('Edit cycle', [{ k: 'intention', label: 'Intention' }, [{ k: 'start', label: 'Start', type: 'date' }, { k: 'days', label: 'Days', type: 'number' }]], c, v => { save('cycles', Object.assign({}, c, v, { days: Number(v.days) || 40 })); }); },
+    'cycle-end': () => { const c = get('cycles', id); if (!c) return; const st = cycleStats(c); form('Finish this cycle', [{ html: `<div class="small" style="margin-bottom:10px">${st.day} days · ${st.morning} mornings · ${st.night} nights${st.avg ? ` · average day ${st.avg}/10` : ''}</div>` }, { k: 'lesson', label: 'What did these days teach me?', type: 'textarea' }, { k: 'keep', label: 'What do I keep doing?' }], {}, v => { save('cycles', Object.assign({}, c, { status: 'done', ended: today(), review: v })); toast('Cycle finished. Retake your wheel.'); setTimeout(wheelTest, 400); }); },
+    'bal-chip': () => { const box = a.parentElement; if (box.dataset.name === 'top' && !a.classList.contains('on') && box.querySelectorAll('.on').length >= 3) { toast('Three is enough'); return; } a.classList.toggle('on'); },
+    'bal-toggle': () => { const b = Object.assign({ m: {}, n: {} }, prefs().balance || {}); b[a.dataset.s] = Object.assign({}, b[a.dataset.s], { [a.dataset.k]: !balOn(a.dataset.s, a.dataset.k) }); save('settings', Object.assign({}, prefs(), { id: 'prefs', balance: b })); },
+    'nc-area': () => { a.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === a)); },
+    'goal-status': () => itemSheet('goals', id),
+    'goal-edit': () => FORMS.goal(get('goals', id) || {}),
     'od-today': () => { const od = list('tasks').filter(x => isOpen(x) && x.due && x.due < today()); od.forEach(x => save('tasks', Object.assign({}, x, { due: today() }))); toast(`${od.length} moved to today`); },
     'p-tab': () => { ui.pTab = a.dataset.t; saveUi(); if (route().page !== 'progress') location.hash = '#/progress'; else render(); window.scrollTo(0, 0); },
     search: () => searchSheet(),
@@ -1586,7 +1838,7 @@ document.addEventListener('click', async e => {
     password: () => form('Change password', [{ k: 'current', label: 'Current password', type: 'password', req: true }, { k: 'next', label: 'New password (10+ characters)', type: 'password', req: true }], {}, v => { api('password', { body: v }).then(j => { ls.set(K.tok, j.token); toast('Password changed. Other devices must sign in again.'); }).catch(err => toast(err.message)); }),
     logout: async () => { if (!confirm('Sign out on this device? Data stays on the server.')) return; if (Object.keys(outbox).length) await sync(); try { await api('logout', { method: 'POST' }); } catch {} ls.del(K.tok); ls.del(K.db); ls.del(K.out); ls.del(K.rev); db = blankDb(); outbox = {}; showAuth(); }
   };
-  if (map[act]) { if (act !== 'sheet-close' && act !== 'form-save' && act !== 'form-del' && sheetCtx && ['new-task', 'new-event', 'new-note', 'new-decision', 'new-evidence', 'new-session', 'closeout', 'log-time', 'new-application', 'new-milestone', 'new-immig', 'weekly', 'money-add', 'from-tpl', 'new-course'].includes(act)) closeSheet(true); map[act](); }
+  if (map[act]) { if (act !== 'sheet-close' && act !== 'form-save' && act !== 'form-del' && sheetCtx && ['new-task', 'new-event', 'new-note', 'new-decision', 'new-evidence', 'new-session', 'closeout', 'log-time', 'new-application', 'new-milestone', 'new-immig', 'weekly', 'money-add', 'from-tpl', 'new-course', 'morning', 'new-goal', 'wheel-test', 'cycle-new'].includes(act)) closeSheet(true); map[act](); }
 });
 document.addEventListener('input', e => { const k = e.target.dataset && e.target.dataset.input; if (k) { ui[k] = e.target.value; saveUi(); if (e.target.dataset.norender) return; clearTimeout(render.t); render.t = setTimeout(render, 180); } });
 document.addEventListener('change', e => {

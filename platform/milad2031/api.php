@@ -7,11 +7,11 @@
  */
 declare(strict_types=1);
 
-const APP_VERSION = '4.0.0';
+const APP_VERSION = '5.0.0';
 const TOKEN_DAYS = 180;
 const MAX_BODY = 8 * 1024 * 1024;          // 8 MB per request
 const BACKUPS_KEEP = 30;                   // daily snapshots kept
-const COLLECTIONS = ['tasks','events','projects','goals','skills','logs','evidence','decisions','notes','ielts','sessions','settings','milestones','applications','immigration','habits','money','templates','courses'];
+const COLLECTIONS = ['tasks','events','projects','goals','skills','logs','evidence','decisions','notes','ielts','sessions','settings','milestones','applications','immigration','habits','money','templates','courses','areas','wheel','cycles'];
 const HISTORY_KEEP = 15;
 const DONE_STATES = ['Done', 'Cancelled', 'Completed & Verified', 'Completed - Not Verified'];
 
@@ -315,13 +315,13 @@ function digest(string $kind, string $day, array $store): ?array {
         $lines = []; foreach (array_slice($top, 0, 3) as $i => $t) { $lines[] = ($i + 1) . '. ' . (string)($t['title'] ?? ''); }
         $body = $lines ? implode("\n", $lines) : 'No Top 3 yet. Choose three things that matter today.';
         if ($extra) { $body .= "\n" . implode(' · ', $extra); }
-        return ['title' => 'Today · Top 3', 'body' => $body, 'url' => './#/today', 'tag' => 'm2031-morning'];
+        return ['title' => 'Morning Balance · 1 minute', 'body' => $body, 'url' => './#/today', 'tag' => 'm2031-morning'];
     }
     if ((bool)array_filter($logs, fn($l) => ($l['type'] ?? '') === 'closeout' && ($l['date'] ?? '') === $day)) { return null; }
     $n = count($top) + $topDone;
-    $body = ($n ? "$topDone of $n Top 3 done. " : '') . "Close the day and set tomorrow's Top 3 (5 min).";
+    $body = ($n ? "$topDone of $n Top 3 done. " : '') . "Night Balance: score your day and carry over what is left (1 minute).";
     if ($dow >= 5 && !$weeklyDone) { $body .= "\nWeekly review is due."; }
-    return ['title' => 'Close the day', 'body' => $body, 'url' => './#/today', 'tag' => 'm2031-evening'];
+    return ['title' => 'Night Balance · 1 minute', 'body' => $body, 'url' => './#/today', 'tag' => 'm2031-evening'];
 }
 function run_cron(): array {
     $p = push_keys(); $store = load_store(); $sent = 0; $drop = [];
