@@ -5,7 +5,7 @@
 (() => {
 'use strict';
 
-const VERSION = '6.0.0';
+const VERSION = '7.0.0';
 const API = 'api.php';
 const K = { db: 'mec.db', out: 'mec.outbox', tok: 'mec.token', rev: 'mec.rev', ui: 'mec.ui', last: 'mec.lastSync', user: 'mec.user' };
 const COLS = ['tasks','events','projects','goals','skills','logs','evidence','decisions','notes','ielts','sessions','settings','milestones','applications','immigration','habits','money','templates','courses','areas','wheel','cycles','focus','products'];
@@ -132,6 +132,8 @@ async function sync() {
     }
     if (!j.unchanged && j.collections) {
       const server = normalise(j.collections);
+      for (const c of COLS) if (!(c in j.collections)) server[c] = db[c];   // an older server does not know this collection: keep ours
+      if (j.version !== VERSION && !sync.warned) { sync.warned = true; toast(`The server part is version ${j.version || 'old'}, the app is ${VERSION}. Re-upload the full zip so both match.`); }
       for (const [k, r] of Object.entries(outbox)) { server[k.split(':')[0]][r.id] = r; }
       db = server; migrate();
     }
@@ -261,7 +263,8 @@ Object.assign(I, {
 const GLYPH = { '✓': I.tick, '★': I.star, '●': I.dot, '→': I.arrow, '⇥': I.skip, '📅': I.cal, '⏸': I.pause, '▶': I.play, '◷': I.timer, '↻': I.repeat, '⟳': I.repeat, '✎': I.edit, '🗑': I.trash, '↺': I.undo, '✕': I.close, '≡': I.tasks, '+': I.plus, '⏰': I.bell };
 const icoize = h => String(h).replace(/<span>([^<]{1,3})<\/span>/gu, (m, g) => GLYPH[g] ? `<span class="ai">${GLYPH[g]}</span>` : m).replace(/🔥 ?/g, `<i class="ii fl">${I.flame}</i>`).replace(/🕘 ?/g, `<i class="ii">${I.clock}</i>`).replace(/📌 ?/g, `<i class="ii">${I.pin}</i>`).replace(/✨ ?/g, `<i class="ii">${I.spark}</i>`).replace(/★ /g, `<i class="ii st">${I.star}</i>`);
 const NAV_MAIN = [['today', 'Today', I.today], ['tasks', 'Tasks', I.tasks], ['calendar', 'Calendar', I.cal], ['habits', 'Habits', I.tick], ['progress', 'Coach', I.prog]];
-const NAV_MORE = [['products', 'Products', I.money], ['jobs', 'Job search', I.jobs], ['documents', 'Documents', I.imm], ['notes', 'Notes', I.notes], ['templates', 'Templates', I.tmpl], ['settings', 'Settings', I.set]];
+Object.assign(I, { board: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="5" height="15" rx="1.5"/><rect x="10" y="4" width="5" height="10" rx="1.5"/><rect x="17" y="4" width="4" height="7" rx="1.5"/></svg>', calm: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 21c-4-2.5-7-6-7-10a7 7 0 0 1 14 0c0 4-3 7.5-7 10z"/><path d="M12 8v6M9 11h6"/></svg>', users: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/></svg>' });
+const NAV_MORE = [['projects', 'Boards', I.board], ['calm', 'Calm', I.calm], ['products', 'Products', I.money], ['jobs', 'Job search', I.jobs], ['admin', 'Members', I.users], ['settings', 'Settings', I.set]];
 const P_TABS = [['overview', 'Coach'], ['insights', 'Insights'], ['wheel', 'Wheel'], ['goals', 'Goals'], ['roadmap', 'Roadmap'], ['learning', 'Learning'], ['money', 'Money']];
 
 /* ---------------- chips ---------------- */
@@ -488,7 +491,7 @@ function quickSubmit(form) {
   if (sp.kind === 'event') return done(save('events', { title: sp.title, start: sp.start, end: '', alarm: 15 }), 'events', 'Event added');
   if (sp.kind === 'practice') return done(save('sessions', { title: sp.skill.title + ' · ' + sp.minutes + ' min', skill: sp.skill.id, minutes: sp.minutes, date: today(), result: 'Not a check' }), 'sessions', `Logged ${sp.minutes} min`);
   if (sp.kind === 'job') { let host = ''; try { host = new URL(sp.url).hostname.replace(/^www\./, ''); } catch {} return done(save('applications', { company: '', role: sp.title || 'Job from ' + host, stage: 'Saved', link: sp.url, source: host, followUp: addDays(today(), 2) }), 'applications', 'Saved to Job search'); }
-  if (sp.kind === 'link' || sp.kind === 'note') return done(save('notes', { title: sp.title || sp.url, body: sp.url ? `<${sp.url}>` : '', source: sp.url || '' }), 'notes', 'Note saved');
+  if (sp.kind === 'link' || sp.kind === 'note' || (sp.kind === 'job' && !isOwner())) return done(save('tasks', { title: sp.title || sp.url || 'Read later', notes: sp.url || '', state: 'To do', priority: 'P3', owner: 'Me' }), 'tasks', 'Saved as a task');
   if (sp.kind === 'money') return done(save('money', { amount: sp.amount, date: today() }), 'money', 'Balance saved');
   const p = sp;
   if (!p.title) return;
@@ -531,12 +534,11 @@ function lateMilestones() { return list('milestones').filter(m => m.target && m.
 function attention() {
   const t = today(), open = list('tasks').filter(isOpen);
   const od = open.filter(x => x.due && x.due < t).length, wt = open.filter(x => stOf(x) === 'Waiting').length;
-  const fu = followUps().length, ex = expiring().length, lm = lateMilestones().length;
+  const fu = isOwner() ? followUps().length : 0, ex = 0, lm = lateMilestones().length;
   const out = [];
   if (weeklyDue()) out.push(['weekly', '', I.review, 'Weekly review is due', '5 minutes · three questions', 'warn']);
   if (od) out.push(['filter', 'overdue', I.alert, `${od} overdue task${od > 1 ? 's' : ''}`, 'Reschedule or finish', 'bad']);
   if (fu) out.push(['go', 'jobs', I.jobs, `${fu} job follow-up${fu > 1 ? 's' : ''} due`, 'Applications to chase', 'warn']);
-  if (ex) out.push(['go', 'immigration', I.imm, `${ex} document${ex > 1 ? 's' : ''} expiring within 6 months`, 'Check passport, test reports and certificates', 'warn']);
   if (lm) out.push(['go', 'plan', I.flag, `${lm} roadmap milestone${lm > 1 ? 's' : ''} past target`, 'Update the date or the status', 'warn']);
   if (!ui.lastBackup ? list('tasks').length > 20 && new Date().getDay() === 0 : daysTo(ui.lastBackup) < -14) out.push(['enc-backup', '', I.health, 'Time for a backup copy', 'Encrypted file to keep in iCloud Drive', '']);
   for (const c of list('courses').filter(c => ['Active', 'Paused'].includes(c.status) && c.nextReview && c.nextReview <= today()).slice(0, 2)) out.push(['c-review', c.id, I.course, 'Course review: ' + c.title, 'Keep, pause or drop. 1 minute', 'warn']);
@@ -564,6 +566,8 @@ function vToday() {
   const head = header(new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }), greet + (me && me.name ? ', ' + me.name.split(' ')[0] : '') + (cyc ? ` · day ${cycleDay(cyc)} of ${cyc.days || 40}` : '')) + weekStrip(t) + `
   ${me && me.plan === 'trial' ? `<a class="trialpill" href="#/settings">Free trial · ${Math.max(0, Math.ceil((Date.parse(me.trialEnds) - Date.now()) / 86400000))} days left</a>` : ''}
   ${setupCard()}
+  ${coachCard()}
+  ${widgetGrid()}
   ${!closed && !mlog ? `<div class="card balcard morning" data-act="morning" role="button"><span class="bal-i">${I.today}</span><div class="main"><b>Morning Balance</b><div class="small">1 minute · expectation, focus, Top 3</div></div><button class="btn ${hr < 14 ? 'primary' : ''}" data-act="morning">Start</button></div>` : ''}
   ${!closed && mlog ? `<div class="mline" data-act="morning" role="button"><span class="hstat ok">${I.tick}</span><div class="main">${mlog.focus || (mlog.focusAreas || []).length ? `<b>Focus:</b> <span dir="auto">${esc(mlog.focus || (mlog.focusAreas || []).map(id => (get('areas', id) || {}).title).filter(Boolean).join(', '))}</span>` : '<b>Morning Balance done</b>'}${mlog.expect ? `<div class="small" dir="auto">${esc(mlog.expect)}</div>` : ''}</div></div>` : ''}
   ${quickBar('What needs doing?')}`;
@@ -676,7 +680,7 @@ function habitSheet(id) {
     `<button class="btn danger" data-act="i-del" data-c="habits" data-id="${esc(id)}">Delete</button><span style="flex:1"></span><button class="btn" data-act="i-edit" data-c="habits" data-id="${esc(id)}">Edit</button>`, { noFocus: true });
 }
 /* ================= INSIGHTS (health-style) ================= */
-function dayFocus(d) { return list('focus').filter(f => f.date === d).reduce((n, f) => n + (Number(f.minutes) || 0), 0) + list('sessions').filter(s => s.date === d).reduce((n, s) => n + (Number(s.minutes) || 0), 0); }
+function dayFocus(d) { return list('focus').filter(f => f.kind !== 'calm' && f.date === d).reduce((n, f) => n + (Number(f.minutes) || 0), 0) + list('sessions').filter(s => s.date === d).reduce((n, s) => n + (Number(s.minutes) || 0), 0); }
 function dayHabits(d) { const hs = list('habits').filter(h => habDue(h, d) && (h.createdAt || '').slice(0, 10) <= d); if (!hs.length) return null; return Math.round(100 * hs.filter(h => (h.done || {})[d]).length / hs.length); }
 function series(n, fn, end = today()) { const out = []; for (let i = n - 1; i >= 0; i--) { const d = addDays(end, -i); out.push([d, fn(d)]); } return out; }
 const avgOf = arr => { const v = arr.map(x => x[1]).filter(x => x !== null && x !== '' && !isNaN(x)); return v.length ? v.reduce((a, b) => a + Number(b), 0) / v.length : null; };
@@ -733,7 +737,7 @@ const dur = n => n >= 60 ? `${Math.floor(n / 60)} h${n % 60 ? ' ' + (n % 60) + '
 function timelineItems(d) {
   const items = agenda(d, d).filter(a => a.time).map(a => ({ s: toMin(a.time), e: a.end ? toMin(a.end) : toMin(a.time) + (a.kind === 'event' ? 60 : 30), title: a.title, kind: a.kind === 'event' ? (a.rec.kind === 'focus' ? 'deep' : 'event') : 'task', act: a.kind === 'event' ? 'event' : 'task', id: a.id, done: a.kind !== 'event' && !isOpen(a.rec) }));
   list('habits').filter(h => h.time && habDue(h, d)).forEach(h => items.push({ s: toMin(h.time), e: toMin(h.time) + 15, title: h.title, kind: 'habit', act: 'hab', id: h.id, done: !!(h.done || {})[d] }));
-  list('focus').filter(f => f.date === d && f.start).forEach(f => items.push({ s: toMin(f.start), e: toMin(f.start) + (Number(f.minutes) || 25), title: 'Focus · ' + (f.label || 'deep work'), kind: 'focus', act: '', id: f.id, done: true }));
+  list('focus').filter(f => f.kind !== 'calm' && f.date === d && f.start).forEach(f => items.push({ s: toMin(f.start), e: toMin(f.start) + (Number(f.minutes) || 25), title: 'Focus · ' + (f.label || 'deep work'), kind: 'focus', act: '', id: f.id, done: true }));
   if (balOn('m', 'expect') || true) items.push({ s: toMin(ui.pushMorning || '07:30'), e: toMin(ui.pushMorning || '07:30') + 1, title: 'Morning Balance', kind: 'bal', act: 'morning', id: '', done: !!logOf('morning', d) });
   items.push({ s: toMin(ui.pushEvening || '21:30'), e: toMin(ui.pushEvening || '21:30') + 1, title: 'Night Balance', kind: 'baln', act: 'closeout', id: '', done: !!logOf('closeout', d) });
   return items.sort((a, b) => a.s - b.s || a.e - b.e);
@@ -1206,14 +1210,14 @@ function vReport() {
   <h2>Completed work (latest 40)</h2>${tbl(['Done', 'Task', 'Proof'], done.slice(0, 40).map(x => [fmtDate(x.completedOn, true), x.title, x.evidence || '']))}</div>`;
 }
 /* ---------- global search ---------- */
-const SEARCH_IN = [['courses', 'Course', r => [r.title, r.provider, cLessons(r).map(l => l.t).join(' ')], 'course-open'], ['tasks', 'Task', r => [r.title, r.nextAction, r.notes], 'task'], ['notes', 'Note', r => [r.title, r.body, r.tags], 'note'], ['applications', 'Job', r => [r.role, r.company, r.notes], 'application'], ['events', 'Event', r => [r.title, r.notes], 'event'], ['decisions', 'Decision', r => [r.title, r.decision], 'decision'], ['evidence', 'Evidence', r => [r.code, r.title, r.proves], 'evidence'], ['immigration', 'Document', r => [r.title, r.notes], 'immig'], ['milestones', 'Milestone', r => [r.title, r.notes], 'milestone'], ['skills', 'Skill', r => [r.title], 'skill'], ['goals', 'Goal', r => [r.title, r.success], 'goal'], ['logs', 'Journal', r => [r.title, r.done, r.notes], 'logitem']];
-const PALETTE = [['Focus timer', 'focus-free'], ['Go to Habits', 'go', 'habits'], ['Go to Insights', 'p-tab-insights'], ['Go to Products', 'go', 'products'], ['Wheel of Life test', 'wheel-test'], ['Morning Balance', 'morning'], ['Night Balance', 'closeout'], ['Wheel of Life test', 'wheel-test'], ['Start a 40-day cycle', 'cycle-new'], ['New goal', 'new-goal'], ['New task', 'new-task'], ['New event', 'new-event'], ['Log practice', 'log-time'], ['Start next lesson', 'next-lesson'], ['Close the day', 'closeout'], ['Weekly review', 'weekly'], ['New course', 'new-course'], ['Job application', 'new-application'], ['Update savings', 'money-add'], ['Go to Today', 'go', 'today'], ['Go to Tasks', 'go', 'tasks'], ['Go to Calendar', 'go', 'calendar'], ['Go to Progress', 'go', 'progress'], ['Go to Job search', 'go', 'jobs'], ['Go to Documents', 'go', 'documents'], ['Go to Notes', 'go', 'notes'], ['Go to Journal', 'go', 'journal'], ['Go to Templates', 'go', 'templates'], ['Go to Trash', 'go', 'trash'], ['Go to Settings', 'go', 'settings'], ['Go to System health', 'go', 'health']];
+const SEARCH_IN = [['courses', 'Course', r => [r.title, r.provider, cLessons(r).map(l => l.t).join(' ')], 'course-open'], ['tasks', 'Task', r => [r.title, r.nextAction, r.notes], 'task'], ['projects', 'Board', r => [r.title, r.notes], 'board-open'], ['applications', 'Job', r => [r.role, r.company, r.notes], 'application'], ['events', 'Event', r => [r.title, r.notes], 'event'], ['milestones', 'Milestone', r => [r.title, r.notes], 'milestone'], ['habits', 'Habit', r => [r.title], 'habit-open'], ['goals', 'Goal', r => [r.title, r.success], 'goal'], ['logs', 'Journal', r => [r.title, r.done, r.notes, r.better], 'logitem']];
+const PALETTE = [['Focus timer', 'focus-free'], ['Breathe', 'breathe'], ['Morning Balance', 'morning'], ['Night Balance', 'closeout'], ['Wheel of Life test', 'wheel-test'], ['Start a 40-day cycle', 'cycle-new'], ['New goal', 'new-goal'], ['New task', 'new-task'], ['New board', 'new-project'], ['New habit', 'new-habit'], ['New event', 'new-event'], ['Log practice', 'log-time'], ['Start next lesson', 'next-lesson'], ['Weekly review', 'weekly'], ['New course', 'new-course'], ['Update savings', 'money-add'], ['Level and badges', 'w-level'], ['Edit widgets', 'w-edit'], ['Home-screen widget', 'w-home'], ['Job sprint', 'sprint', '', 'jobs'], ['Add jobs', 'job-bulk', '', 'jobs'], ['Job application', 'new-application', '', 'jobs'], ['Go to Today', 'go', 'today'], ['Go to Tasks', 'go', 'tasks'], ['Go to Boards', 'go', 'projects'], ['Go to Calendar', 'go', 'calendar'], ['Go to Habits', 'go', 'habits'], ['Go to Coach', 'go', 'progress'], ['Go to Insights', 'p-tab-insights'], ['Go to Calm', 'go', 'calm'], ['Go to Job search', 'go', 'jobs', 'jobs'], ['Go to Products', 'go', 'products', 'products'], ['Go to Members', 'go', 'admin', 'admin'], ['Go to Journal', 'go', 'journal'], ['Go to Trash', 'go', 'trash'], ['Go to Settings', 'go', 'settings'], ['Go to System health', 'go', 'health']];
 function searchSheet() {
   openSheet('Search everything', `<input class="search" id="gsq" type="search" placeholder="Type to search" style="width:100%" autocomplete="off" dir="auto"><div id="gsr" class="list" style="margin-top:10px"></div>`, '', {});
   const inp = $('#gsq'); setTimeout(() => inp.focus(), 60);
   inp.addEventListener('input', () => {
     const q = inp.value.trim().toLowerCase(); const out = [];
-    const acts = PALETTE.filter(([l]) => !q || l.toLowerCase().includes(q)).slice(0, q ? 5 : 12);
+    const acts = PALETTE.filter(x => !x[3] || can(x[3])).filter(([l]) => !q || l.toLowerCase().includes(q)).slice(0, q ? 5 : 12);
     const actHtml = acts.map(([l, act, to]) => `<div class="row" data-act="${act}" ${to ? `data-to="${to}"` : ''}><span class="att-i">${to ? I.right : I.plus}</span><div class="main"><div class="t">${l}</div></div></div>`).join('');
     if (q.length > 1) for (const [c, label, f, act] of SEARCH_IN) for (const r of list(c)) { const txt = f(r).filter(Boolean).join(' '); if (txt.toLowerCase().includes(q)) out.push([label, r, act, c]); if (out.length > 60) break; }
     $('#gsr').innerHTML = actHtml + (q.length < 2 ? '' : out.length ? out.map(([l, r, act, c]) => `<div class="row" data-act="${act === 'note' ? 'open-note' : act}" data-id="${esc(r.id)}"><div class="main"><div class="t" dir="auto">${esc(r.title || r.role || r.code || '')}${c === 'applications' && r.company ? ' · ' + esc(r.company) : ''}</div><div class="m"><span class="chip">${l}</span>${c === 'tasks' && !isOpen(r) ? '<span>done</span>' : ''}</div></div></div>`).join('') : acts.length ? '' : '<div class="empty">No matches.</div>');
@@ -1238,7 +1242,7 @@ function vRoadmap() {
     return `<div class="yr ${cur ? 'cur' : ''} ${y < Number(t.slice(0, 4)) ? 'past' : ''}"><div class="yr-h"><b>${y}</b>${it.length ? `<span class="small">${d}/${it.length}</span>` : ''}${cur ? '<span class="chip s-rev">now</span>' : ''}</div>${it.length ? `<div class="list">${it.map(msRow).join('')}</div>` : `<div class="empty">No milestones yet. <a href="#" data-act="new-milestone" data-year="${y}">Add one</a></div>`}</div>`; }).join('')}</div>
   ${noDate.length ? `<div class="card" style="margin-top:12px"><h2>No date yet</h2><div class="list">${noDate.map(msRow).join('')}</div></div>` : ''}`;
 }
-function vJobs() {
+function vJobsList() {
   const f = ui.jobFilter || 'active'; const all = list('applications');
   const arr = all.filter(a => f === 'active' ? APP_ACTIVE.includes(a.stage || 'Saved') : f === 'all' ? true : (a.stage || 'Saved') === f)
     .sort((a, b) => String(a.followUp || '9999').localeCompare(String(b.followUp || '9999')) || String(b.appliedOn || '').localeCompare(String(a.appliedOn || '')));
@@ -1261,13 +1265,13 @@ function vImmigration() {
     <div class="btns" style="margin-top:10px"><button class="btn primary small" data-act="new-immig">${I.plus} Document</button>${items.length ? '' : '<button class="btn small" data-act="imm-starter">Add a starter list</button>'}</div></div>
   ${IMM_CATS.map(c => { const it = items.filter(x => (x.category || 'Other') === c).sort((a, b) => String(a.title).localeCompare(String(b.title))); return it.length ? `<div class="card" style="margin-top:12px"><h2>${esc(c)} <span class="count">${it.filter(x => ['Ready', 'Submitted', 'Not needed'].includes(x.status)).length}/${it.length}</span></h2><div class="list">${it.map(row).join('')}</div></div>` : ''; }).join('')}`;
 }
-const OPTIONAL = [['products', 'Products'], ['jobs', 'Job search'], ['documents', 'Documents'], ['templates', 'Templates'], ['money', 'Money']];
+const OPTIONAL = [['products', 'Products'], ['jobs', 'Job search'], ['calm', 'Calm'], ['money', 'Money']];
 const hidden = () => new Set(prefs().hidden || []);
-const navMore = () => NAV_MORE.filter(([k]) => !hidden().has(k));
+const navMore = () => NAV_MORE.filter(([k]) => can(k) && !hidden().has(k));
 function badge(k) {
   if (k === 'today') { const n = list('tasks').filter(t => isOpen(t) && t.due && t.due < today()).length; return n ? `<b class="badge">${n > 99 ? '99+' : n}</b>` : ''; }
   if (k === 'progress') return weeklyDue() || list('courses').some(c => ['Active', 'Paused'].includes(c.status) && c.nextReview && c.nextReview <= today()) ? '<b class="badge dot"></b>' : '';
-  if (k === 'more') { const hs = hidden(); const n = (hs.has('jobs') ? 0 : followUps().length) + (hs.has('documents') ? 0 : expiring().filter(x => x.expiry < addDays(today(), 60)).length); return n ? `<b class="badge">${n}</b>` : ''; }
+  if (k === 'more') { const hs = hidden(); const n = hs.has('jobs') || !isOwner() ? 0 : followUps().length; return n ? `<b class="badge">${n}</b>` : ''; }
   return '';
 }
 /* ---------- setup checklist ---------- */
@@ -1404,7 +1408,7 @@ function vSettings() {
   <div class="card"><h2>Face ID sign-in</h2><div id="pkbox" class="small">Checking…</div></div>
   <div class="card"><h2>Morning &amp; Night Balance</h2><div class="small" style="margin-bottom:8px">Choose the questions you answer. Fewer questions = faster.</div>${balanceSettings()}</div>
   <div class="card"><h2>Areas of life</h2><div class="small" style="margin-bottom:8px">${areas().length} areas in your Wheel of Life.</div><div class="btns"><button class="btn small" data-act="areas-edit">Edit areas</button><button class="btn small" data-act="wheel-test">Retake the wheel</button></div></div>
-  <div class="card"><h2>Sections</h2><div class="small" style="margin-bottom:8px">Hide what you do not use. Nothing is deleted.</div><div class="pick">${OPTIONAL.map(([k, l]) => `<button class="${hidden().has(k) ? '' : 'on'}" data-act="toggle-sec" data-v="${k}">${hidden().has(k) ? '' : '✓ '}${l}</button>`).join('')}</div></div>
+  <div class="card"><h2>Sections</h2><div class="small" style="margin-bottom:8px">Hide what you do not use. Nothing is deleted.</div><div class="pick">${OPTIONAL.filter(([k]) => can(k)).map(([k, l]) => `<button class="${hidden().has(k) ? '' : 'on'}" data-act="toggle-sec" data-v="${k}">${hidden().has(k) ? '' : '✓ '}${l}</button>`).join('')}</div></div>
   <div class="card"><h2>Language</h2><div class="seg">${[['en', 'English'], ['fa', 'فارسی']].map(([k, l]) => `<button class="${(ui.lang || 'en') === k ? 'on' : ''}" data-act="set-lang" data-v="${k}">${l}</button>`).join('')}</div></div>
   <div class="card"><h2>Security</h2><div class="btns"><button class="btn small" data-act="password">Change password</button><button class="btn small danger" data-act="logout">Sign out on this device</button></div>
     <div class="small" style="margin-top:8px">Do not store passport numbers, ID numbers, salaries or confidential employer files here. Keep those in your private evidence vault.</div></div>
@@ -1416,28 +1420,363 @@ function header(title, sub) {
   return `<div class="top"><div class="top-row">${back ? `<button class="icon-btn hback" data-act="back" aria-label="Back">${I.left}</button>` : ''}<h1 dir="auto">${esc(title)}</h1>${syncHtml()}<button class="icon-btn hsearch" data-act="search" aria-label="Search">${I.search}</button><a class="icon-btn hmore" href="#/more" aria-label="More">${I.more}${badge('more')}</a></div>${sub ? `<div class="sub" dir="auto">${esc(sub)}</div>` : ''}</div><div class="spacer" style="height:14px"></div>`;
 }
 
+/* ================= v7: owner mode, boards, job sprint, motivation, calm ================= */
+const isOwner = () => !!me && me.role === 'owner';
+const OWNER_ONLY = new Set(['products', 'jobs', 'admin']);
+const REMOVED = new Set(['notes', 'note', 'templates', 'documents', 'immigration', 'evidence', 'decisions']);
+const can = k => !OWNER_ONLY.has(k) || isOwner();
+const BCOLS = ['To do', 'Doing', 'Waiting', 'Done'];
+const BCOL_TONE = { 'To do': '', Doing: 's-prog', Waiting: 's-wait', Done: 's-done' };
+const PJ_EMOJI = ['🎯', '🚀', '💼', '📘', '🧠', '💪', '🏠', '✈️', '💰', '🛠️', '🎨', '❤️', '🌱', '📈', '🎓', '🧘'];
+const bOrder = t => t.korder !== undefined ? Number(t.korder) : Date.parse(t.createdAt || 0) / 1e6;
+const colOf = t => DONE.has(t.state) ? 'Done' : BCOLS.includes(t.state) ? t.state : 'To do';
+const projTasks = pid => list('tasks').filter(t => t.state !== 'Cancelled' && (pid === 'inbox' ? !t.projectId || !get('projects', t.projectId) : t.projectId === pid));
+const projPct = pid => { const ts = projTasks(pid); return ts.length ? Math.round(100 * ts.filter(t => DONE.has(t.state)).length / ts.length) : 0; };
+const pjIcon = p => p.icon || PJ_EMOJI[Math.abs([...String(p.title || 'x')].reduce((n, c) => n + c.charCodeAt(0), 0)) % PJ_EMOJI.length];
+
+/* ---------- boards (Trello) + table (Notion) ---------- */
+function vBoards() {
+  const ps = list('projects').filter(p => p.status !== 'Cancelled').sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0) || String(a.title).localeCompare(String(b.title)));
+  const v = ui.bView === 'table' ? 'table' : 'gallery';
+  const inbox = projTasks('inbox').filter(isOpen).length;
+  const card = p => { const ts = projTasks(p.id), open = ts.filter(isOpen).length, doing = ts.filter(t => colOf(t) === 'Doing').length, g = p.goalId && get('goals', p.goalId);
+    return `<a class="bcard" href="#/board/${encodeURIComponent(p.id)}"><div class="bc-cover" style="--ac:${habColor({ color: p.color !== undefined && p.color !== '' ? p.color : [...String(p.title || '')].reduce((n, c) => n + c.charCodeAt(0), 0) })}"><span>${pjIcon(p)}</span></div><div class="bc-b"><b dir="auto">${esc(p.title)}</b><div class="small">${open} open${doing ? ` · ${doing} doing` : ''}${p.target ? ' · ' + esc(fmtDate(p.target)) : ''}</div>${g ? `<div class="small" dir="auto">🎯 ${esc(g.title)}</div>` : ''}<div class="bar"><i style="width:${projPct(p.id)}%"></i></div></div></a>`; };
+  return header('Boards', 'Every project with its own board, table and daily tasks') + `
+  <div class="toolbar"><div class="seg"><button class="${v === 'gallery' ? 'on' : ''}" data-act="b-view" data-v="gallery">Gallery</button><button class="${v === 'table' ? 'on' : ''}" data-act="b-view" data-v="table">Table</button></div><span style="flex:1"></span><button class="btn primary" data-act="new-project">${I.plus} New board</button></div>
+  ${v === 'gallery' ? `<div class="bgrid">${ps.map(card).join('')}<a class="bcard inbox" href="#/board/inbox"><div class="bc-cover"><span>📥</span></div><div class="bc-b"><b>Inbox</b><div class="small">${inbox} tasks without a board</div></div></a></div>${ps.length ? '' : '<div class="card empty" style="margin-top:12px">Create a board for each project: a course, the job search, a product launch. Each board has its own To do, Doing, Waiting and Done.</div>'}`
+    : `<div class="card tight ntable-wrap"><table class="ntable"><thead><tr><th>Name</th><th>Status</th><th>Goal</th><th>Open</th><th>Progress</th><th>Target</th></tr></thead><tbody>${ps.map(p => `<tr data-act="go" data-to="board/${esc(encodeURIComponent(p.id))}"><td><span class="nt-ic">${pjIcon(p)}</span> <b dir="auto">${esc(p.title)}</b></td><td><span class="chip">${esc(p.status || 'Planned')}</span></td><td dir="auto">${esc((get('goals', p.goalId) || {}).title || '')}</td><td>${projTasks(p.id).filter(isOpen).length}</td><td><div class="bar mini"><i style="width:${projPct(p.id)}%"></i></div> ${projPct(p.id)}%</td><td>${p.target ? esc(fmtDate(p.target, true)) : ''}</td></tr>`).join('') || '<tr><td colspan="6" class="empty">No boards yet.</td></tr>'}</tbody></table></div>`}`;
+}
+function vBoard(id) {
+  const p = id === 'inbox' ? { id: 'inbox', title: 'Inbox', icon: '📥' } : get('projects', id);
+  if (!p) return header('Not found', '') + '<div class="card empty">This board does not exist.</div>';
+  const ts = projTasks(p.id), v = (ui.bvMode || {})[p.id] || 'board', g = p.goalId && get('goals', p.goalId);
+  const cardH = t => `<div class="kcard ${DONE.has(t.state) ? 'done' : ''}" data-act="task" data-id="${esc(t.id)}" data-drag="task" data-o="${bOrder(t)}"><div class="kc-t" dir="auto">${esc(t.title)}</div><div class="m">${t.priority === 'P1' && isOpen(t) ? priChip('P1') : ''}${isOpen(t) ? dueChip(t) : ''}${isOpen(t) && t.focusDate === today() ? '<span class="chip s-rev">★ Today</span>' : ''}</div>${t.nextAction && isOpen(t) ? `<div class="na" dir="auto">→ ${esc(t.nextAction)}</div>` : ''}</div>`;
+  const board = `<div class="kb">${BCOLS.map(c => { const cs = ts.filter(t => colOf(t) === c).sort((a, b) => bOrder(a) - bOrder(b)); return `<section class="kcol" data-drop="${c}" data-kind="task"><header><span class="chip ${BCOL_TONE[c]}">${c}</span><span class="count">${cs.length}</span></header><div class="kcards">${(c === 'Done' ? cs.slice(-25) : cs).map(cardH).join('')}</div><button class="kadd" data-act="k-add" data-col="${c}" data-id="${esc(p.id)}">${I.plus} Add a card</button></section>`; }).join('')}</div>`;
+  const table = `<div class="card tight ntable-wrap"><table class="ntable"><thead><tr><th>Task</th><th>Status</th><th>Due</th><th>Priority</th><th>Next action</th></tr></thead><tbody>${ts.sort((a, b) => BCOLS.indexOf(colOf(a)) - BCOLS.indexOf(colOf(b)) || String(a.due || '9').localeCompare(String(b.due || '9'))).map(t => `<tr><td data-act="task" data-id="${esc(t.id)}"><b dir="auto">${esc(t.title)}</b></td><td><select data-change="k-state" data-id="${esc(t.id)}">${BCOLS.map(c => `<option ${colOf(t) === c ? 'selected' : ''}>${c}</option>`).join('')}</select></td><td>${t.due ? esc(fmtDate(t.due)) : ''}</td><td>${esc(t.priority || '')}</td><td class="small" dir="auto">${esc(t.nextAction || '')}</td></tr>`).join('') || '<tr><td colspan="5" class="empty">No tasks yet.</td></tr>'}</tbody></table></div><button class="btn" data-act="k-add" data-col="To do" data-id="${esc(p.id)}" style="margin-top:10px">${I.plus} Task</button>`;
+  const today_ = ts.filter(t => isOpen(t) && (t.due === today() || t.focusDate === today()));
+  return header(`${pjIcon(p)} ${p.title}`, [g ? '🎯 ' + g.title : '', p.target ? 'Target ' + fmtDate(p.target, true) : '', `${projPct(p.id)}% done`].filter(Boolean).join(' · ')) + `
+  <div class="toolbar"><div class="seg"><button class="${v === 'board' ? 'on' : ''}" data-act="bv-mode" data-id="${esc(p.id)}" data-v="board">Board</button><button class="${v === 'table' ? 'on' : ''}" data-act="bv-mode" data-id="${esc(p.id)}" data-v="table">Table</button></div><span style="flex:1"></span>${p.id !== 'inbox' ? `<button class="btn ghost small" data-act="project" data-id="${esc(p.id)}">Edit board</button>` : ''}</div>
+  ${p.notes ? `<div class="pj-desc" dir="auto">${esc(p.notes)}</div>` : ''}
+  ${today_.length ? `<div class="card tight"><h2 style="padding:10px 12px 0">Today on this board <span class="count">${today_.length}</span></h2><div class="list">${today_.map(t => taskRow(t)).join('')}</div></div>` : ''}
+  ${v === 'table' ? table : board}<div class="qhint" style="margin-top:8px">Drag a card to another column. On a phone, hold it for a moment first.</div>`;
+}
+
+/* ---------- drag and drop (mouse, pen and touch) ---------- */
+let drag = null, dragEnded = 0;
+const DROP = {
+  task: (id, col, order) => { const t = get('tasks', id); if (!t) return; const p = { state: col, korder: order }; if (col === 'Done' && !DONE.has(t.state)) { p.completedOn = today(); celebrate(); } if (col !== 'Done') p.completedOn = ''; save('tasks', Object.assign({}, t, p)); },
+  app: (id, col, order) => { const a = get('applications', id); if (!a) return; const p = { stage: col, korder: order }; if (col === 'Applied' && !a.appliedOn) { p.appliedOn = today(); p.followUp = addDays(today(), 7); } save('applications', Object.assign({}, a, p)); }
+};
+function dragStart(x, y) {
+  const el = drag.el, r = el.getBoundingClientRect(); drag.on = true; drag.dx = x - r.left; drag.dy = y - r.top;
+  const g = el.cloneNode(true); g.className += ' kghost'; g.style.width = r.width + 'px'; document.body.appendChild(g); drag.g = g; el.classList.add('kdragging');
+  if (navigator.vibrate) try { navigator.vibrate(12); } catch {}
+  dragMove(x, y);
+}
+function dragMove(x, y) {
+  drag.g.style.transform = `translate(${x - drag.dx}px,${y - drag.dy}px) rotate(2deg)`;
+  drag.g.style.display = 'none'; const under = document.elementFromPoint(x, y); drag.g.style.display = '';
+  const col = under && under.closest('[data-drop]'); document.querySelectorAll('.kover').forEach(c => c !== col && c.classList.remove('kover')); if (col) col.classList.add('kover'); drag.col = col; drag.x1 = x; drag.y1 = y;
+  const kb = drag.el.closest('.kb'); if (kb) { const r = kb.getBoundingClientRect(); if (x > r.right - 40) kb.scrollLeft += 14; else if (x < r.left + 40) kb.scrollLeft -= 14; }
+}
+function dragStop(drop) {
+  const d = drag; drag = null; if (!d) return; clearTimeout(d.timer); if (!d.on) return; dragEnded = Date.now();
+  if (d.g) d.g.remove(); d.el.classList.remove('kdragging'); document.querySelectorAll('.kover').forEach(c => c.classList.remove('kover'));
+  if (render.pending) { render.pending = false; setTimeout(render, 0); }
+  if (!drop || !d.col) return;
+  const sibs = [...d.col.querySelectorAll('[data-drag]')].filter(c => c !== d.el); let before = null, prev = null;
+  for (const s of sibs) { const r = s.getBoundingClientRect(); if (r.top + r.height / 2 > d.y1) { before = s; break; } prev = s; }
+  const o = s => Number(s.dataset.o) || 0; const order = before ? (prev ? (o(prev) + o(before)) / 2 : o(before) - 1) : (prev ? o(prev) + 1 : Date.now() / 1e6);
+  (DROP[d.col.dataset.kind] || (() => {}))(d.el.dataset.id, d.col.dataset.drop, order);
+}
+document.addEventListener('pointerdown', e => {
+  const c = e.target.closest && e.target.closest('[data-drag]'); if (!c || e.button > 0 || e.target.closest('button,select,input,a')) return;
+  drag = { el: c, x: e.clientX, y: e.clientY, on: false, touch: e.pointerType !== 'mouse' };
+  if (drag.touch) { const d0 = drag; drag.timer = setTimeout(() => { if (drag === d0 && !d0.on) dragStart(d0.x, d0.y); }, 300); }
+});
+document.addEventListener('pointermove', e => {
+  if (!drag) return; if (!drag.on) { if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 8) return; if (drag.touch) { clearTimeout(drag.timer); drag = null; return; } dragStart(e.clientX, e.clientY); return; }
+  dragMove(e.clientX, e.clientY);
+});
+document.addEventListener('pointerup', () => dragStop(true));
+document.addEventListener('pointercancel', () => { if (drag && drag.on) return; dragStop(false); });
+document.addEventListener('touchmove', e => { if (drag && drag.on) { e.preventDefault(); const t = e.touches[0]; if (t) dragMove(t.clientX, t.clientY); } }, { passive: false });
+document.addEventListener('touchend', () => { if (drag && drag.on) dragStop(true); });
+document.addEventListener('touchcancel', () => { if (drag && drag.on) dragStop(false); });
+document.addEventListener('click', e => { if (Date.now() - dragEnded < 350) { e.stopPropagation(); e.preventDefault(); } }, true);
+document.addEventListener('contextmenu', e => { if (e.target.closest && e.target.closest('[data-drag]')) e.preventDefault(); });
+
+/* ---------- job search: apply sprint (owner) ---------- */
+const JOB_TPL = {
+  cover: 'Dear Hiring Team,\n\nI am applying for the {role} role at {company}. I bring hands-on project delivery and data reporting experience, and I am keen to contribute from day one. My CV is attached.\n\nKind regards,\n{me}',
+  apply: 'Subject: Application – {role}\n\nDear {name},\n\nI would like to apply for the {role} position at {company}. My CV is attached. I would welcome a short call to discuss how I can help your team.\n\nKind regards,\n{me}',
+  follow: 'Subject: Following up – {role} application\n\nDear {name},\n\nI applied for the {role} role at {company} on {date} and wanted to check on the next steps. I remain very interested and happy to share anything else you need.\n\nKind regards,\n{me}',
+  li: 'Hi {name}, I recently applied for the {role} role at {company}. I would value a quick chat about the team and the role. Thank you!'
+};
+const jobTpl = k => ((prefs().jobTpl || {})[k]) || JOB_TPL[k];
+const fillTpl = (s, a) => String(s).replace(/\{(\w+)\}/g, (m, k) => ({ role: a.role || 'the', company: a.company || 'your company', name: a.contact || 'Hiring Manager', me: (me && me.name) || '', date: a.appliedOn ? fmtDate(a.appliedOn, true) : 'recently' })[k] ?? m);
+const jobSrc = a => { const s = String(a.source || a.link || '').toLowerCase(); return /linkedin/.test(s) ? 'LinkedIn' : /indeed/.test(s) ? 'Indeed' : a.source || ''; };
+const jobTarget = () => Number(prefs().jobTarget) || 20;
+const appliedOn = d => list('applications').filter(a => a.appliedOn === d).length;
+const jobQueue = () => list('applications').filter(a => (a.stage || 'Saved') === 'Saved').sort((a, b) => (b.easy ? 1 : 0) - (a.easy ? 1 : 0) || String(a.createdAt).localeCompare(String(b.createdAt)));
+const staleApps = () => list('applications').filter(a => ['Applied', 'Screening'].includes(a.stage) && a.appliedOn && daysTo(a.appliedOn) <= -30 && (Number(a.fuCount) || 0) >= 2);
+function jobStreak() { let n = 0, d = today(); if (appliedOn(d) < jobTarget()) d = addDays(d, -1); while (n < 400 && appliedOn(d) >= jobTarget()) { n++; d = addDays(d, -1); } return n; }
+function jobStats() {
+  const all = list('applications'), applied = all.filter(a => a.appliedOn), wk = addDays(today(), -6);
+  const replied = applied.filter(a => ['Screening', 'Interview', 'Offer'].includes(a.stage)).length;
+  return { week: applied.filter(a => a.appliedOn >= wk).length, total: applied.length, rate: applied.length ? Math.round(100 * replied / applied.length) : 0, interviews: all.filter(a => ['Interview', 'Offer'].includes(a.stage)).length };
+}
+function vJobs() {
+  const tab = ['pipeline', 'list', 'follow', 'tpl'].includes(ui.jTab) ? ui.jTab : 'pipeline';
+  const tgt = jobTarget(), done = appliedOn(today()), q = jobQueue(), fu = followUps(), st = jobStats();
+  const pipe = APP_STAGES.slice(0, 5).map(s => { const cs = list('applications').filter(a => (a.stage || 'Saved') === s).sort((a, b) => bOrder(a) - bOrder(b)); return `<section class="kcol" data-drop="${s}" data-kind="app"><header><span class="chip">${s}</span><span class="count">${cs.length}</span></header><div class="kcards">${cs.slice(0, 60).map(a => `<div class="kcard" data-act="application" data-id="${esc(a.id)}" data-drag="app" data-o="${bOrder(a)}"><div class="kc-t" dir="auto">${esc(a.role || 'Role')}</div><div class="small" dir="auto">${esc(a.company || '')}${a.location ? ' · ' + esc(a.location) : ''}</div><div class="m">${jobSrc(a) ? `<span class="chip">${esc(jobSrc(a))}</span>` : ''}${a.easy ? '<span class="chip s-done">Easy Apply</span>' : ''}${a.followUp && APP_ACTIVE.includes(a.stage || 'Saved') && a.stage !== 'Saved' ? `<span class="chip ${a.followUp <= today() ? 'late' : ''}">Follow up ${esc(rel(a.followUp))}</span>` : ''}</div></div>`).join('')}</div></section>`; }).join('');
+  const fuRow = (a, stale) => `<div class="row"><div class="main"><div class="t" dir="auto">${esc(a.role || 'Role')} · ${esc(a.company || '')}</div><div class="m">${a.appliedOn ? `<span>Applied ${esc(fmtDate(a.appliedOn))}</span>` : ''}<span>${Number(a.fuCount) || 0} follow-ups</span>${a.contactEmail ? `<span>${esc(a.contactEmail)}</span>` : ''}</div><div class="btns" style="margin-top:6px">${stale ? `<button class="btn small" data-act="jf-close" data-id="${esc(a.id)}">Close it (no reply)</button>` : `${a.contactEmail ? `<button class="btn small primary" data-act="jf-email" data-id="${esc(a.id)}">✉ Email</button>` : ''}<button class="btn small" data-act="jf-li" data-id="${esc(a.id)}">LinkedIn message</button><button class="btn small ghost" data-act="jf-done" data-id="${esc(a.id)}">Done</button>`}</div></div></div>`;
+  const body = tab === 'pipeline' ? `<div class="kb">${pipe}</div><div class="qhint" style="margin-top:8px">Drag a card to change its stage. Moving to Applied sets a follow-up in 7 days.</div>`
+    : tab === 'list' ? vJobsList()
+    : tab === 'follow' ? `<div class="card"><h2>Due now <span class="count">${fu.length}</span></h2>${fu.length ? `<div class="list">${fu.map(a => fuRow(a)).join('')}</div>` : '<div class="empty">No follow-ups due. ME.Coach sets the next one automatically: 7 days after you apply, then 7 more after each follow-up.</div>'}</div>${staleApps().length ? `<div class="card"><h2>No reply after 30 days</h2><div class="list">${staleApps().map(a => fuRow(a, true)).join('')}</div></div>` : ''}`
+    : `<div class="card"><h2>Message templates</h2><p class="small">Use {role}, {company}, {name} (contact), {me} and {date}. They fill in automatically.</p>${[['cover', 'Short cover note (copy into the form)'], ['apply', 'Email application'], ['follow', 'Follow-up email'], ['li', 'LinkedIn message']].map(([k, l]) => `<div class="f"><label>${l}</label><textarea rows="5" data-change="job-tpl" data-k="${k}" dir="auto">${esc(jobTpl(k))}</textarea></div>`).join('')}<div class="f"><label>Daily target</label><input type="number" min="1" max="60" value="${tgt}" data-change="job-target" style="max-width:120px"></div></div>`;
+  return header('Job search', 'UK · Ireland · New Zealand') + `
+  <div class="card sprint-hero"><div class="sh-ring">${ring(Math.min(100, Math.round(100 * done / tgt)), 92, `${done}/${tgt}`)}</div><div class="main"><b>${done >= tgt ? 'Target reached today 🎉' : `${tgt - done} to go today`}</b><div class="small">${q.length} in the queue · ${q.filter(a => a.easy).length} Easy Apply${jobStreak() ? ` · 🔥 ${jobStreak()}-day streak` : ''}</div>
+    <div class="btns" style="margin-top:10px"><button class="btn primary" data-act="sprint" ${q.length ? '' : 'disabled'}>▶ Start sprint</button><button class="btn" data-act="job-bulk">${I.plus} Add jobs</button>${fu.length ? `<button class="btn" data-act="j-tab" data-t="follow">Follow-ups <b class="badge inl">${fu.length}</b></button>` : ''}</div></div></div>
+  <div class="statrow"><div><b>${st.week}</b><span>applied this week</span></div><div><b>${st.total}</b><span>applied in total</span></div><div><b>${st.rate}%</b><span>reply rate</span></div><div><b>${st.interviews}</b><span>interviews</span></div></div>
+  <div class="seg ptabs" style="margin:12px 0">${[['pipeline', 'Pipeline'], ['list', 'List'], ['follow', 'Follow-ups'], ['tpl', 'Templates']].map(([k, l]) => `<button class="${tab === k ? 'on' : ''}" data-act="j-tab" data-t="${k}">${l}</button>`).join('')}</div>
+  ${body}
+  <p class="small" style="margin-top:14px">LinkedIn and Indeed do not allow other apps to press Apply for you, so the last click is always yours. ME.Coach lines everything up so each application takes about a minute, then tracks it and reminds you to follow up.</p>`;
+}
+function jobBulk() {
+  if (sheetCtx) closeSheet(true);
+  form('Add jobs', [{ html: '<p class="small" style="margin-top:0">Paste one job per line: a link, or <b>Role | Company | link</b>. Add the word <b>easy</b> to a line for Easy Apply jobs. From LinkedIn or Indeed on your phone you can also use Share → ME.Coach.</p>' }, { k: 'lines', label: 'Jobs', type: 'textarea', req: true, ph: 'Project Coordinator | Acme Ltd | https://www.linkedin.com/jobs/view/123 easy' }, [{ k: 'location', label: 'Location', ph: 'London, UK' }, { k: 'easy', label: 'All are Easy Apply', type: 'check' }]], {}, v => {
+    const have = new Set(list('applications').map(a => normLink(a.link)).filter(Boolean)); let n = 0, dup = 0;
+    for (const raw of String(v.lines || '').split('\n')) { const line = raw.trim(); if (!line) continue; const m = line.match(/https?:\/\/\S+/); const link = m ? m[0] : ''; if (link && have.has(normLink(link))) { dup++; continue; }
+      const easy = v.easy || /\beasy\b/i.test(line); const rest = line.replace(link, '').replace(/\beasy( apply)?\b/ig, '').split('|').map(s => s.trim()).filter(Boolean);
+      let host = ''; try { host = new URL(link).hostname.replace(/^www\./, ''); } catch {}
+      save('applications', { role: rest[0] || (host ? 'Job from ' + host : line.slice(0, 80)), company: rest[1] || '', link, source: host, easy, stage: 'Saved', location: rest[2] || v.location || '' }); if (link) have.add(normLink(link)); n++; }
+    toast(`${n} added to the queue${dup ? ` · ${dup} already there` : ''}`);
+  });
+}
+const normLink = u => { if (!u) return ''; try { const x = new URL(u); const li = x.pathname.match(/\/jobs\/view\/(\d+)/) || [null, x.searchParams.get('currentJobId')]; if (li[1]) return 'li:' + li[1]; const jk = x.searchParams.get('jk') || x.searchParams.get('vjk'); if (jk) return 'in:' + jk; return x.hostname.replace(/^www\./, '') + x.pathname.replace(/\/$/, ''); } catch { return u; } };
+function sprintOpen() { if (sheetCtx) closeSheet(true); const q = jobQueue(); if (!q.length) { toast('The queue is empty. Add jobs first.'); return; } ui.sprint = { ids: q.map(a => a.id), i: 0, n: 0 }; sprintDraw(); }
+function sprintDraw() {
+  const s = ui.sprint; let el = $('#sprint'); if (!s) { if (el) el.remove(); return; }
+  while (s.i < s.ids.length && !(get('applications', s.ids[s.i]) && (get('applications', s.ids[s.i]).stage || 'Saved') === 'Saved')) s.i++;
+  if (!el) { el = document.createElement('div'); el.id = 'sprint'; document.body.appendChild(el); }
+  const tgt = jobTarget(), done = appliedOn(today()), a = get('applications', s.ids[s.i]);
+  el.innerHTML = `<div class="sp-top"><button class="icon-btn" data-act="sprint-close" aria-label="Close">✕</button><div class="sp-prog"><i style="width:${Math.min(100, 100 * done / tgt)}%"></i></div><b>${done}/${tgt}</b></div>
+  ${a ? `<div class="sp-card"><div class="m">${jobSrc(a) ? `<span class="chip">${esc(jobSrc(a))}</span>` : ''}${a.easy ? '<span class="chip s-done">Easy Apply</span>' : ''}<span class="small">${s.i + 1} of ${s.ids.length}</span></div><h2 dir="auto">${esc(a.role || 'Role')}</h2><div class="sp-co" dir="auto">${esc(a.company || '')}${a.location ? ' · ' + esc(a.location) : ''}</div>
+    <div class="sp-steps"><button class="btn wide primary" data-act="sp-open" data-id="${esc(a.id)}" ${a.link ? '' : 'disabled'}>1 · Open the job ↗</button><button class="btn wide" data-act="sp-copy" data-id="${esc(a.id)}">Copy cover note</button>${a.contactEmail ? `<button class="btn wide" data-act="sp-mail" data-id="${esc(a.id)}">✉ Email the application to ${esc(a.contact || a.contactEmail)}</button>` : ''}<button class="btn wide ok" data-act="sp-applied" data-id="${esc(a.id)}">2 · ✓ I applied</button></div>
+    <div class="btns" style="justify-content:center"><button class="btn ghost small" data-act="sp-skip">Skip for now</button><button class="btn ghost small" data-act="sp-no" data-id="${esc(a.id)}">Not for me</button></div></div>`
+    : `<div class="sp-card sp-end"><div class="sp-big">${done >= tgt ? '🎉' : '✓'}</div><h2>${done >= tgt ? 'Daily target reached' : 'Queue finished'}</h2><p class="small">${s.n} applied in this sprint · ${done} today. Follow-ups are set for 7 days from now.</p><div class="btns" style="justify-content:center"><button class="btn primary" data-act="sprint-close">Done</button><button class="btn" data-act="job-bulk">Add more jobs</button></div></div>`}`;
+}
+const markFollowed = id => { const a = get('applications', id); if (!a) return; const n = (Number(a.fuCount) || 0) + 1; const prev = Object.assign({}, a); save('applications', Object.assign({}, a, { fuCount: n, lastFollow: today(), followUp: addDays(today(), n >= 2 ? 10 : 7) })); toast('Followed up · next reminder set', 'Undo', () => save('applications', prev)); };
+
+/* ---------- motivation: points, levels, badges, rings, coach ---------- */
+const lvlAt = n => 50 * n * (n - 1);
+function xpStats() {
+  const tasks = list('tasks').filter(t => t.state === 'Done').length, hs = list('habits'), checks = hs.reduce((n, h) => n + Object.keys(h.done || {}).length, 0);
+  const foc = list('focus').filter(f => f.kind !== 'calm'), calm = list('focus').filter(f => f.kind === 'calm'), fmin = foc.reduce((n, f) => n + (Number(f.minutes) || 0), 0);
+  const morn = list('logs').filter(l => l.type === 'morning').length, night = list('logs').filter(l => l.type === 'closeout').length, apps = list('applications').filter(a => a.appliedOn).length, wh = list('wheel').length;
+  const xp = tasks * 10 + checks * 5 + Math.floor(fmin / 5) * 2 + (morn + night) * 15 + apps * 8 + wh * 20 + calm.length * 10;
+  let lv = 1; while (xp >= lvlAt(lv + 1)) lv++;
+  const best = Math.max(0, ...hs.map(habitStreak)), maxDay = Math.max(0, ...Object.values(list('applications').reduce((m, a) => { if (a.appliedOn) m[a.appliedOn] = (m[a.appliedOn] || 0) + 1; return m; }, {})));
+  const B = [['🌅', 'First Morning Balance', morn >= 1], ['🌙', '7 Night Balances', night >= 7], ['🔥', '7-day streak', best >= 7], ['🏆', '30-day streak', best >= 30], ['🎧', '10 focus sessions', foc.length >= 10], ['⏱️', '10 hours of deep work', fmin >= 600], ['✅', '50 tasks done', tasks >= 50], ['💯', '250 tasks done', tasks >= 250], ['🧭', 'Two Wheel tests', wh >= 2], ['🧘', '7 calm sessions', calm.length >= 7]];
+  if (isOwner()) B.push(['💼', '20 applications in a day', maxDay >= 20], ['🚀', '100 applications', apps >= 100]);
+  return { xp, lv, into: xp - lvlAt(lv), need: lvlAt(lv + 1) - lvlAt(lv), best, badges: B, fmin };
+}
+const LV_NAMES = ['Starter', 'Builder', 'Focused', 'Consistent', 'Driven', 'Disciplined', 'Unstoppable', 'Master', 'Mentor', 'Legend'];
+const lvName = lv => LV_NAMES[Math.min(LV_NAMES.length - 1, Math.floor((lv - 1) / 2))];
+function rings(d = today()) {
+  const logs = list('logs').filter(l => l.date === d), plan = (logs.some(l => l.type === 'morning') ? 50 : 0) + (logs.some(l => l.type === 'closeout') ? 50 : 0);
+  const tasks = list('tasks'), top = tasks.filter(t => t.focusDate === d), topDone = top.filter(t => DONE.has(t.state)).length, doneD = tasks.filter(t => t.completedOn === d).length;
+  const act = top.length ? Math.round(100 * topDone / top.length) : Math.min(100, Math.round(100 * doneD / 3));
+  const grow = dayHabits(d); return { plan, act, grow: grow === null ? 0 : grow };
+}
+function ringsSvg(r, size = 120) {
+  const R = [[r.act, '#eb6834', 0], [r.grow, '#1baf7a', 1], [r.plan, '#2a78d6', 2]], c = size / 2, w = size * 0.1;
+  return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" class="arings" role="img" aria-label="Do ${r.act}%, Grow ${r.grow}%, Plan ${r.plan}%">${R.map(([p, col, i]) => { const rad = c - w / 2 - i * (w + 3), L = 2 * Math.PI * rad; return `<circle cx="${c}" cy="${c}" r="${rad}" fill="none" stroke="${col}" stroke-opacity=".18" stroke-width="${w}"/><circle cx="${c}" cy="${c}" r="${rad}" fill="none" stroke="${col}" stroke-width="${w}" stroke-linecap="round" stroke-dasharray="${(L * Math.min(100, p) / 100).toFixed(1)} ${L.toFixed(1)}" transform="rotate(-90 ${c} ${c})"/>`; }).join('')}</svg>`;
+}
+function coachMsgs(d = today()) {
+  const r = rings(d), mlog = list('logs').find(l => l.type === 'morning' && l.date === d), top = list('tasks').filter(t => t.focusDate === d), open = top.filter(isOpen);
+  const dueH = list('habits').filter(h => habDue(h, d) && !(h.done || {})[d]), hs = list('habits').map(h => [h, habitStreak(h)]).sort((a, b) => b[1] - a[1]);
+  const dl = daysTo(visionDate()), vis = prefs().visionName || 'your vision', st = hs[0], nm = me && me.name ? me.name.split(' ')[0] : '';
+  const pick = (arr, k) => arr[(Number(d.replace(/-/g, '')) + k) % arr.length];
+  const morning = !mlog ? `Good morning${nm ? ', ' + nm : ''}. One minute of Morning Balance decides your three wins for today.` : `Your focus today: ${mlog.focus || 'your Top 3'}. Protect the first deep-work block for it.`;
+  const midday = open.length ? `${top.length - open.length} of ${top.length} Top 3 done. Next: "${open[0].title}". One 25-minute block moves it.` : dueH.length ? `Top 3 is clear. Still open: ${dueH.slice(0, 2).map(h => h.title).join(' and ')}.` : pick(['Progress beats perfection. Pick the next small step and start it now.', 'You are building the person who reaches ' + vis + '. Show up for one more block.'], 1);
+  const afternoon = st && st[1] >= 2 ? `${st[0].title} is on a ${st[1]}-day streak. Keep it alive today.` : dueH.length ? `${dueH.length} habit${dueH.length > 1 ? 's' : ''} left today. Start with "${dueH[0].title}". It takes less than you think.` : pick([`${dl.toLocaleString('en-GB')} days to ${vis}. Today counts.`, 'Small daily wins compound. Finish one thing before you start another.'], 2);
+  const evening = r.plan >= 100 ? 'Day closed. Rest well. Tomorrow is already planned.' : `Close the day in one minute: score it, note one win, pick tomorrow's Top 3.`;
+  return { morning, midday, afternoon, evening };
+}
+const slotOf = h => h < 11 ? 'morning' : h < 15 ? 'midday' : h < 18 ? 'afternoon' : 'evening';
+const WIDGETS = [['rings', 'Daily rings'], ['level', 'Level and points'], ['streak', 'Best streak'], ['focus', 'Focus today'], ['vision', 'Vision countdown'], ['money', 'Savings'], ['jobs', 'Job sprint'], ['badges', 'Badges']];
+const myWidgets = () => (prefs().widgets || ['rings', 'level', 'streak', 'focus', 'vision', 'jobs']).filter(k => k !== 'jobs' || isOwner());
+function widgetHtml(k) {
+  const t = today();
+  if (k === 'rings') { const r = rings(t); return `<div class="wg wg-rings" data-act="w-rings">${ringsSvg(r, 96)}<div class="wl"><span style="--c:#eb6834">Do <b>${r.act}%</b></span><span style="--c:#1baf7a">Grow <b>${r.grow}%</b></span><span style="--c:#2a78d6">Plan <b>${r.plan}%</b></span></div></div>`; }
+  if (k === 'level') { const x = xpStats(); return `<div class="wg" data-act="w-level"><div class="wk">Level ${x.lv} · ${lvName(x.lv)}</div><div class="wv">${x.xp.toLocaleString('en-GB')}<small> pts</small></div><div class="bar"><i style="width:${Math.round(100 * x.into / x.need)}%"></i></div><div class="small">${x.need - x.into} to level ${x.lv + 1}</div></div>`; }
+  if (k === 'streak') { const hs = list('habits').map(h => [h, habitStreak(h)]).sort((a, b) => b[1] - a[1])[0]; return `<div class="wg" data-act="go" data-to="habits"><div class="wk">Best streak</div><div class="wv">🔥 ${hs ? hs[1] : 0}<small> days</small></div><div class="small" dir="auto">${hs ? esc(hs[0].title) : 'Add a habit'}</div></div>`; }
+  if (k === 'focus') { const m = dayFocus(t); return `<div class="wg" data-act="focus-free"><div class="wk">Focus today</div><div class="wv">${Math.floor(m / 60)}<small>h</small> ${m % 60}<small>m</small></div><div class="small">Tap to start a session</div></div>`; }
+  if (k === 'vision') { const dl = daysTo(visionDate()); return `<div class="wg" data-act="p-tab" data-t="roadmap"><div class="wk">${esc(prefs().visionName || 'Vision')}</div><div class="wv">${dl.toLocaleString('en-GB')}<small> days</small></div><div class="small">to go</div></div>`; }
+  if (k === 'money') { const goal = Number(prefs().savingsGoal) || 0, m = list('money').sort((a, b) => String(b.date).localeCompare(String(a.date)))[0], have = m ? Number(m.amount) || 0 : 0; return `<div class="wg" data-act="p-tab" data-t="money"><div class="wk">Savings</div><div class="wv">${esc(prefs().currency || '')} ${have.toLocaleString('en-GB')}</div>${goal ? `<div class="bar"><i style="width:${Math.min(100, Math.round(100 * have / goal))}%"></i></div><div class="small">of ${goal.toLocaleString('en-GB')}</div>` : '<div class="small">Set a goal in Money</div>'}</div>`; }
+  if (k === 'jobs') { const d = appliedOn(t), g = jobTarget(); return `<div class="wg" data-act="go" data-to="jobs"><div class="wk">Applications today</div><div class="wv">${d}<small>/${g}</small></div><div class="bar"><i style="width:${Math.min(100, Math.round(100 * d / g))}%"></i></div><div class="small">${jobQueue().length} in the queue</div></div>`; }
+  if (k === 'badges') { const b = xpStats().badges.filter(x => x[2]); return `<div class="wg" data-act="w-level"><div class="wk">Badges</div><div class="wv">${b.length}<small>/${xpStats().badges.length}</small></div><div class="wbadges">${b.slice(-5).map(x => `<span title="${esc(x[1])}">${x[0]}</span>`).join('') || '<span class="small">Your first one is close</span>'}</div></div>`; }
+  return '';
+}
+function coachCard() {
+  const m = coachMsgs()[slotOf(new Date().getHours())];
+  return `<div class="coach-msg"><span class="cm-av">ME<b>.</b></span><div class="main"><div class="small">Your coach</div><div dir="auto">${esc(m)}</div></div></div>`;
+}
+function widgetGrid() { const ws = myWidgets(); return ws.length ? `<div class="wgrid">${ws.map(widgetHtml).join('')}</div><div class="wg-edit"><button class="btn ghost small" data-act="w-edit">Edit widgets</button></div>` : `<div class="wg-edit"><button class="btn ghost small" data-act="w-edit">Add widgets</button></div>`; }
+function levelSheet() {
+  const x = xpStats();
+  openSheet(`Level ${x.lv} · ${lvName(x.lv)}`, `<div class="lv-hero"><div class="wv">${x.xp.toLocaleString('en-GB')} pts</div><div class="bar"><i style="width:${Math.round(100 * x.into / x.need)}%"></i></div><div class="small">${x.need - x.into} points to level ${x.lv + 1}</div></div>
+  <h2 style="margin-top:14px">Badges</h2><div class="badges">${x.badges.map(([e, l, ok]) => `<div class="bdg ${ok ? 'on' : ''}"><span>${e}</span><div class="small">${esc(l)}</div></div>`).join('')}</div>
+  <h2 style="margin-top:14px">How you earn points</h2><div class="small">Task done 10 · habit kept 5 · every 5 focus minutes 2 · Morning or Night Balance 15 · calm session 10 · Wheel test 20${isOwner() ? ' · application sent 8' : ''}</div>`, '', { noFocus: true });
+}
+function widgetEdit() {
+  const on = new Set(myWidgets()), all = WIDGETS.filter(([k]) => k !== 'jobs' || isOwner());
+  openSheet('Widgets', `<p class="small" style="margin-top:0">Choose what shows on Today. They update every time something changes.</p><div class="list">${all.map(([k, l]) => `<label class="row"><input type="checkbox" data-change="w-tog" data-k="${k}" ${on.has(k) ? 'checked' : ''}><div class="main"><div class="t">${l}</div></div></label>`).join('')}</div>
+  <div class="card" style="margin-top:14px"><b>On your iPhone, iPad or Mac</b><p class="small">Add a live ME.Coach widget to your home screen or desktop. It refreshes several times a day.</p><button class="btn primary" data-act="w-home">Set up home-screen widget</button></div>`, '', { noFocus: true });
+}
+/* snapshot the server can hand to home-screen widgets */
+function widgetSnap() {
+  const t = today(), x = xpStats(), r = rings(t), top = list('tasks').filter(k => k.focusDate === t);
+  const hs = list('habits').filter(h => habDue(h, t)), best = list('habits').map(h => [h.title, habitStreak(h)]).sort((a, b) => b[1] - a[1])[0];
+  const o = { id: 'widget', date: t, level: x.lv, levelName: lvName(x.lv), xp: x.xp, pct: Math.round(100 * x.into / x.need), rings: r, msgs: coachMsgs(t), top3: top.map(k => ({ t: k.title, done: DONE.has(k.state) })), habits: { due: hs.length, done: hs.filter(h => (h.done || {})[t]).length }, streak: best ? { t: best[0], n: best[1] } : null, focus: dayFocus(t), vision: { name: prefs().visionName || '', days: daysTo(visionDate()) } };
+  if (isOwner()) o.jobs = { done: appliedOn(t), target: jobTarget(), queue: jobQueue().length };
+  return o;
+}
+function pushWidget() {
+  clearTimeout(pushWidget.t); pushWidget.t = setTimeout(() => { if (!ls.get(K.tok) || (me && me.access === false)) return; try { const s = widgetSnap(), cur = get('settings', 'widget'); const strip = o => { const c = Object.assign({}, o); delete c.createdAt; delete c.updatedAt; delete c.by; return JSON.stringify(c); }; if (!cur || strip(cur) !== strip(s)) { const r = Object.assign({}, cur || {}, s, { createdAt: (cur && cur.createdAt) || nowIso(), updatedAt: nowIso(), by: device() }); db.settings.widget = r; outbox['settings:widget'] = r; persist(); queueSync(); } } catch {} }, 4000);
+}
+async function homeWidget() {
+  let key = ''; try { key = (await api('shortkey')).key; } catch (e) { toast('Connect to the internet first'); return; }
+  const base = new URL('api.php', location.href).href, url = `${base}?action=s-widget&k=${key}`;
+  const script = SCRIPTABLE.replace('__URL__', url);
+  openSheet('Home-screen widget', `<h2>iPhone and iPad</h2><ol class="small steps"><li>Install the free app <b>Scriptable</b> from the App Store.</li><li>Open it, tap <b>+</b>, paste the script below and name it <b>ME.Coach</b>.</li><li>Long-press the home screen → <b>+</b> → Scriptable → choose a size → tap the widget → Script: <b>ME.Coach</b>.</li></ol>
+  <button class="btn primary" data-act="copy" data-text="${esc(script)}">Copy the script</button>
+  <h2 style="margin-top:16px">Mac, Windows or any browser</h2><p class="small">Open this page and keep it as a small window. On a Mac with Safari: File → Add to Dock. It refreshes every 15 minutes.</p><div class="btns"><a class="btn" href="${esc(url)}&format=html" target="_blank" rel="noopener">Open desktop widget</a><button class="btn ghost" data-act="copy" data-text="${esc(url + '&format=html')}">Copy link</button></div>
+  <p class="small" style="margin-top:12px">The link contains a private key. Anyone with it can read your widget summary. Change it any time in Settings → Siri (Rotate key).</p>`, '', { noFocus: true });
+}
+const SCRIPTABLE = `// ME.Coach widget for Scriptable
+const URL_ = "__URL__";
+let d; try { d = await new Request(URL_).loadJSON(); } catch (e) { d = null; }
+const w = new ListWidget(); w.backgroundColor = Color.dynamic(new Color("#ffffff"), new Color("#191919"));
+w.refreshAfterDate = new Date(Date.now() + 30 * 60 * 1000); w.url = URL_.split("api.php")[0];
+const ink = Color.dynamic(new Color("#37352f"), new Color("#e6e6e6")), meta = Color.dynamic(new Color("#787774"), new Color("#9b9b9b"));
+function t(s, size, c, bold) { const x = w.addText(String(s)); x.font = bold ? Font.boldSystemFont(size) : Font.systemFont(size); x.textColor = c || ink; x.minimumScaleFactor = 0.6; return x; }
+function bar(p, col) { const ctx = new DrawContext(); ctx.size = new Size(200, 8); ctx.opaque = false; ctx.respectScreenScale = true; ctx.setFillColor(new Color(col, 0.18)); ctx.fillPath(roundRect(ctx, 200)); ctx.setFillColor(new Color(col)); ctx.fillPath(roundRect(ctx, Math.max(8, 2 * Math.min(100, p)))); const i = w.addImage(ctx.getImage()); i.imageSize = new Size(200, 8); w.addSpacer(4); }
+function roundRect(ctx, wd) { const p = new Path(); p.addRoundedRect(new Rect(0, 0, wd, 8), 4, 4); return p; }
+if (!d || !d.ok) { t("ME.Coach", 14, null, true); t(d && d.message ? d.message : "Open the app once to refresh.", 11, meta); }
+else {
+  const fam = config.widgetFamily || "medium";
+  t("ME. Level " + d.level + " · " + d.levelName, 11, meta, true); w.addSpacer(4);
+  bar(d.rings.act, "#eb6834"); bar(d.rings.grow, "#1baf7a"); bar(d.rings.plan, "#2a78d6");
+  if (fam !== "small") { w.addSpacer(4); t(d.message, 12); }
+  if (fam === "large") { w.addSpacer(8); (d.top3 || []).forEach(k => t((k.done ? "✓ " : "○ ") + k.t, 12, k.done ? meta : ink)); if (d.jobs) { w.addSpacer(6); t("Applications " + d.jobs.done + "/" + d.jobs.target, 12, null, true); } }
+  w.addSpacer(); t(d.habits.done + "/" + d.habits.due + " habits · " + d.focus + " min focus" + (d.streak && d.streak.n ? " · 🔥" + d.streak.n : ""), 10, meta);
+}
+if (config.runsInWidget) Script.setWidget(w); else await w.presentMedium(); Script.complete();`;
+
+/* ---------- calm: breathing and meditation ---------- */
+const BREATHS = [['box', 'Box breathing', 'Steady and focused', [['Breathe in', 4], ['Hold', 4], ['Breathe out', 4], ['Hold', 4]], 'ocean'], ['478', '4-7-8', 'Calm down, fall asleep', [['Breathe in', 4], ['Hold', 7], ['Breathe out', 8]], 'night'], ['coh', 'Coherent', 'Balance body and mind', [['Breathe in', 5.5], ['Breathe out', 5.5]], 'forest'], ['sigh', 'Quick reset', 'Release stress in a minute', [['Breathe in', 2], ['A little more', 1], ['Long breath out', 6]], 'dusk']];
+const MEDS = [['god', '8 minutes with God', 8, 'night', ['Sit still. Let your breathing slow down.', 'Thank God for three things from today.', 'Speak freely: what is on your heart?', 'Ask for guidance on one decision.', 'Listen in silence.', 'Leave with one intention for the rest of the day.']], ['morning', 'Morning clarity', 5, 'dusk', ['Notice how you feel right now, without judging it.', 'Picture today going well. What did you do?', 'Choose one word for today.']], ['scan', 'Body scan', 10, 'forest', ['Bring attention to your feet.', 'Move slowly up to your legs and hips.', 'Notice your belly rising and falling.', 'Relax your shoulders and jaw.', 'Feel your whole body at once.']], ['sleep', 'Before sleep', 10, 'night', ['Let the day go. It is done.', 'Name one thing you are proud of today.', 'Breathe out longer than you breathe in.', 'Let your body grow heavy.']], ['free', 'Silent timer', 10, 'ocean', []]];
+function vCalm() {
+  const wk = addDays(today(), -6), cs = list('focus').filter(f => f.kind === 'calm'), wmin = cs.filter(f => f.date >= wk).reduce((n, f) => n + (Number(f.minutes) || 0), 0);
+  let st = 0, d = today(); if (!cs.some(f => f.date === d)) d = addDays(d, -1); while (st < 400 && cs.some(f => f.date === d)) { st++; d = addDays(d, -1); }
+  return header('Calm', 'Breathe, reset, reflect') + `
+  <div class="statrow"><div><b>${wmin}</b><span>mindful minutes this week</span></div><div><b>${cs.length}</b><span>sessions</span></div><div><b>${st ? '🔥 ' + st : 0}</b><span>day streak</span></div></div>
+  <h2 class="sec-h">Breathing</h2><div class="calm-grid">${BREATHS.map(([k, l, s, , sc]) => `<button class="calm-card scene-${sc}" data-act="calm-breath" data-v="${k}"><b>${l}</b><span>${s}</span></button>`).join('')}</div>
+  <h2 class="sec-h">Meditation</h2><div class="calm-grid">${MEDS.map(([k, l, m, sc]) => `<button class="calm-card scene-${sc}" data-act="calm-med" data-v="${k}"><b>${l}</b><span>${m} min</span></button>`).join('')}</div>`;
+}
+let calmT = null;
+function calmOpen(kind, key, mins) {
+  if (sheetCtx) closeSheet(true); clearInterval(calmT);
+  const B = BREATHS.find(b => b[0] === key), M = MEDS.find(m => m[0] === key); if (!B && !M) return;
+  const total = (mins || (B ? 3 : M[2])) * 60000, scene = B ? B[4] : M[3];
+  ui.calm = { kind, key, start: Date.now(), total, title: B ? B[1] : M[1] };
+  let el = $('#calm'); if (!el) { el = document.createElement('div'); el.id = 'calm'; document.body.appendChild(el); }
+  el.className = 'scene-' + scene;
+  el.innerHTML = `<div class="fbg"><i></i><i></i><i></i></div><div class="calm-box"><div class="fttl">${esc(ui.calm.title)}</div>${B ? `<div class="bcirc"><i></i><span class="bl">Get ready</span></div><div class="fmodes">${[1, 3, 5].map(m => `<button class="${total === m * 60000 ? 'on' : ''}" data-act="calm-len" data-v="${key}" data-m="${m}">${m} min</button>`).join('')}</div>` : `<div class="mcue" dir="auto">${esc(M[4][0] || 'Sit comfortably and close your eyes.')}</div>`}
+  <div class="ft calm-t">--:--</div><div class="fopts"><div>${SOUNDS.map(([k, l]) => `<button class="${(amb ? amb.kind : 'off') === k ? 'on' : ''}" data-act="calm-sound" data-v="${k}">${l}</button>`).join('')}</div></div>
+  <div class="btns" style="justify-content:center"><button class="btn primary" data-act="calm-end">Finish</button><button class="btn ghost" data-act="calm-cancel">Close</button></div></div>`;
+  const circ = el.querySelector('.bcirc i'), lab = el.querySelector('.bl'), cue = el.querySelector('.mcue'), tt = el.querySelector('.calm-t');
+  let ph = -1, phEnd = Date.now() + 1500;
+  const tick = () => { const c = ui.calm; if (!c) { clearInterval(calmT); return; } const left = c.total - (Date.now() - c.start); tt.textContent = `${pad(Math.max(0, Math.floor(left / 60000)))}:${pad(Math.max(0, Math.floor(left % 60000 / 1000)))}`;
+    if (left <= 0) { calmEnd(true); return; }
+    if (B && Date.now() >= phEnd) { ph = (ph + 1) % B[3].length; const [name, sec] = B[3][ph]; phEnd = Date.now() + sec * 1000; lab.textContent = name; circ.style.transitionDuration = sec + 's'; circ.style.transform = /in|more/i.test(name) ? 'scale(1)' : /out/i.test(name) ? 'scale(.45)' : circ.style.transform || 'scale(.45)'; }
+    if (M && M[4].length > 1) { const i = Math.min(M[4].length - 1, Math.floor((Date.now() - c.start) / (c.total / M[4].length))); if (cue.dataset.i !== String(i)) { cue.dataset.i = i; cue.classList.remove('in'); void cue.offsetWidth; cue.textContent = M[4][i]; cue.classList.add('in'); } } };
+  if (circ) circ.style.transform = 'scale(.45)';
+  tick(); calmT = setInterval(tick, 250);
+}
+function calmEnd(save_) {
+  const c = ui.calm; clearInterval(calmT); ui.calm = null; ambient('off'); const el = $('#calm'); if (el) el.remove(); if (!c || !save_) return;
+  const mins = Math.max(1, Math.round(Math.min(c.total, Date.now() - c.start) / 60000)), st = new Date(c.start);
+  save('focus', { date: dstr(st), start: `${pad(st.getHours())}:${pad(st.getMinutes())}`, minutes: mins, label: c.title, kind: 'calm' });
+  if (c.key === 'god') { const h = list('habits').find(h => /god|خدا|pray|نماز/i.test(h.title || '')); const t = today(); if (h && !(h.done || {})[t]) save('habits', Object.assign({}, h, { done: Object.assign({}, h.done || {}, { [t]: true }) })); }
+  celebrate(); toast(`${mins} mindful minute${mins > 1 ? 's' : ''} saved`);
+}
+
+/* ---------- v7 actions ---------- */
+function v7Acts(a, id, e) {
+  return {
+    'b-view': () => { ui.bView = a.dataset.v; saveUi(); render(); },
+    'bv-mode': () => { ui.bvMode = Object.assign({}, ui.bvMode, { [id]: a.dataset.v }); saveUi(); render(); },
+    'k-add': () => { const col = a.dataset.col, pid = id; form('New card · ' + col, [{ k: 'title', label: 'Card', req: true }, [{ k: 'due', label: 'Due', type: 'date' }, { k: 'priority', label: 'Priority', type: 'select', options: ['P1', 'P2', 'P3'], blank: false, def: 'P2' }]], {}, v => { const r = { title: v.title, due: v.due || '', priority: v.priority || 'P2', state: col, owner: 'Me', projectId: pid === 'inbox' ? '' : pid, korder: Date.now() / 1e6 }; if (col === 'Done') r.completedOn = today(); save('tasks', r); }); },
+    'j-tab': () => { ui.jTab = a.dataset.t; saveUi(); if (route().page !== 'jobs') location.hash = '#/jobs'; else render(); },
+    'job-bulk': () => { if ($('#sprint')) { ui.sprint = null; sprintDraw(); } jobBulk(); },
+    sprint: () => sprintOpen(),
+    'sprint-close': () => { ui.sprint = null; sprintDraw(); render(); },
+    'sp-open': () => { const x = get('applications', id); if (x && x.link) { window.open(x.link, '_blank', 'noopener'); save('applications', Object.assign({}, x, { openedAt: nowIso() })); sprintDraw(); } },
+    'sp-copy': async () => { const x = get('applications', id); const s = fillTpl(jobTpl('cover'), x || {}); try { await navigator.clipboard.writeText(s); toast('Cover note copied. Paste it into the form.'); } catch { prompt('Copy this', s); } },
+    'sp-mail': () => { const x = get('applications', id); if (!x) return; const [sub, ...rest] = fillTpl(jobTpl('apply'), x).split('\n'); location.href = `mailto:${encodeURIComponent(x.contactEmail)}?subject=${encodeURIComponent(sub.replace(/^Subject:\s*/i, ''))}&body=${encodeURIComponent(rest.join('\n').trim())}`; toast('Attach your CV in the email, send it, then tap “I applied”.'); },
+    'sp-applied': () => { const x = get('applications', id); if (!x) return; const before = appliedOn(today()); save('applications', Object.assign({}, x, { stage: 'Applied', appliedOn: today(), followUp: addDays(today(), 7), appliedVia: x.easy ? 'Easy Apply' : jobSrc(x) || 'Website' })); ui.sprint.n++; ui.sprint.i++; if (before + 1 === jobTarget()) celebrate(); sprintDraw(); },
+    'sp-skip': () => { const s = ui.sprint; s.ids.push(s.ids.splice(s.i, 1)[0]); if (s.ids.length === 1 || s.skipped > s.ids.length) s.i++; s.skipped = (s.skipped || 0) + 1; sprintDraw(); },
+    'sp-no': () => { const x = get('applications', id); if (x) save('applications', Object.assign({}, x, { stage: 'Withdrawn', notes: [x.notes, 'Not a fit (sprint)'].filter(Boolean).join('\n') })); ui.sprint.i++; sprintDraw(); },
+    'jf-email': () => { const x = get('applications', id); if (!x) return; const [sub, ...rest] = fillTpl(jobTpl('follow'), x).split('\n'); location.href = `mailto:${encodeURIComponent(x.contactEmail)}?subject=${encodeURIComponent(sub.replace(/^Subject:\s*/i, ''))}&body=${encodeURIComponent(rest.join('\n').trim())}`; markFollowed(id); },
+    'jf-li': async () => { const x = get('applications', id); if (!x) return; const s = fillTpl(jobTpl('li'), x); try { await navigator.clipboard.writeText(s); } catch {} window.open(x.contactUrl || `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent((x.company || '') + ' recruiter')}`, '_blank', 'noopener'); toast('Message copied. Paste it on LinkedIn.'); markFollowed(id); },
+    'jf-done': () => markFollowed(id),
+    'jf-close': () => { const x = get('applications', id); if (x) save('applications', Object.assign({}, x, { stage: 'Rejected', notes: [x.notes, 'Closed: no reply after 30 days'].filter(Boolean).join('\n') })); },
+    'w-edit': () => widgetEdit(), 'w-level': () => levelSheet(), 'w-home': () => { closeSheet(true); homeWidget(); },
+    'w-rings': () => { const r = rings(); openSheet('Daily rings', `<div style="display:grid;place-items:center">${ringsSvg(r, 180)}</div><div class="list" style="margin-top:12px"><div class="row"><span class="dotx" style="background:#eb6834"></span><div class="main"><div class="t">Do · ${r.act}%</div><div class="m">Your Top 3 done (or 3 tasks finished)</div></div></div><div class="row"><span class="dotx" style="background:#1baf7a"></span><div class="main"><div class="t">Grow · ${r.grow}%</div><div class="m">Habits due today that you kept</div></div></div><div class="row"><span class="dotx" style="background:#2a78d6"></span><div class="main"><div class="t">Plan · ${r.plan}%</div><div class="m">Morning Balance and Night Balance</div></div></div></div>`, '', { noFocus: true }); },
+    'calm-breath': () => calmOpen('breath', a.dataset.v), 'calm-med': () => calmOpen('med', a.dataset.v),
+    breathe: () => { if (sheetCtx) closeSheet(true); location.hash = '#/calm'; },
+    'calm-len': () => calmOpen('breath', a.dataset.v, Number(a.dataset.m)),
+    'calm-sound': () => { ambient(a.dataset.v); document.querySelectorAll('#calm .fopts button').forEach(b => b.classList.toggle('on', b.dataset.v === a.dataset.v)); },
+    'calm-end': () => calmEnd(true), 'calm-cancel': () => calmEnd(false)
+  };
+}
+function v7Change(e) {
+  const d = e.target.dataset || {};
+  if (d.change === 'k-state') { DROP.task(d.id, e.target.value, (get('tasks', d.id) || {}).korder); return true; }
+  if (d.change === 'job-tpl') { save('settings', Object.assign({}, prefs(), { id: 'prefs', jobTpl: Object.assign({}, prefs().jobTpl || {}, { [d.k]: e.target.value }) })); toast('Template saved'); return true; }
+  if (d.change === 'job-target') { save('settings', Object.assign({}, prefs(), { id: 'prefs', jobTarget: Math.max(1, Math.min(60, Number(e.target.value) || 20)) })); return true; }
+  if (d.change === 'w-tog') { const cur = myWidgets().filter(k => k !== d.k); if (e.target.checked) cur.push(d.k); const order = WIDGETS.map(w => w[0]); save('settings', Object.assign({}, prefs(), { id: 'prefs', widgets: cur.sort((x, y) => order.indexOf(x) - order.indexOf(y)) })); return true; }
+  return false;
+}
+
 /* ---------------- shell + router ---------------- */
 function route() { const h = location.hash.replace(/^#\/?/, '') || 'today'; const [p, ...rest] = h.split('/'); return { page: p, arg: decodeURIComponent(rest.join('/')) }; }
 function render() {
   if (!ls.get(K.tok) && !document.querySelector('.shell')) return;
+  if (drag && drag.on) { render.pending = true; return; }
   const { page, arg } = route();
-  const views = { today: vToday, tasks: vTasks, calendar: vCalendar, plan: vPlan, more: vMore, learn: vLearn, evidence: vEvidence, decisions: vDecisions, notes: vNotes, note: () => vNote(arg), review: vReview, settings: vSettings, jobs: vJobs, immigration: vImmigration, progress: vProgress, journal: vJournal, report: vReport, templates: vTemplates, trash: vTrash, health: vHealth, course: () => vCourse(arg), documents: vDocuments, notes: vNotesHub, goal: () => vGoal(arg), area: () => vArea(arg), admin: vAdmin, habits: vHabits, products: vProducts };
-  if (page === 'immigration' || page === 'evidence') { ui.dTab = page; views[page] = vDocuments; } if (page === 'journal' || page === 'decisions') { ui.nTab = page; views[page] = vNotesHub; }
+  if (REMOVED.has(page) || !can(page)) { location.replace('#/today'); return; }
+  const views = { projects: vBoards, board: () => vBoard(arg), calm: vCalm,  today: vToday, tasks: vTasks, calendar: vCalendar, plan: vPlan, more: vMore, learn: vLearn, evidence: vEvidence, decisions: vDecisions, notes: vNotes, note: () => vNote(arg), review: vReview, settings: vSettings, jobs: vJobs, immigration: vImmigration, progress: vProgress, journal: vJournal, report: vReport, templates: vTemplates, trash: vTrash, health: vHealth, course: () => vCourse(arg), documents: vDocuments, notes: vNotesHub, goal: () => vGoal(arg), area: () => vArea(arg), admin: vAdmin, habits: vHabits, products: vProducts };
+  if (page === 'immigration' || page === 'evidence') { ui.dTab = page; views[page] = vDocuments; } if (page === 'journal') views.journal = () => header('Journal', 'Your Night Balance days') + stripHead(vJournal());
   if (page === 'plan') { ui.pTab = ui.planTab === 'goals' ? 'goals' : 'roadmap'; views.plan = vProgress; } if (page === 'learn') { ui.pTab = 'learning'; views.learn = vProgress; }
   const html = icoize((views[page] || vToday)());
-  const active = NAV_MAIN.some(([k]) => k === page) ? page : page === 'more' ? 'more' : ['plan', 'learn', 'report', 'course', 'goal', 'area'].includes(page) ? 'progress' : page === 'note' ? 'more' : NAV_MORE.some(([k]) => k === page) ? 'more' : 'today';
+  const active = NAV_MAIN.some(([k]) => k === page) ? page : page === 'more' ? 'more' : ['plan', 'learn', 'report', 'course', 'goal', 'area'].includes(page) ? 'progress' : page === 'board' ? 'more' : NAV_MORE.some(([k]) => k === page) ? 'more' : 'today';
   const focusKey = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.input : null;
   const sel = focusKey ? [document.activeElement.selectionStart, document.activeElement.selectionEnd] : null;
   const scrollY = window.scrollY;
   const app = $('#app');
   app.innerHTML = `<div class="shell">
-    <aside class="side"><div class="brand">ME<b>.</b>Coach<span>self-coaching</span></div>${NAV_MAIN.map(([k, l, ic]) => `<a href="#/${k}" class="${active === k ? 'on' : ''}">${ic}${l}${badge(k)}</a>`).join('')}<div class="grp">Workspace</div>${navMore().map(([k, l, ic]) => `<a href="#/${k}" class="${page === k || (k === 'notes' && page === 'note') ? 'on' : ''}">${ic}${l}</a>`).join('')}</aside>
+    <aside class="side"><div class="brand">ME<b>.</b>Coach<span>self-coaching</span></div>${NAV_MAIN.map(([k, l, ic]) => `<a href="#/${k}" class="${active === k ? 'on' : ''}">${ic}${l}${badge(k)}</a>`).join('')}<div class="grp">Workspace</div>${navMore().map(([k, l, ic]) => `<a href="#/${k}" class="${page === k || (k === 'projects' && page === 'board') ? 'on' : ''}">${ic}${l}</a>`).join('')}</aside>
     <main class="pg-${esc(page)}${render.lastPage !== page ? ' pg-in' : ''}">${html}</main>
     <nav class="tabs">${NAV_MAIN.map(([k, l, ic]) => `<a href="#/${k}" class="${active === k ? 'on' : ''}">${ic}${badge(k)}<span>${l}</span></a>`).join('')}</nav>
     <button class="fab" data-act="quick" aria-label="Add">${I.plus}</button></div>`;
   if (focusKey) { const el = app.querySelector(`[data-input="${focusKey}"]`); if (el) { el.focus(); try { el.setSelectionRange(sel[0], sel[1]); } catch {} } }
   if (page === 'settings') setTimeout(() => { pushRender(); pkRender(); }, 0);
-  render.lastPage = page;
+  render.lastPage = page; pushWidget();
   if (render.keepScroll) window.scrollTo(0, scrollY);
   render.keepScroll = true;
 }
@@ -1758,7 +2097,7 @@ const FORMS = {
   product: r => simpleForm('products', 'product', [{ k: 'title', label: 'Product', req: true }, [{ k: 'type', label: 'Type', type: 'select', options: PROD_TYPES, blank: false, def: 'Book' }, { k: 'status', label: 'Status', type: 'select', options: PROD_STATES, blank: false, def: 'Idea' }], [{ k: 'price', label: 'Price', type: 'number', step: 0.01 }, { k: 'currency', label: 'Currency', ph: 'OMR, USD…' }], 'MORE', [{ k: 'platform', label: 'Sold on', ph: 'Amazon, website, YouTube…' }, { k: 'launch', label: 'Launch date', type: 'date' }], { k: 'link', label: 'Store link', type: 'url' }, { k: 'notes', label: 'Notes', type: 'textarea' }], r),
   habit: r => simpleForm('habits', 'habit', [{ k: 'title', label: 'Habit', req: true, ph: 'e.g. 30 min walk' }, { k: 'days', label: 'Which days', type: 'days' }, [{ k: 'time', label: 'Time (optional)', type: 'time' }, { k: 'color', label: 'Colour', type: 'select', options: AREA_COL.map((c, i) => [i, ['Blue', 'Orange', 'Aqua', 'Yellow', 'Pink', 'Green', 'Violet', 'Red'][i]]), blank: false }], 'MORE', { k: 'goalId', label: 'Supports goal', type: 'select', options: goalOpts }, { k: 'why', label: 'Why this habit', type: 'textarea' }], Object.assign({ days: [0, 1, 2, 3, 4, 5, 6], color: list('habits').length % 8 }, r)),
   milestone: r => simpleForm('milestones', 'milestone', [{ k: 'title', label: 'Milestone', req: true, ph: 'e.g. Official IELTS 7.5 achieved' }, [{ k: 'target', label: 'Target date', type: 'date' }, { k: 'status', label: 'Status', type: 'select', options: MS_STATES, blank: false, def: 'Planned' }], 'MORE', [{ k: 'goalId', label: 'Goal', type: 'select', options: goalOpts }, { k: 'area', label: 'Area', type: 'select', options: AREAS }], { k: 'proof', label: 'How I will know it is achieved', type: 'textarea' }, { k: 'notes', label: 'Notes', type: 'textarea' }], r),
-  application: r => simpleForm('applications', 'application', [[{ k: 'company', label: 'Company', req: true }, { k: 'role', label: 'Role', req: true }], [{ k: 'stage', label: 'Stage', type: 'select', options: APP_STAGES, blank: false, def: 'Saved' }, { k: 'appliedOn', label: 'Applied on', type: 'date' }], { k: 'followUp', label: 'Follow up on', type: 'date', hint: 'Appears in Today and the calendar.' }, 'MORE', [{ k: 'location', label: 'Location' }, { k: 'source', label: 'Found via', ph: 'LinkedIn, referral…' }], { k: 'link', label: 'Job ad link', type: 'url' }, [{ k: 'cvVersion', label: 'CV version used' }, { k: 'contact', label: 'Contact person' }], { k: 'notes', label: 'Notes', type: 'textarea' }], r),
+  application: r => simpleForm('applications', 'application', [[{ k: 'company', label: 'Company', req: true }, { k: 'role', label: 'Role', req: true }], [{ k: 'stage', label: 'Stage', type: 'select', options: APP_STAGES, blank: false, def: 'Saved' }, { k: 'appliedOn', label: 'Applied on', type: 'date' }], { k: 'followUp', label: 'Follow up on', type: 'date', hint: 'Appears in Today and the calendar.' }, 'MORE', [{ k: 'location', label: 'Location' }, { k: 'source', label: 'Found via', ph: 'LinkedIn, referral…' }], { k: 'link', label: 'Job ad link', type: 'url' }, [{ k: 'easy', label: 'Easy Apply', type: 'check' }, { k: 'contactEmail', label: 'Contact email', type: 'email' }], { k: 'contactUrl', label: 'Contact LinkedIn profile', type: 'url' }, [{ k: 'cvVersion', label: 'CV version used' }, { k: 'contact', label: 'Contact person' }], { k: 'notes', label: 'Notes', type: 'textarea' }], r),
   immig: r => simpleForm('immigration', 'document', [{ k: 'title', label: 'Document', req: true }, [{ k: 'status', label: 'Status', type: 'select', options: IMM_STATES, blank: false, def: 'Not started' }, { k: 'category', label: 'Category', type: 'select', options: IMM_CATS, blank: false, def: 'Other' }], { k: 'expiry', label: 'Expiry date (if any)', type: 'date' }, 'MORE', { k: 'source', label: 'Official requirement link', type: 'url' }, { k: 'evidenceId', label: 'Linked evidence item', type: 'select', options: () => list('evidence').map(e => [e.id, (e.code ? e.code + ' · ' : '') + e.title]) }, { k: 'notes', label: 'Notes', type: 'textarea' }], r),
   logtime: r => form('Log practice time', [[{ k: 'skill', label: 'Skill', type: 'select', options: skillOpts, blank: false }, { k: 'minutes', label: 'Minutes', type: 'number', step: 5, def: 30 }], { k: 'date', label: 'Date', type: 'date', def: today() }, 'MORE', { k: 'title', label: 'Title', ph: 'e.g. Reading test 3' }, { k: 'done', label: 'What I did', type: 'textarea' }], r, v => {
     if (!v.skill) return 'Add a skill first (Learning → Skill).'; if (!(Number(v.minutes) > 0)) return 'Enter the minutes.';
@@ -1812,7 +2151,7 @@ function weeklyReview() {
 }
 const IMM_STARTER = [['Passport', 'Identity'], ['National ID / birth certificate', 'Identity'], ['Degree certificate', 'Education'], ['Academic transcripts', 'Education'], ['Employment reference letters', 'Employment'], ['English test report (IELTS)', 'English test'], ['Police clearance certificates', 'Police & health'], ['Medical examination', 'Police & health'], ['Proof of funds', 'Finance'], ['Passport-style photos', 'Forms & fees']];
 function quickAdd() {
-  openSheet('Add', `<div class="grid two">${[['morning', 'Morning Balance', I.today], ['closeout', 'Night Balance', I.moon], ['focus-free', 'Focus', I.timer], ['new-task', 'Task', I.tasks], ['new-habit', 'Habit', I.repeat], ['new-goal', 'Goal', I.flag], ['new-event', 'Event', I.cal], ['log-time', 'Log practice', I.clock], ['new-application', 'Job application', I.jobs], ['new-note', 'Note', I.notes], ['new-course', 'Course', I.course], ['from-tpl', 'From template', I.tmpl], ['money-add', 'Update savings', I.money], ['weekly', 'Weekly review', I.review]].map(([a, l, ic]) => `<button class="card row" data-act="${a}" style="align-items:center;text-align:left"><span style="width:24px;color:var(--brass-ink)">${ic}</span><div class="main"><div class="t">${l}</div></div></button>`).join('')}</div>`, '', { noFocus: true });
+  openSheet('Add', `<div class="grid two">${[['morning', 'Morning Balance', I.today], ['closeout', 'Night Balance', I.moon], ['focus-free', 'Focus', I.timer], ['breathe', 'Breathe', I.calm], ['new-task', 'Task', I.tasks], ['new-habit', 'Habit', I.repeat], ['new-goal', 'Goal', I.flag], ['new-project', 'Board', I.board], ['new-event', 'Event', I.cal], ['log-time', 'Log practice', I.clock], ['new-course', 'Course', I.course], ['money-add', 'Update savings', I.money], ['weekly', 'Weekly review', I.review]].concat(isOwner() ? [['job-bulk', 'Add jobs', I.jobs], ['sprint', 'Job sprint', I.jobs], ['new-product', 'Product', I.money]] : []).map(([a, l, ic]) => `<button class="card row" data-act="${a}" style="align-items:center;text-align:left"><span style="width:24px;color:var(--brass-ink)">${ic}</span><div class="main"><div class="t">${l}</div></div></button>`).join('')}</div>`, '', { noFocus: true });
 }
 
 /* ---------------- navigation polish ---------------- */
@@ -2039,10 +2378,12 @@ document.addEventListener('click', async e => {
     password: () => form('Change password', [{ k: 'current', label: 'Current password', type: 'password', req: true }, { k: 'next', label: 'New password (10+ characters)', type: 'password', req: true }], {}, v => { api('password', { body: v }).then(j => { ls.set(K.tok, j.token); toast('Password changed. Other devices must sign in again.'); }).catch(err => toast(err.message)); }),
     logout: async () => { if (!confirm('Sign out on this device? Data stays on the server.')) return; if (Object.keys(outbox).length) await sync(); try { await api('logout', { method: 'POST' }); } catch {} ls.del(K.tok); ls.del(K.db); ls.del(K.out); ls.del(K.rev); ls.del(K.user); me = null; db = blankDb(); outbox = {}; showLanding(); }
   };
+  Object.assign(map, v7Acts(a, id, e), { 'board-open': () => { closeSheet(true); location.hash = '#/board/' + encodeURIComponent(id); }, 'habit-open-s': () => {} });
   if (map[act]) { if (act !== 'sheet-close' && act !== 'form-save' && act !== 'form-del' && sheetCtx && ['new-task', 'new-event', 'new-note', 'new-decision', 'new-evidence', 'new-session', 'closeout', 'log-time', 'new-application', 'new-milestone', 'new-immig', 'weekly', 'money-add', 'from-tpl', 'new-course', 'morning', 'new-goal', 'wheel-test', 'cycle-new', 'focus-free', 'new-habit'].includes(act)) closeSheet(true); map[act](); }
 });
 document.addEventListener('input', e => { const k = e.target.dataset && e.target.dataset.input; if (k) { ui[k] = e.target.value; saveUi(); if (e.target.dataset.norender) return; clearTimeout(render.t); render.t = setTimeout(render, 180); } });
 document.addEventListener('change', e => {
+  if (v7Change(e)) return;
   if (e.target.dataset && e.target.dataset.change === 't-date' && e.target.value) { setTask(e.target.dataset.id, { due: e.target.value }, 'Moved to ' + fmtDate(e.target.value)); return; }
   if (e.target.dataset && e.target.dataset.change === 'import') {
     const file = e.target.files[0]; if (!file) return;

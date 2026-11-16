@@ -14,6 +14,9 @@
 ## Updating later
 - Extract the new zip over the `coach` folder. **Never delete the folder**: `coach/data/` holds every user's data.
 
+## Home-screen widget (7.0)
+- Today → **Edit widgets** → **Set up home-screen widget**. iPhone/iPad: free app *Scriptable* + the copied script. Mac/Windows: open the desktop widget link (Safari → File → Add to Dock).
+
 ## Reminders (optional)
 - Each user turns them on in Settings → Notifications (installed app, iOS 16.4+).
 - One cron job for everyone: hPanel → Advanced → Cron Jobs → every 15 minutes, with the command shown in Settings → Notifications.
@@ -25,4 +28,4 @@
 ۲. آدرس **miladebrahimi.me/coach** را باز کنید. اولین حساب، حساب مالک (شما) است و بقیه ۷ روز رایگان دارند.
 ۳. در صفحه اول Start free → نام → «Skip — I will import my own data» → ایمیل و رمز.
 ۴. Settings → Import JSON: اول بک‌آپ قدیمی MILAD 2031، بعد فایل برنامه جدید.
-۵. برای به‌روزرسانی، zip جدید را روی همان پوشه Extract کنید و هرگز پوشه را پاک نکنید.
+۵. برای به‌روزرسانی، zip جدید را روی همان پوشه `coach` Extract کنید (Overwrite) و هرگز پوشه را پاک نکنید. هر دو فایل `api.php` و `assets` باید با هم آپدیت شوند.

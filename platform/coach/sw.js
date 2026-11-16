@@ -1,5 +1,5 @@
 /* ME.Coach service worker: app shell offline; never caches api.php (data syncs through the outbox). */
-const CACHE = 'mec-shell-v6.0.0';
+const CACHE = 'mec-shell-v7.0.0';
 const SHELL = ['./', 'index.html', 'assets/app.css?v=6.0.0', 'assets/app.js?v=6.0.0', 'assets/fa.js?v=6.0.0', 'manifest.webmanifest', 'icons/apple-touch-icon.png', 'icons/icon-192.png', 'icons/favicon.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });

@@ -7,7 +7,7 @@
  */
 declare(strict_types=1);
 
-const APP_VERSION = '6.0.0';
+const APP_VERSION = '7.0.0';
 const TRIAL_DAYS = 7;
 const GLOBAL_FILES = ['users.json', 'tokens.json', 'attempts.json', 'keys.json', 'system.json', '.lock', 'webauthn-chal.json'];
 const TOKEN_DAYS = 180;
@@ -509,7 +509,7 @@ switch ($action) {
         $s = load_store();
         $since = (string)($_GET['since'] ?? '');
         if ($since !== '' && (string)$s['rev'] === $since) { out(200, ['ok' => true, 'rev' => $s['rev'], 'unchanged' => true]); }
-        out(200, ['ok' => true, 'rev' => $s['rev'], 'updatedAt' => $s['updatedAt'], 'collections' => $s['collections']]);
+        out(200, ['ok' => true, 'version' => APP_VERSION, 'rev' => $s['rev'], 'updatedAt' => $s['updatedAt'], 'collections' => $s['collections']]);
 
     case 'push':
         if ($method !== 'POST') { fail(405, 'POST only'); }
@@ -521,7 +521,7 @@ switch ($action) {
             if ($n > 0) { backup_store(); $s['rev'] = (int)$s['rev'] + 1; $s['updatedAt'] = gmdate('c'); write_json('store.json', $s); save_history(); }
             return [$s, $n];
         });
-        out(200, ['ok' => true, 'applied' => $res[1], 'rev' => $res[0]['rev'], 'updatedAt' => $res[0]['updatedAt'], 'collections' => $res[0]['collections']]);
+        out(200, ['ok' => true, 'version' => APP_VERSION, 'applied' => $res[1], 'rev' => $res[0]['rev'], 'updatedAt' => $res[0]['updatedAt'], 'collections' => $res[0]['collections']]);
 
     case 'password':
         if ($method !== 'POST') { fail(405, 'POST only'); }
@@ -633,6 +633,31 @@ switch ($action) {
         $role = $title !== '' ? $title : 'Job from ' . $host;
         $now = now_ms(); store_put('applications', ['id' => new_id('app'), 'company' => '', 'role' => mb_substr($role, 0, 200), 'stage' => 'Saved', 'link' => $url, 'source' => $host, 'followUp' => local_day($s, 2), 'createdAt' => $now, 'updatedAt' => $now, 'by' => 'Siri']);
         plain('Saved to Job search: ' . $role);
+
+    case 's-widget':
+        $k = (string)($_GET['k'] ?? ''); $wu = $k !== '' ? (keys_map()['short'][$k] ?? '') : '';
+        header('Access-Control-Allow-Origin: *'); header('Cache-Control: no-store');
+        if ($wu === '' || !isset(users()[$wu])) { out(404, ['ok' => false, 'message' => 'Widget link not valid.']); }
+        use_user($wu); if (!has_access(cur_user())) { out(200, ['ok' => false, 'message' => 'Your ME.Coach subscription has ended.']); }
+        $s = load_store(); $w = $s['collections']['settings']['widget'] ?? null;
+        if (!is_array($w) || !empty($w['deleted'])) { out(200, ['ok' => false, 'message' => 'Open ME.Coach once to start the widget.']); }
+        $h = (int)local_now((string)(prefs_of($s)['tz'] ?? 'UTC'))->format('G'); $slot = $h < 11 ? 'morning' : ($h < 15 ? 'midday' : ($h < 18 ? 'afternoon' : 'evening'));
+        $stale = ($w['date'] ?? '') !== local_day($s);
+        if ($stale) { $w['rings'] = ['act' => 0, 'grow' => 0, 'plan' => 0]; $w['top3'] = []; $w['focus'] = 0; $w['habits'] = ['due' => (int)($w['habits']['due'] ?? 0), 'done' => 0]; if (isset($w['jobs'])) { $w['jobs']['done'] = 0; } }
+        $msg = $stale ? ($slot === 'evening' ? 'Close the day in one minute with Night Balance.' : 'New day. Open ME.Coach for one minute of Morning Balance.') : (string)($w['msgs'][$slot] ?? '');
+        $o = ['ok' => true, 'slot' => $slot, 'message' => $msg, 'updatedAt' => $w['updatedAt'] ?? null] + array_intersect_key($w, array_flip(['level', 'levelName', 'xp', 'pct', 'rings', 'top3', 'habits', 'streak', 'focus', 'vision', 'jobs']));
+        if (($_GET['format'] ?? '') !== 'html') { out(200, $o); }
+        header('Content-Type: text/html; charset=utf-8'); $e = fn($x) => htmlspecialchars((string)$x, ENT_QUOTES);
+        $bar = fn($p, $c, $l) => '<div class="r"><span>' . $l . '</span><div class="b"><i style="width:' . max(0, min(100, (int)$p)) . '%;background:' . $c . '"></i></div><b>' . (int)$p . '%</b></div>';
+        $top = ''; foreach ($o['top3'] ?? [] as $t) { $top .= '<li class="' . (!empty($t['done']) ? 'd' : '') . '">' . $e($t['t'] ?? '') . '</li>'; }
+        echo '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="900"><title>ME.Coach widget</title><style>:root{color-scheme:light dark}body{margin:0;font:14px/1.4 -apple-system,"Segoe UI",system-ui,sans-serif;background:#fff;color:#37352f;padding:18px}@media(prefers-color-scheme:dark){body{background:#191919;color:#e6e6e6}.m{color:#9b9b9b!important}.b{background:#2f2f2f!important}}.h{font-weight:700;font-size:13px;letter-spacing:.02em}.m{color:#787774;font-size:12px}.r{display:grid;grid-template-columns:44px 1fr 40px;gap:8px;align-items:center;margin:6px 0}.b{height:8px;border-radius:4px;background:#efefed;overflow:hidden}.b i{display:block;height:100%;border-radius:4px}.msg{margin:12px 0;font-size:15px}ul{padding-left:18px;margin:6px 0}li.d{text-decoration:line-through;opacity:.6}a{color:inherit}</style></head><body>'
+          . '<div class="h">ME<span style="color:#c9a227">.</span>Coach · Level ' . (int)($o['level'] ?? 1) . ' ' . $e($o['levelName'] ?? '') . '</div>'
+          . $bar($o['rings']['act'] ?? 0, '#eb6834', 'Do') . $bar($o['rings']['grow'] ?? 0, '#1baf7a', 'Grow') . $bar($o['rings']['plan'] ?? 0, '#2a78d6', 'Plan')
+          . '<div class="msg">' . $e($msg) . '</div>' . ($top ? '<div class="m">Top 3</div><ul>' . $top . '</ul>' : '')
+          . (isset($o['jobs']) ? '<div class="m">Applications today: <b>' . (int)$o['jobs']['done'] . '/' . (int)$o['jobs']['target'] . '</b></div>' : '')
+          . '<div class="m">' . (int)($o['habits']['done'] ?? 0) . '/' . (int)($o['habits']['due'] ?? 0) . ' habits · ' . (int)($o['focus'] ?? 0) . ' min focus' . (!empty($o['vision']['days']) ? ' · ' . number_format((int)$o['vision']['days']) . ' days to ' . $e($o['vision']['name'] ?? '') : '') . '</div>'
+          . '<p class="m"><a href="./" target="_blank">Open ME.Coach</a></p></body></html>';
+        exit;
 
     /* ----- history and health ----- */
     case 'history':
