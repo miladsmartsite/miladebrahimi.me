@@ -7,9 +7,15 @@
  */
 declare(strict_types=1);
 
-const APP_VERSION = '7.0.0';
+const APP_VERSION = '7.1.0';
 const TRIAL_DAYS = 7;
-const GLOBAL_FILES = ['users.json', 'tokens.json', 'attempts.json', 'keys.json', 'system.json', '.lock', 'webauthn-chal.json'];
+const GLOBAL_FILES = ['users.json', 'tokens.json', 'attempts.json', 'keys.json', 'system.json', '.lock', 'webauthn-chal.json', 'requests.json'];
+/* Plans shown in the app. Keep the prices in sync with the public pages (platform/tools/build_coach_site.py). */
+const PLANS = [
+    'monthly' => ['name' => 'Pro Monthly', 'omr' => '2.900', 'usd' => '7.99', 'per' => 'month', 'days' => 31],
+    'yearly' => ['name' => 'Pro Yearly', 'omr' => '24.000', 'usd' => '59', 'per' => 'year', 'days' => 366],
+    'coach' => ['name' => 'Coaching', 'omr' => '25.000', 'usd' => '65', 'per' => 'month', 'days' => 31],
+];
 const TOKEN_DAYS = 180;
 const MAX_BODY = 8 * 1024 * 1024;          // 8 MB per request
 const BACKUPS_KEEP = 30;                   // daily snapshots kept
@@ -58,7 +64,7 @@ function cur_user(): array { return users()[$GLOBALS['UID'] ?? ''] ?? []; }
 function has_access(array $u): bool { if (($u['role'] ?? '') === 'owner') { return true; } $n = time(); return (int)($u['paidUntil'] ?? 0) > $n || (int)($u['trialEnds'] ?? 0) > $n; }
 function user_public(array $u, string $uid): array {
     $n = time(); $plan = ($u['role'] ?? '') === 'owner' ? 'owner' : ((int)($u['paidUntil'] ?? 0) > $n ? 'active' : ((int)($u['trialEnds'] ?? 0) > $n ? 'trial' : 'expired'));
-    return ['id' => $uid, 'email' => $u['email'] ?? '', 'name' => $u['name'] ?? '', 'role' => $u['role'] ?? 'user', 'plan' => $plan, 'access' => has_access($u), 'trialEnds' => !empty($u['trialEnds']) ? gmdate('c', (int)$u['trialEnds']) : null, 'paidUntil' => !empty($u['paidUntil']) ? gmdate('c', (int)$u['paidUntil']) : null, 'created' => $u['created'] ?? null];
+    return ['id' => $uid, 'email' => $u['email'] ?? '', 'name' => $u['name'] ?? '', 'role' => $u['role'] ?? 'user', 'plan' => $plan, 'access' => has_access($u), 'trialEnds' => !empty($u['trialEnds']) ? gmdate('c', (int)$u['trialEnds']) : null, 'paidUntil' => !empty($u['paidUntil']) ? gmdate('c', (int)$u['paidUntil']) : null, 'created' => $u['created'] ?? null, 'planName' => $u['planName'] ?? '', 'google' => !empty($u['google'])];
 }
 function keys_map(): array { return read_json('keys.json', ['ics' => [], 'short' => [], 'wa' => []]); }
 function key_set(string $kind, string $key, string $uid, ?string $old = null): void {
@@ -434,6 +440,42 @@ function wa_authdata(string $ad): array {
     return ['flags' => $flags, 'count' => unpack('N', substr($ad, 33, 4))[1]];
 }
 
+
+/* ---------- billing, Google sign-in, book ---------- */
+function billing(): array { $s = read_json('system.json', []); return is_array($s['billing'] ?? null) ? $s['billing'] : []; }
+function billing_public(): array {
+    $b = billing(); $co = [];
+    foreach (array_keys(PLANS) as $k) { $u = (string)($b['checkout'][$k] ?? ''); if ($u !== '') { $co[$k] = $u; } }
+    return ['google' => (string)($b['googleClientId'] ?? ''), 'checkout' => $co, 'manual' => (string)($b['manualText'] ?? ''), 'whatsapp' => (string)($b['whatsapp'] ?? ''), 'email' => (string)($b['contactEmail'] ?? ''), 'plans' => PLANS];
+}
+function http_get_json(string $url): ?array {
+    $raw = false;
+    if (function_exists('curl_init')) { $c = curl_init($url); curl_setopt_array($c, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 8, CURLOPT_CONNECTTIMEOUT => 5]); $raw = curl_exec($c); $code = (int)curl_getinfo($c, CURLINFO_HTTP_CODE); curl_close($c); if ($code !== 200) { return null; } }
+    else { $raw = @file_get_contents($url, false, stream_context_create(['http' => ['timeout' => 8, 'ignore_errors' => false]])); }
+    if (!is_string($raw) || $raw === '') { return null; }
+    $j = json_decode($raw, true); return is_array($j) ? $j : null;
+}
+function find_uid_by_email(string $email): string { foreach (users() as $id => $u) { if (($u['email'] ?? '') === $email) { return (string)$id; } } return ''; }
+function create_user(string $email, string $name, array $extra): string {
+    $uid = with_lock(function () use ($email, $name, $extra) {
+        $us = users(); foreach ($us as $u) { if (($u['email'] ?? '') === $email) { fail(409, 'This email already has an account. Sign in instead.'); } }
+        $uid = bin2hex(random_bytes(10)); $owner = count($us) === 0;
+        $us[$uid] = ['email' => $email, 'name' => $name, 'role' => $owner ? 'owner' : 'user', 'created' => gmdate('c'), 'trialEnds' => time() + TRIAL_DAYS * 86400, 'paidUntil' => 0] + $extra;
+        write_json('users.json', $us); return $uid;
+    });
+    use_user($uid); write_json('store.json', empty_store());
+    $ics = bin2hex(random_bytes(20)); write_json('config.json', ['icsKey' => $ics, 'created' => gmdate('c')]); key_set('ics', $ics, $uid);
+    return $uid;
+}
+function set_paid(string $uid, int $until, string $plan, bool $exact): void {
+    with_lock(function () use ($uid, $until, $plan, $exact) {
+        $us = users(); if (!isset($us[$uid])) { return; }
+        $us[$uid]['paidUntil'] = $exact ? $until : max((int)($us[$uid]['paidUntil'] ?? 0), $until); if ($plan !== '') { $us[$uid]['planName'] = $plan; }
+        write_json('users.json', $us);
+        $r = read_json('requests.json', []); foreach ($r as &$q) { if (($q['uid'] ?? '') === $uid && empty($q['done'])) { $q['done'] = gmdate('c'); } } unset($q); write_json('requests.json', $r);
+    });
+}
+
 /* ---------- router ---------- */
 if (defined('M2031_LIB')) { return; }
 ensure_dir();
@@ -444,7 +486,7 @@ $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 switch ($action) {
     case 'status':
         $tk = bearer(); $uid = token_uid($tk); $u = $uid !== '' ? users()[$uid] : null;
-        out(200, ['ok' => true, 'setup' => is_setup(), 'passkey' => !empty(keys_map()['wa']), 'authed' => $uid !== '', 'token' => $uid !== '' ? $tk : null, 'user' => $u ? user_public($u, $uid) : null, 'trialDays' => TRIAL_DAYS, 'version' => APP_VERSION, 'time' => gmdate('c')]);
+        out(200, ['ok' => true, 'setup' => is_setup(), 'passkey' => !empty(keys_map()['wa']), 'authed' => $uid !== '', 'token' => $uid !== '' ? $tk : null, 'user' => $u ? user_public($u, $uid) : null, 'trialDays' => TRIAL_DAYS, 'version' => APP_VERSION, 'time' => gmdate('c'), 'billing' => billing_public()]);
 
     case 'signup':
     case 'setup':
@@ -453,16 +495,68 @@ switch ($action) {
         $b = body(); $email = strtolower(trim((string)($b['email'] ?? ''))); $pw = (string)($b['password'] ?? ''); $name = mb_substr(trim((string)($b['name'] ?? '')), 0, 60);
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) { fail(400, 'Enter a valid email address'); }
         if (mb_strlen($pw) < 8) { fail(400, 'Use at least 8 characters for the password'); }
-        $uid = with_lock(function () use ($email, $pw, $name) {
-            $us = users(); foreach ($us as $u) { if (($u['email'] ?? '') === $email) { fail(409, 'This email already has an account. Sign in instead.'); } }
-            $uid = bin2hex(random_bytes(10)); $owner = count($us) === 0;
-            $us[$uid] = ['email' => $email, 'name' => $name, 'passHash' => password_hash($pw, PASSWORD_DEFAULT), 'role' => $owner ? 'owner' : 'user', 'created' => gmdate('c'), 'trialEnds' => time() + TRIAL_DAYS * 86400, 'paidUntil' => 0];
-            write_json('users.json', $us); return $uid;
-        });
+        $uid = create_user($email, $name, ['passHash' => password_hash($pw, PASSWORD_DEFAULT)]);
         throttle_hit(true);
-        use_user($uid); write_json('store.json', empty_store());
-        $ics = bin2hex(random_bytes(20)); write_json('config.json', ['icsKey' => $ics, 'created' => gmdate('c')]); key_set('ics', $ics, $uid);
         out(200, ['ok' => true, 'token' => issue_token((string)($b['device'] ?? 'device'), $uid), 'user' => user_public(users()[$uid], $uid)]);
+
+    case 'google':
+        if ($method !== 'POST') { fail(405, 'POST only'); }
+        throttle_check();
+        $b = body(); $cid = (string)(billing()['googleClientId'] ?? ''); $cred = (string)($b['credential'] ?? '');
+        if ($cid === '') { fail(400, 'Google sign-in is not set up yet.'); }
+        $info = strlen($cred) > 20 ? http_get_json('https://oauth2.googleapis.com/tokeninfo?id_token=' . rawurlencode($cred)) : null;
+        $ev = $info['email_verified'] ?? false;
+        if (!$info || ($info['aud'] ?? '') !== $cid || !in_array($info['iss'] ?? '', ['accounts.google.com', 'https://accounts.google.com'], true) || !($ev === true || $ev === 'true') || (int)($info['exp'] ?? 0) < time() || empty($info['email'])) { throttle_hit(false); fail(401, 'Google sign-in failed. Try again.'); }
+        $email = strtolower((string)$info['email']); $uid = find_uid_by_email($email); $created = false;
+        if ($uid === '') { $nm = trim((string)($b['name'] ?? '')) ?: (string)($info['given_name'] ?? $info['name'] ?? ''); $uid = create_user($email, mb_substr($nm, 0, 60), ['google' => (string)($info['sub'] ?? ''), 'passHash' => '']); $created = true; }
+        else { with_lock(function () use ($uid, $info) { $us = users(); if (empty($us[$uid]['google'])) { $us[$uid]['google'] = (string)($info['sub'] ?? ''); write_json('users.json', $us); } }); }
+        throttle_hit(true);
+        out(200, ['ok' => true, 'created' => $created, 'token' => issue_token((string)($b['device'] ?? 'device'), $uid), 'user' => user_public(users()[$uid], $uid)]);
+
+    case 'pay-request':
+        if ($method !== 'POST') { fail(405, 'POST only'); }
+        require_auth(); $b = body(); $plan = (string)($b['plan'] ?? ''); if (!isset(PLANS[$plan])) { fail(400, 'Unknown plan'); }
+        $uid = $GLOBALS['UID'];
+        with_lock(function () use ($uid, $plan, $b) { $r = read_json('requests.json', []); $r[] = ['uid' => $uid, 'plan' => $plan, 'at' => gmdate('c'), 'note' => mb_substr((string)($b['note'] ?? ''), 0, 300)]; write_json('requests.json', array_slice($r, -500)); });
+        out(200, ['ok' => true]);
+
+    case 'admin-config':
+        require_owner(); $s0 = read_json('system.json', []);
+        if ($method === 'POST') {
+            $b = body();
+            with_lock(function () use ($b) {
+                $s = read_json('system.json', []); $bl = is_array($s['billing'] ?? null) ? $s['billing'] : [];
+                $bl['googleClientId'] = preg_replace('/[^A-Za-z0-9._-]/', '', (string)($b['googleClientId'] ?? ($bl['googleClientId'] ?? '')));
+                foreach (array_keys(PLANS) as $k) { $u = trim((string)($b['checkout'][$k] ?? '')); if ($u !== '' && !preg_match('#^https://#', $u)) { fail(400, 'Checkout links must start with https://'); } $bl['checkout'][$k] = $u; }
+                foreach (['manualText' => 1500, 'whatsapp' => 30, 'contactEmail' => 120] as $k => $n) { if (isset($b[$k])) { $bl[$k] = mb_substr(trim((string)$b[$k]), 0, $n); } }
+                $sec = trim((string)($b['lsSecret'] ?? '')); if ($sec === '-') { $bl['lsSecret'] = ''; } elseif ($sec !== '') { $bl['lsSecret'] = $sec; }
+                $s['billing'] = $bl; write_json('system.json', $s);
+            });
+            $s0 = read_json('system.json', []);
+        }
+        $bl = is_array($s0['billing'] ?? null) ? $s0['billing'] : [];
+        out(200, ['ok' => true, 'config' => ['googleClientId' => $bl['googleClientId'] ?? '', 'checkout' => $bl['checkout'] ?? new stdClass(), 'manualText' => $bl['manualText'] ?? '', 'whatsapp' => $bl['whatsapp'] ?? '', 'contactEmail' => $bl['contactEmail'] ?? '', 'hasSecret' => !empty($bl['lsSecret'])], 'webhook' => (is_https() ? 'https://' : 'http://') . ($_SERVER['HTTP_HOST'] ?? '') . strtok((string)($_SERVER['REQUEST_URI'] ?? ''), '?') . '?action=ls-webhook', 'bookDownloads' => (int)($s0['bookDownloads'] ?? 0), 'log' => array_slice($s0['billingLog'] ?? [], -10)]);
+
+    case 'ls-webhook':
+        $raw = (string)file_get_contents('php://input', false, null, 0, 1024 * 1024); $sec = (string)(billing()['lsSecret'] ?? ''); $sig = (string)($_SERVER['HTTP_X_SIGNATURE'] ?? '');
+        if ($sec === '' || $sig === '' || !hash_equals(hash_hmac('sha256', $raw, $sec), $sig)) { out(401, ['ok' => false]); }
+        $j = json_decode($raw, true); if (!is_array($j)) { out(400, ['ok' => false]); }
+        $ev = (string)($j['meta']['event_name'] ?? ''); $cd = $j['meta']['custom_data'] ?? []; $at = $j['data']['attributes'] ?? [];
+        $uid = (string)($cd['uid'] ?? ''); if ($uid === '' || !isset(users()[$uid])) { $uid = find_uid_by_email(strtolower((string)($at['user_email'] ?? ''))); }
+        $plan = (string)($cd['plan'] ?? ''); $planName = PLANS[$plan]['name'] ?? (string)($at['variant_name'] ?? $at['product_name'] ?? ''); $until = 0; $exact = false;
+        if ($uid !== '') {
+            if (in_array($ev, ['subscription_created', 'subscription_updated', 'subscription_resumed', 'subscription_unpaused', 'subscription_cancelled', 'subscription_expired'], true)) {
+                $d = $ev === 'subscription_expired' ? null : (($at['ends_at'] ?? null) ?: ($at['renews_at'] ?? null));
+                $until = $ev === 'subscription_expired' ? time() : ($d ? (int)strtotime((string)$d) + 86400 : 0); $exact = true;
+            } elseif ($ev === 'order_created' && ($at['status'] ?? '') === 'paid' && isset(PLANS[$plan]) && empty($at['first_subscription_item'])) { $until = time() + PLANS[$plan]['days'] * 86400; }
+            if ($until > 0) { set_paid($uid, $until, $planName, $exact); }
+        }
+        with_lock(function () use ($ev, $uid, $until) { $s = read_json('system.json', []); $l = $s['billingLog'] ?? []; $l[] = ['at' => gmdate('c'), 'event' => $ev, 'user' => $uid !== '' ? (users()[$uid]['email'] ?? '') : 'not found', 'until' => $until ? gmdate('Y-m-d', $until) : '']; $s['billingLog'] = array_slice($l, -50); write_json('system.json', $s); });
+        out(200, ['ok' => true]);
+
+    case 'book':
+        with_lock(function () { $s = read_json('system.json', []); $s['bookDownloads'] = (int)($s['bookDownloads'] ?? 0) + 1; write_json('system.json', $s); });
+        header('Location: book/self-coaching-blueprint.pdf', true, 302); exit;
 
     case 'login':
         if ($method !== 'POST') { fail(405, 'POST only'); }
@@ -486,7 +580,9 @@ switch ($action) {
     case 'admin-users':
         require_owner(); $rows = [];
         foreach (users() as $id => $u) { $p = user_public($u, $id); $p['storeKB'] = round((@filesize(DATA_DIR . '/u/' . $id . '/store.json') ?: 0) / 1024); $rows[] = $p; }
-        out(200, ['ok' => true, 'users' => $rows]);
+        $req = array_values(array_filter(read_json('requests.json', []), fn($q) => empty($q['done'])));
+        foreach ($req as &$q) { $q['email'] = users()[$q['uid']]['email'] ?? ''; $q['planName'] = PLANS[$q['plan']]['name'] ?? $q['plan']; } unset($q);
+        out(200, ['ok' => true, 'users' => $rows, 'requests' => array_reverse($req)]);
 
     case 'admin-set':
         if ($method !== 'POST') { fail(405, 'POST only'); }
@@ -496,6 +592,7 @@ switch ($action) {
             if ($days > 0) { $us[$id]['paidUntil'] = max(time(), (int)($us[$id]['paidUntil'] ?? 0)) + $days * 86400; } else { $us[$id]['paidUntil'] = 0; $us[$id]['trialEnds'] = min((int)($us[$id]['trialEnds'] ?? 0), time()); }
             write_json('users.json', $us); return user_public($us[$id], $id);
         });
+        if ($days > 0) { with_lock(function () use ($id) { $r = read_json('requests.json', []); foreach ($r as &$q) { if (($q['uid'] ?? '') === $id && empty($q['done'])) { $q['done'] = gmdate('c'); } } unset($q); write_json('requests.json', $r); }); }
         out(200, ['ok' => true, 'user' => $r]);
 
     case 'logout':

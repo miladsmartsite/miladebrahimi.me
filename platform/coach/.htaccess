@@ -1,4 +1,4 @@
-# MILAD 2031 OS — Apache/LiteSpeed rules (Hostinger)
+# ME.Coach — Apache/LiteSpeed rules (Hostinger)
 Options -Indexes
 DirectoryIndex index.html
 
@@ -17,9 +17,11 @@ RedirectMatch 404 ^/.*/data/.*$
 
 <IfModule mod_headers.c>
   Header always set X-Content-Type-Options "nosniff"
-  Header always set Referrer-Policy "no-referrer"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  # Google sign-in opens a popup
+  Header always set Cross-Origin-Opener-Policy "same-origin-allow-popups"
   Header always set X-Frame-Options "DENY"
-  <FilesMatch "^(sw\.js|index\.html|manifest\.webmanifest)$">
+  <FilesMatch "(^sw\.js|\.html|^manifest\.webmanifest)$">
     Header set Cache-Control "no-cache"
   </FilesMatch>
 </IfModule>

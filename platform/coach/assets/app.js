@@ -5,7 +5,7 @@
 (() => {
 'use strict';
 
-const VERSION = '7.0.0';
+const VERSION = '7.1.0';
 const API = 'api.php';
 const K = { db: 'mec.db', out: 'mec.outbox', tok: 'mec.token', rev: 'mec.rev', ui: 'mec.ui', last: 'mec.lastSync', user: 'mec.user' };
 const COLS = ['tasks','events','projects','goals','skills','logs','evidence','decisions','notes','ielts','sessions','settings','milestones','applications','immigration','habits','money','templates','courses','areas','wheel','cycles','focus','products'];
@@ -564,10 +564,11 @@ function vToday() {
   const doneToday = list('tasks').filter(x => !isOpen(x) && x.completedOn === t).length;
   const cyc = activeCycle(), mlog = logOf('morning'), nlog = logOf('closeout');
   const head = header(new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }), greet + (me && me.name ? ', ' + me.name.split(' ')[0] : '') + (cyc ? ` · day ${cycleDay(cyc)} of ${cyc.days || 40}` : '')) + weekStrip(t) + `
-  ${me && me.plan === 'trial' ? `<a class="trialpill" href="#/settings">Free trial · ${Math.max(0, Math.ceil((Date.parse(me.trialEnds) - Date.now()) / 86400000))} days left</a>` : ''}
+  ${me && me.plan === 'trial' ? `<a class="trialpill" href="#" data-act="plans">Free trial · ${Math.max(0, Math.ceil((Date.parse(me.trialEnds) - Date.now()) / 86400000))} days left</a>` : ''}
   ${setupCard()}
   ${coachCard()}
   ${widgetGrid()}
+  ${bookCard()}
   ${!closed && !mlog ? `<div class="card balcard morning" data-act="morning" role="button"><span class="bal-i">${I.today}</span><div class="main"><b>Morning Balance</b><div class="small">1 minute · expectation, focus, Top 3</div></div><button class="btn ${hr < 14 ? 'primary' : ''}" data-act="morning">Start</button></div>` : ''}
   ${!closed && mlog ? `<div class="mline" data-act="morning" role="button"><span class="hstat ok">${I.tick}</span><div class="main">${mlog.focus || (mlog.focusAreas || []).length ? `<b>Focus:</b> <span dir="auto">${esc(mlog.focus || (mlog.focusAreas || []).map(id => (get('areas', id) || {}).title).filter(Boolean).join(', '))}</span>` : '<b>Morning Balance done</b>'}${mlog.expect ? `<div class="small" dir="auto">${esc(mlog.expect)}</div>` : ''}</div></div>` : ''}
   ${quickBar('What needs doing?')}`;
@@ -1287,7 +1288,7 @@ function setupSheet() {
     <div class="btns" style="margin-top:12px"><button class="btn small" data-act="setup-mark">I did calendar and Siri</button><button class="btn small ghost" data-act="setup-hide">Hide this</button></div>`, '', { noFocus: true });
 }
 function vMore() {
-  return header('More', '') + `<div class="card tight"><div class="list">${navMore().map(([k, l, ic]) => `<a class="row mrow" href="#/${k}"><span class="att-i">${ic}</span><div class="main"><div class="t">${l}</div><div class="m">${moreHint(k)}</div></div>${badgeMore(k)}<span class="att-go">${I.go}</span></a>`).join('')}</div></div>`;
+  return header('More', '') + `<div class="card tight"><div class="list"><a class="row mrow" href="${BOOK_URL}" target="_blank" rel="noopener"><span class="att-i">📘</span><div class="main"><div class="t">Free book</div><div class="m">Self-Coaching Blueprint · PDF</div></div><span class="att-go">${I.go}</span></a>${navMore().map(([k, l, ic]) => `<a class="row mrow" href="#/${k}"><span class="att-i">${ic}</span><div class="main"><div class="t">${l}</div><div class="m">${moreHint(k)}</div></div>${badgeMore(k)}<span class="att-go">${I.go}</span></a>`).join('')}</div></div>`;
 }
 const badgeMore = k => { const n = k === 'jobs' ? followUps().length : k === 'documents' ? expiring().filter(x => x.expiry < addDays(today(), 60)).length : 0; return n ? `<b class="badge inl">${n}</b>` : ''; };
 const subTabs = (key, tabs, cur) => `<div class="seg ptabs">${tabs.map(([k, l]) => `<button class="${cur === k ? 'on' : ''}" data-act="sub-tab" data-k="${key}" data-t="${k}">${l}</button>`).join('')}</div><div style="height:12px"></div>`;
@@ -1753,13 +1754,87 @@ function v7Change(e) {
   return false;
 }
 
+/* ================= v7.1: plans, Google sign-in, passkey first, book ================= */
+let BILL = ls.get('mec.bill', null);
+async function loadBilling() { try { const s = await api('status'); if (s.billing) { BILL = s.billing; ls.set('mec.bill', BILL); } return s; } catch { return null; } }
+const PLAN_ORDER = ['monthly', 'yearly', 'coach'];
+const PLAN_POINTS = { monthly: ['Everything in ME.Coach', 'Cancel any time'], yearly: ['Everything in ME.Coach', 'About 30% cheaper than monthly', 'Best for a full year of cycles'], coach: ['Everything in Pro', 'A monthly 1:1 session with Milad', 'Plan and Wheel review every month'] };
+const curPref = () => (Intl.DateTimeFormat().resolvedOptions().timeZone || '').startsWith('Asia/Muscat') || ui.cur === 'omr' ? 'omr' : 'usd';
+const priceOf = p => curPref() === 'omr' ? `${p.omr} OMR` : `$${p.usd}`;
+function plansHtml(cur) {
+  const ps = (BILL && BILL.plans) || {};
+  return `<div class="plans">${PLAN_ORDER.filter(k => ps[k]).map(k => { const p = ps[k]; return `<div class="plan-c ${k === 'yearly' ? 'best' : ''}">${k === 'yearly' ? '<span class="pl-tag">Best value</span>' : ''}<b>${esc(p.name)}</b><div class="pl-p">${esc(priceOf(p))}<small> / ${esc(p.per)}</small></div><ul>${(PLAN_POINTS[k] || []).map(x => `<li>${esc(x)}</li>`).join('')}</ul><button class="btn ${k === 'yearly' ? 'primary' : ''} wide" data-act="buy" data-v="${k}" ${cur === p.name ? 'disabled' : ''}>${cur === p.name ? 'Your plan' : 'Choose'}</button></div>`; }).join('')}</div>
+  <div class="small" style="text-align:center;margin-top:8px">Prices in ${curPref() === 'omr' ? 'Omani rial' : 'US dollars'} · <a href="#" data-act="cur-swap">show in ${curPref() === 'omr' ? 'USD' : 'OMR'}</a></div>`;
+}
+async function plansSheet(title) {
+  if (!BILL) await loadBilling();
+  openSheet(title || 'Choose your plan', `<p class="small" style="margin-top:0">Keep your plan, habits, cycles and insights going. Your data always stays yours.</p>${plansHtml(me && me.planName)}`, '', { noFocus: true, paywall: !!(me && me.access === false) });
+}
+async function buy(k) {
+  if (!BILL) await loadBilling(); const url = BILL && BILL.checkout && BILL.checkout[k];
+  if (url) { const q = new URLSearchParams(); if (me && me.email) q.set('checkout[email]', me.email); if (me && me.name) q.set('checkout[name]', me.name); if (me && me.id) q.set('checkout[custom][uid]', me.id); q.set('checkout[custom][plan]', k); window.open(url + (url.includes('?') ? '&' : '?') + q.toString(), '_blank', 'noopener'); toast('Finish the payment in the new tab. Your account updates automatically.'); return; }
+  try { await api('pay-request', { body: { plan: k } }); } catch (e) { toast(e.message); return; }
+  const p = BILL.plans[k], msg = `Hi Milad, I would like to subscribe to ME.Coach ${p.name} (${priceOf(p)}). My account: ${me ? me.email : ''}`;
+  openSheet('Almost there', `<p>Your request for <b>${esc(p.name)}</b> is saved. Complete the payment and your account is activated, usually within a few hours.</p>${BILL.manual ? `<div class="card" style="white-space:pre-wrap" dir="auto">${esc(BILL.manual)}</div>` : ''}
+    <div class="btns" style="margin-top:12px">${BILL.whatsapp ? `<a class="btn primary" href="https://wa.me/${esc(BILL.whatsapp.replace(/\D/g, ''))}?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">WhatsApp Milad</a>` : ''}<a class="btn ${BILL.whatsapp ? '' : 'primary'}" href="mailto:${esc(BILL.email || 'info@miladebrahimi.me')}?subject=${encodeURIComponent('ME.Coach subscription')}&body=${encodeURIComponent(msg)}">Email</a></div>`, '', { noFocus: true });
+}
+/* Google Identity Services */
+let gisP = null;
+function gisLoad() { if (gisP) return gisP; gisP = new Promise((res, rej) => { if (window.google && google.accounts) return res(); const s = document.createElement('script'); s.src = 'https://accounts.google.com/gsi/client'; s.async = true; s.onload = () => res(); s.onerror = () => { gisP = null; rej(new Error('Google is not reachable')); }; document.head.appendChild(s); }); return gisP; }
+async function googleButton(el, onCred, text) {
+  if (!el) return; if (!BILL) await loadBilling(); const cid = BILL && BILL.google; if (!cid) { el.remove(); return; }
+  try { await gisLoad(); google.accounts.id.initialize({ client_id: cid, callback: r => onCred(r.credential), ux_mode: 'popup', auto_select: false });
+    el.innerHTML = ''; google.accounts.id.renderButton(el, { theme: document.documentElement.classList.contains('dark') ? 'filled_black' : 'outline', size: 'large', shape: 'pill', text: text || 'continue_with', width: Math.min(360, el.clientWidth || 320) });
+  } catch { el.remove(); }
+}
+async function googleSignIn(cred, plan) {
+  try { const r = await api('google', { body: { credential: cred, device: device(), name: plan && plan.name } }); signedIn(r, r.created && plan && !plan.skip ? plan : null, r.created); }
+  catch (e) { toast(e.message === 'offline' ? 'No connection.' : e.message); }
+}
+function securePrompt() {
+  if (!pkOk() || ui.pkSet) return;
+  openSheet('Protect your account', `<div class="pw"><div class="pw-i">🔐</div><p><b>Sign in with Face ID or Touch ID.</b> No password to remember, and nobody else can open your coach.</p></div>`,
+    `<button class="btn primary wide" data-act="pk-first">Use Face ID</button><button class="btn ghost wide" data-act="sheet-close">Later</button>`, { noFocus: true });
+}
+/* the book */
+const BOOK_URL = 'api.php?action=book';
+function bookCard() {
+  if (ui.bookHidden) return '';
+  return `<div class="card bookcard"><img src="assets/img/book-3d.png" alt="Self-Coaching Blueprint by Milad Ebrahimi" width="88" height="112" loading="lazy"><div class="main"><div class="small">Free with ME.Coach</div><b>Self-Coaching Blueprint</b><div class="small">The 40-day method behind this app · PDF, 102 pages</div><div class="btns" style="margin-top:8px"><a class="btn small primary" href="${BOOK_URL}" target="_blank" rel="noopener" data-act="book-dl">Download</a><button class="btn small ghost" data-act="book-hide">Hide</button></div></div></div>`;
+}
+async function adminConfig() {
+  const box = $('#adcfg'); if (!box) return;
+  try { const r = await api('admin-config'); const c = r.config; if (!$('#adcfg')) return;
+    box.innerHTML = `<h2>Payments and sign-in</h2><div class="small" style="margin-bottom:10px">Book downloads: <b>${r.bookDownloads}</b></div>
+    <div class="f"><label>Google sign-in Client ID</label><input name="googleClientId" value="${esc(c.googleClientId)}" placeholder="1234-abc.apps.googleusercontent.com"></div>
+    ${PLAN_ORDER.map(k => `<div class="f"><label>Checkout link · ${esc((BILL && BILL.plans && BILL.plans[k] || {}).name || k)}</label><input name="co-${k}" type="url" value="${esc((c.checkout || {})[k] || '')}" placeholder="https://… (Lemon Squeezy, Paddle or Thawani link)"></div>`).join('')}
+    <div class="f"><label>Lemon Squeezy signing secret ${c.hasSecret ? '(saved)' : ''}</label><input name="lsSecret" type="password" placeholder="${c.hasSecret ? 'Leave empty to keep · type - to remove' : 'From Settings → Webhooks'}" autocomplete="off"></div>
+    <div class="small" style="margin:-4px 0 10px">Webhook URL for Lemon Squeezy: <code>${esc(r.webhook)}</code></div>
+    <div class="f"><label>Manual payment instructions (bank transfer, Thawani link…)</label><textarea name="manualText" rows="4" dir="auto">${esc(c.manualText)}</textarea></div>
+    <div class="fgrid"><div class="f"><label>WhatsApp number</label><input name="whatsapp" value="${esc(c.whatsapp)}" placeholder="+968…"></div><div class="f"><label>Contact email</label><input name="contactEmail" type="email" value="${esc(c.contactEmail)}" placeholder="info@miladebrahimi.me"></div></div>
+    <button class="btn primary" data-act="adcfg-save">Save</button>
+    ${(r.log || []).length ? `<h2 style="margin-top:14px">Payment events</h2><div class="list">${r.log.slice().reverse().map(l => `<div class="row"><div class="main"><div class="t">${esc(l.event)}</div><div class="m"><span>${esc(l.user)}</span><span>${esc(l.at.slice(0, 16).replace('T', ' '))}</span>${l.until ? `<span>until ${esc(l.until)}</span>` : ''}</div></div></div>`).join('')}</div>` : ''}`;
+  } catch (e) { box.textContent = e.message; }
+}
+function v71Acts(a, id) {
+  return {
+    plans: () => plansSheet(), buy: () => buy(a.dataset.v),
+    'cur-swap': () => { ui.cur = curPref() === 'omr' ? 'usd' : 'omr'; saveUi(); const b = sheetCtx && sheetCtx.el && sheetCtx.el.querySelector('.sheet-b'); if (b) b.innerHTML = `<p class="small" style="margin-top:0">Keep your plan, habits, cycles and insights going. Your data always stays yours.</p>${plansHtml(me && me.planName)}`; },
+    'pk-first': async () => { closeSheet(true); await pkRegister(); },
+    'book-hide': () => { ui.bookHidden = true; saveUi(); render(); },
+    'book-dl': () => {},
+    'adcfg-save': async () => { const box = $('#adcfg'), v = n => (box.querySelector(`[name="${n}"]`) || {}).value || '';
+      try { await api('admin-config', { body: { googleClientId: v('googleClientId').trim(), checkout: Object.fromEntries(PLAN_ORDER.map(k => [k, v('co-' + k).trim()])), lsSecret: v('lsSecret'), manualText: v('manualText'), whatsapp: v('whatsapp'), contactEmail: v('contactEmail') } }); toast('Saved'); BILL = null; ls.del('mec.bill'); loadBilling(); adminConfig(); } catch (e) { toast(e.message); } }
+  };
+}
+
 /* ---------------- shell + router ---------------- */
 function route() { const h = location.hash.replace(/^#\/?/, '') || 'today'; const [p, ...rest] = h.split('/'); return { page: p, arg: decodeURIComponent(rest.join('/')) }; }
 function render() {
   if (!ls.get(K.tok) && !document.querySelector('.shell')) return;
   if (drag && drag.on) { render.pending = true; return; }
   const { page, arg } = route();
-  if (REMOVED.has(page) || !can(page)) { location.replace('#/today'); return; }
+  if (REMOVED.has(page) || (me && !can(page))) { location.replace('#/today'); return; }
   const views = { projects: vBoards, board: () => vBoard(arg), calm: vCalm,  today: vToday, tasks: vTasks, calendar: vCalendar, plan: vPlan, more: vMore, learn: vLearn, evidence: vEvidence, decisions: vDecisions, notes: vNotes, note: () => vNote(arg), review: vReview, settings: vSettings, jobs: vJobs, immigration: vImmigration, progress: vProgress, journal: vJournal, report: vReport, templates: vTemplates, trash: vTrash, health: vHealth, course: () => vCourse(arg), documents: vDocuments, notes: vNotesHub, goal: () => vGoal(arg), area: () => vArea(arg), admin: vAdmin, habits: vHabits, products: vProducts };
   if (page === 'immigration' || page === 'evidence') { ui.dTab = page; views[page] = vDocuments; } if (page === 'journal') views.journal = () => header('Journal', 'Your Night Balance days') + stripHead(vJournal());
   if (page === 'plan') { ui.pTab = ui.planTab === 'goals' ? 'goals' : 'roadmap'; views.plan = vProgress; } if (page === 'learn') { ui.pTab = 'learning'; views.learn = vProgress; }
@@ -2302,8 +2377,8 @@ document.addEventListener('click', async e => {
     'nc-area': () => { a.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === a)); },
     'goal-status': () => itemSheet('goals', id),
     'goal-edit': () => FORMS.goal(get('goals', id) || {}),
-    'l-start': () => onboard(),
-    'l-signin': () => signInSheet(),
+    'l-start': () => { e.preventDefault(); onboard(); },
+    'l-signin': () => { e.preventDefault(); signInSheet(); },
     'l-pk': () => { closeSheet(true); pkLogin({ set textContent(v) { toast(v); } }); },
     'fl-next': () => flowNext(),
     'fl-skip': () => { flow.i++; flowDraw(); },
@@ -2378,7 +2453,7 @@ document.addEventListener('click', async e => {
     password: () => form('Change password', [{ k: 'current', label: 'Current password', type: 'password', req: true }, { k: 'next', label: 'New password (10+ characters)', type: 'password', req: true }], {}, v => { api('password', { body: v }).then(j => { ls.set(K.tok, j.token); toast('Password changed. Other devices must sign in again.'); }).catch(err => toast(err.message)); }),
     logout: async () => { if (!confirm('Sign out on this device? Data stays on the server.')) return; if (Object.keys(outbox).length) await sync(); try { await api('logout', { method: 'POST' }); } catch {} ls.del(K.tok); ls.del(K.db); ls.del(K.out); ls.del(K.rev); ls.del(K.user); me = null; db = blankDb(); outbox = {}; showLanding(); }
   };
-  Object.assign(map, v7Acts(a, id, e), { 'board-open': () => { closeSheet(true); location.hash = '#/board/' + encodeURIComponent(id); }, 'habit-open-s': () => {} });
+  Object.assign(map, v7Acts(a, id, e), v71Acts(a, id), { 'board-open': () => { closeSheet(true); location.hash = '#/board/' + encodeURIComponent(id); }, 'habit-open-s': () => {} });
   if (map[act]) { if (act !== 'sheet-close' && act !== 'form-save' && act !== 'form-del' && sheetCtx && ['new-task', 'new-event', 'new-note', 'new-decision', 'new-evidence', 'new-session', 'closeout', 'log-time', 'new-application', 'new-milestone', 'new-immig', 'weekly', 'money-add', 'from-tpl', 'new-course', 'morning', 'new-goal', 'wheel-test', 'cycle-new', 'focus-free', 'new-habit'].includes(act)) closeSheet(true); map[act](); }
 });
 document.addEventListener('input', e => { const k = e.target.dataset && e.target.dataset.input; if (k) { ui[k] = e.target.value; saveUi(); if (e.target.dataset.norender) return; clearTimeout(render.t); render.t = setTimeout(render, 180); } });
@@ -2419,6 +2494,8 @@ const GOAL_TPL = { 'Career': 'Take one career step every week', 'Money': 'Save a
 const mideast = () => /Muscat|Dubai|Riyadh|Qatar|Bahrain|Kuwait|Tehran|Baghdad|Amman/.test(Intl.DateTimeFormat().resolvedOptions().timeZone || '');
 const brandMark = `<span class="mark">ME<b>.</b></span>`;
 function showLanding(msg) {
+  const site = document.getElementById('site');
+  if (site) { closeSheet(true); document.documentElement.classList.remove('in-app'); $('#app').innerHTML = ''; document.title = 'ME.Coach · Your self-coaching app'; const q = new URLSearchParams(location.search); if (q.has('start')) onboard(); else if (q.has('signin')) signInSheet(msg); else if (msg) toast(msg); return; }
   closeSheet(true); const app = $('#app'); document.title = 'ME.Coach · Your self-coaching app';
   const feat = (ic, t, d) => `<div class="lf"><span class="lf-i">${ic}</span><b>${t}</b><p>${d}</p></div>`;
   app.innerHTML = `<div class="landing">
@@ -2453,18 +2530,19 @@ function previewWheel() {
   return `<svg viewBox="0 0 ${S} ${S}" class="wheel">${g}</svg>`;
 }
 function signInSheet(msg) {
-  openSheet('Sign in', `${pkOk() ? '<button type="button" class="btn primary wide" data-act="l-pk" style="margin:0 0 14px">Sign in with Face ID</button><div class="small" style="text-align:center;margin-bottom:10px">or with your email</div>' : ''}
+  openSheet('Sign in', `${pkOk() ? '<button type="button" class="btn primary wide" data-act="l-pk" style="margin:0 0 14px">Sign in with Face ID</button>' : ''}<div id="gbtn" class="gbtn"></div><div class="small" style="text-align:center;margin-bottom:10px">or with your email</div>
     <div class="f"><label for="li-e">Email</label><input id="li-e" type="email" autocomplete="username" inputmode="email"></div><div class="f"><label for="li-p">Password</label><input id="li-p" type="password" autocomplete="current-password"></div><div class="err" id="li-err">${esc(msg || '')}</div>`,
     '<button class="btn primary wide" data-act="form-save">Sign in</button>', { onSave: async () => {
       const err = $('#li-err'); err.textContent = '…';
       try { const r = await api('login', { body: { email: $('#li-e').value, password: $('#li-p').value, device: device() } }); signedIn(r); }
       catch (e) { err.textContent = e.message === 'offline' ? 'No connection.' : e.message; }
     } });
+  googleButton($('#gbtn'), c => googleSignIn(c), 'signin_with');
 }
-function signedIn(r, plan) {
+function signedIn(r, plan, isNew) {
   ls.set(K.tok, r.token); ls.del(K.rev); me = r.user; ls.set(K.user, me); closeSheet(true); const fl = $('#flow'); if (fl) fl.remove();
   if (plan) { db = blankDb(); outbox = {}; persist(); buildPlan(plan); }
-  location.hash = '#/today'; start(); if (pkOk() && !ui.pkSet) setTimeout(() => toast('Use Face ID next time?', 'Set up', pkRegister), 2200);
+  location.hash = '#/today'; signedIn.pk = (isNew || !!plan) && pkOk() && !ui.pkSet; start(); if (pkOk() && !ui.pkSet) setTimeout(() => isNew || plan ? securePrompt() : toast('Use Face ID next time?', 'Set up', pkRegister), isNew || plan ? 1600 : 2200);
 }
 /* ---------- full-screen flow (onboarding and the Wheel of Life test) ---------- */
 let flow = null;
@@ -2476,6 +2554,7 @@ function flowDraw() {
   el.innerHTML = `<div class="fl-top"><button class="icon-btn" data-act="fl-back" aria-label="Back">${flow.i ? I.left : I.close}</button><div class="fl-bar"><i style="width:${Math.round(100 * (flow.i + 1) / n)}%"></i></div><span class="small">${flow.i + 1}/${n}</span></div>
     <div class="fl-body">${st.html(flow.a)}</div>${st.next === false ? '' : `<div class="fl-foot"><button class="btn primary wide" data-act="fl-next">${st.nextLabel || 'Continue'}</button>${st.skip ? `<button class="btn ghost wide" data-act="fl-skip">${st.skip}</button>` : ''}</div>`}`;
   const inp = el.querySelector('input:not([type=hidden])'); if (inp && window.innerWidth > 700) inp.focus();
+  const gb = el.querySelector('#gbtn-ob'); if (gb) googleButton(gb, c => { flowRead(); googleSignIn(c, flow.a); }, 'signup_with');
   applyLang();
 }
 function flowRead() { const el = $('#flow'); if (!el) return; el.querySelectorAll('input[data-k],select[data-k],textarea[data-k]').forEach(x => { if (x.type === 'checkbox') return; flow.a[x.dataset.k] = x.value; }); }
@@ -2517,9 +2596,9 @@ function onboard() {
     { html: a => `<div class="ob"><h2>Your one-minute check-ins</h2><p class="small">Morning Balance plans your day. Night Balance closes it.</p><div class="fgrid"><div class="f"><label>Morning</label><input type="time" data-k="mt" value="${esc(a.mt || '07:30')}"></div><div class="f"><label>Night</label><input type="time" data-k="nt" value="${esc(a.nt || '21:30')}"></div></div></div>` },
     { html: a => `<div class="ob"><h2>Where do you want to be in a few years?</h2><p class="small">Optional, but it keeps you going.</p><input class="big" data-k="vision" value="${esc(a.vision || '')}" placeholder="e.g. Living and working in Ireland" dir="auto"><div class="small" style="margin:14px 0 6px">Target year</div><div class="ochips">${[1, 2, 3, 5].map(n => { const y = String(new Date().getFullYear() + n); return chip('year', y, y, (a.year || String(new Date().getFullYear() + 3)) === y); }).join('')}</div></div>` },
     { nextLabel: 'Create my account', html: a => { const pa = primaryArea(a); return `<div class="ob"><h2>Your plan is ready</h2><div class="plan"><div class="plan-r"><span class="sw" style="background:${AREA_COL[CLASSIC.indexOf(pa) % 8]}"></span><div><b dir="auto">${esc(a.goal)}</b><div class="small">${esc(pa)} · in ${a.horizon || 6} months</div></div></div><div class="plan-r"><span class="sw" style="background:${AREA_COL[CLASSIC.indexOf(secondArea(a)) % 8]}"></span><div><b>${esc(GOAL_TPL[secondArea(a)])}</b><div class="small">${esc(secondArea(a))} · your lowest score</div></div></div>${(a.habits || []).length ? `<div class="plan-r"><span class="sw"></span><div><b>${(a.habits || []).map(esc).join(' · ')}</b><div class="small">Daily habits</div></div></div>` : ''}<div class="plan-r"><span class="sw"></span><div><b>40-day cycle starts today</b><div class="small">Morning ${esc(a.mt || '07:30')} · Night ${esc(a.nt || '21:30')}</div></div></div></div>
-      <div class="f" style="margin-top:16px"><label>Email</label><input data-k="email" type="email" autocomplete="username" inputmode="email" value="${esc(a.email || '')}"></div><div class="f"><label>Password (8+ characters)</label><input data-k="pw" type="password" autocomplete="new-password"></div><p class="small">7 days free. No card needed.</p></div>`; },
+      <div id="gbtn-ob" class="gbtn" style="margin-top:16px"></div><div class="f" style="margin-top:12px"><label>Email</label><input data-k="email" type="email" autocomplete="username" inputmode="email" value="${esc(a.email || '')}"></div><div class="f"><label>Password (8+ characters)</label><input data-k="pw" type="password" autocomplete="new-password"></div><p class="small">7 days free. No card needed.</p></div>`; },
       check: a => !/^\S+@\S+\.\S+$/.test(a.email || '') ? 'Enter your email' : (a.pw || '').length < 8 ? 'Use at least 8 characters' : '',
-      done: async a => { try { const r = await api('signup', { body: { email: a.email, password: a.pw, name: a.name, device: device() } }); signedIn(r, a.skip ? null : a); } catch (e) { toast(e.message === 'offline' ? 'No connection.' : e.message); } } }
+      done: async a => { try { const r = await api('signup', { body: { email: a.email, password: a.pw, name: a.name, device: device() } }); signedIn(r, a.skip ? null : a, true); } catch (e) { toast(e.message === 'offline' ? 'No connection.' : e.message); } } }
   ];
   flowOpen({ cls: 'onboard', steps, a: { horizon: '6', when: 'morning', hours: '2', habits: [] } });
 }
@@ -2547,26 +2626,26 @@ function buildPlan(a) {
 }
 function paywall() {
   if (sheetCtx && sheetCtx.paywall) return;
-  openSheet('Your free week has ended', `<div class="pw"><div class="pw-i">${I.star}</div><p>Everything you created is safe and you can still read it. To keep planning, tracking and coaching yourself, continue with a subscription.</p></div>`,
-    `<a class="btn primary wide" href="https://miladebrahimi.me/" target="_blank" rel="noopener">Continue with ME.Coach</a><button class="btn wide" data-act="export">Download my data</button>`, { noFocus: true, paywall: true });
+  plansSheet('Your free week has ended').then(() => { const b = sheetCtx && sheetCtx.el && sheetCtx.el.querySelector('.sheet-b'); if (b) b.insertAdjacentHTML('beforeend', '<button class="btn ghost wide" data-act="export" style="margin-top:8px">Download my data</button>'); });
 }
 function accountCard() {
   if (!me) return '';
   const left = me.trialEnds ? Math.max(0, Math.ceil((Date.parse(me.trialEnds) - Date.now()) / 86400000)) : 0;
   const plan = { owner: 'Owner', active: 'Subscribed' + (me.paidUntil ? ' until ' + fmtDate(me.paidUntil.slice(0, 10), true) : ''), trial: `Free trial · ${left} day${left === 1 ? '' : 's'} left`, expired: 'Trial ended' }[me.plan] || '';
-  return `<div class="card acct"><div class="av">${esc((me.name || me.email || '?').slice(0, 1).toUpperCase())}</div><div class="main"><b dir="auto">${esc(me.name || 'Me')}</b><div class="small">${esc(me.email)} · ${esc(plan)}</div></div>${me.role === 'owner' ? '<a class="btn small" href="#/admin">Members</a>' : ''}</div>`;
+  return `<div class="card acct"><div class="av">${esc((me.name || me.email || '?').slice(0, 1).toUpperCase())}</div><div class="main"><b dir="auto">${esc(me.name || 'Me')}</b><div class="small">${esc(me.email)} · ${esc(plan)}</div></div>${me.role === 'owner' ? '<a class="btn small" href="#/admin">Members</a>' : `<button class="btn small primary" data-act="plans">${me.plan === 'active' ? 'Plan' : 'Upgrade'}</button>`}</div>`;
 }
 async function vAdminFill() {
   const box = $('#adbox'); if (!box) return;
   try { const r = await api('admin-users'); if (!$('#adbox')) return;
     box.innerHTML = `<div class="small" style="margin-bottom:8px">${r.users.length} accounts · ${r.users.filter(u => u.plan === 'trial').length} on trial · ${r.users.filter(u => u.plan === 'active').length} subscribed</div><div class="list">${r.users.map(u => `<div class="row"><div class="av sm">${esc((u.name || u.email).slice(0, 1).toUpperCase())}</div><div class="main"><div class="t">${esc(u.name || '—')} <span class="small">${esc(u.email)}</span></div><div class="m"><span class="chip ${u.plan === 'active' || u.plan === 'owner' ? 's-done' : u.plan === 'trial' ? 's-wait' : 's-block'}">${esc(u.plan)}</span>${u.trialEnds && u.plan === 'trial' ? `<span>trial ends ${esc(fmtDate(u.trialEnds.slice(0, 10)))}</span>` : ''}${u.paidUntil ? `<span>paid until ${esc(fmtDate(u.paidUntil.slice(0, 10), true))}</span>` : ''}<span>${u.storeKB} KB</span></div></div>${u.role === 'owner' ? '' : `<div class="btns"><button class="btn small" data-act="ad-set" data-id="${esc(u.id)}" data-v="30">+30 d</button><button class="btn small" data-act="ad-set" data-id="${esc(u.id)}" data-v="365">+1 y</button><button class="btn small ghost danger" data-act="ad-set" data-id="${esc(u.id)}" data-v="0">Stop</button></div>`}</div>`).join('')}</div>`;
+    const rq = $('#adreq'); if (rq) rq.innerHTML = (r.requests || []).length ? `<div class="card" style="margin-bottom:12px"><h2>Payment requests <span class="count">${r.requests.length}</span></h2><div class="list">${r.requests.map(q => `<div class="row"><div class="main"><div class="t">${esc(q.email)}</div><div class="m"><span class="chip s-wait">${esc(q.planName)}</span><span>${esc(q.at.slice(0, 16).replace('T', ' '))}</span></div></div><div class="btns"><button class="btn small primary" data-act="ad-set" data-id="${esc(q.uid)}" data-v="${q.plan === 'yearly' ? 366 : 31}">Activate</button></div></div>`).join('')}</div></div>` : '';
   } catch (e) { box.textContent = e.message; }
 }
-function vAdmin() { setTimeout(vAdminFill, 0); return header('Members', 'Accounts, trials and subscriptions') + '<div class="card" id="adbox"><div class="empty">Loading…</div></div><div class="small" style="margin-top:8px">Until a payment provider is connected, activate a subscriber here after they pay you.</div>'; }
+function vAdmin() { setTimeout(() => { vAdminFill(); adminConfig(); }, 0); return header('Members', 'Accounts, trials and subscriptions') + '<div id="adreq"></div><div class="card" id="adbox"><div class="empty">Loading…</div></div><div class="small" style="margin-top:8px">With a checkout link and the webhook, subscriptions activate automatically. Otherwise activate a subscriber here after they pay you.</div><div class="card" id="adcfg" style="margin-top:12px"><div class="empty">Loading…</div></div>'; }
 async function refreshMe() { try { const r = await api('me'); me = r.user; ls.set(K.user, me); } catch {} }
 async function showAuth(msg) {
   closeSheet(true);
-  try { const s = await api('status'); if (s.authed && s.token) { ls.set(K.tok, s.token); if (s.user) { me = s.user; ls.set(K.user, me); } return start(); } } catch (e) { if (e.message === 'offline' && ls.get(K.tok)) return start(); }
+  try { const s = await api('status'); if (s.billing) { BILL = s.billing; ls.set('mec.bill', BILL); } if (s.authed && s.token) { ls.set(K.tok, s.token); if (s.user) { me = s.user; ls.set(K.user, me); } return start(); } } catch (e) { if (e.message === 'offline' && ls.get(K.tok)) return start(); }
   showLanding(msg);
 }
 function migrate() {
@@ -2579,10 +2658,10 @@ function migrate() {
   }
   if (n) { persist(); queueSync(); }
 }
-function start() { document.title = 'ME.Coach'; db = normalise(ls.get(K.db, null)); outbox = ls.get(K.out, {}) || {}; migrate(); render.keepScroll = false; render(); sync(); refreshMe().then(() => { render(); if (me && me.access === false) paywall(); else if (sheetCtx && sheetCtx.paywall) closeSheet(); }); if (ui.focus) focusShow(); else setTimeout(tour, 900); }
+function start() { document.documentElement.classList.add('in-app'); loadBilling(); document.title = 'ME.Coach'; db = normalise(ls.get(K.db, null)); outbox = ls.get(K.out, {}) || {}; migrate(); render.keepScroll = false; render(); sync(); refreshMe().then(() => { render(); if (me && me.access === false) paywall(); else if (sheetCtx && sheetCtx.paywall) closeSheet(); }); if (ui.focus) focusShow(); else if (!signedIn.pk) setTimeout(tour, 900); signedIn.pk = false; }
 
 /* ---------------- boot ---------------- */
-if ('serviceWorker' in navigator && location.protocol === 'https:') { const had = !!navigator.serviceWorker.controller; navigator.serviceWorker.register('sw.js').catch(() => {}); navigator.serviceWorker.addEventListener('controllerchange', () => { if (had) toast('MILAD 2031 was updated', 'Reload', () => location.reload()); }); }
+if ('serviceWorker' in navigator && location.protocol === 'https:') { const had = !!navigator.serviceWorker.controller; navigator.serviceWorker.register('sw.js').catch(() => {}); navigator.serviceWorker.addEventListener('controllerchange', () => { if (had) toast('ME.Coach was updated', 'Reload', () => location.reload()); }); }
 try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch {}
 if (ls.get(K.tok)) start(); else showAuth();
 window.MEC = { onboard, wheelFlow };

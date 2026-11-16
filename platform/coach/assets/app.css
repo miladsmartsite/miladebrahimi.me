@@ -621,3 +621,13 @@ html.dark .kcard{box-shadow:0 0 0 1px rgba(255,255,255,.07)}
 #calm .btn{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.25);color:#fff}#calm .btn.primary{background:#fff;color:#16202d;border-color:#fff}#calm .btn.ghost{background:transparent;border-color:transparent}
 @media (prefers-reduced-motion:reduce){.bcirc i{transition:none}.calm-card::after,#calm .fbg i{animation:none}}
 .bcirc .bl{z-index:1;color:#16202d;text-shadow:none;background:rgba(255,255,255,.75);padding:4px 12px;border-radius:20px;font-size:17px}
+/* v7.1 plans, book card, Google button */
+.plans{display:grid;gap:10px}@media (min-width:700px){.plans{grid-template-columns:repeat(3,1fr)}}
+.plan-c{position:relative;border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:4px;background:var(--card)}
+.plan-c.best{border:2px solid #2383e2}.plan-c .pl-tag{position:absolute;top:-10px;left:12px;background:#c9a227;color:#1b2036;font-size:11px;font-weight:800;padding:2px 8px;border-radius:12px}
+.plan-c b{font-size:16px;color:var(--ink)}.plan-c .pl-p{font-size:24px;font-weight:800;color:var(--ink)}.plan-c .pl-p small{font-size:13px;color:var(--meta);font-weight:600}
+.plan-c ul{margin:4px 0 10px;padding-left:18px;font-size:13.5px;color:var(--meta);flex:1}
+.bookcard{display:flex;gap:14px;align-items:center;margin-bottom:12px;background:linear-gradient(135deg,#232a45,#2c3558);color:#fff;border:0}
+.bookcard img{width:72px;height:auto;flex:none;filter:drop-shadow(0 8px 12px rgba(0,0,0,.35))}.bookcard b{font-size:16px;color:#fff}.bookcard .small{color:#c8cde0}
+.bookcard .btn.primary{background:#d4ae36;border-color:#d4ae36;color:#1b2036}.bookcard .btn.ghost{color:#c8cde0}
+.gbtn{display:flex;justify-content:center;min-height:44px;margin-bottom:8px}.gbtn:empty{display:none}
