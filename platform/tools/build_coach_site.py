@@ -12,13 +12,13 @@ import json
 import pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent / 'coach'
-VERSION = '7.1.0'
+VERSION = '8.0.0'
 BASE = 'https://miladebrahimi.me/coach/'
 
 PLANS = [
     # key, name, omr, usd, per, blurb, points, featured
     ('monthly', 'Pro Monthly', '2.900', '7.99', 'month', 'Full ME.Coach, month by month.',
-     ['Wheel of Life test and 40-day cycles', 'Morning & Night Balance', 'Habits, focus, calm and insights', 'Boards, calendar and widgets', 'Cancel any time'], False),
+     ['Wheel of Life test and 40-day cycles', 'Morning & Night Balance', '9 self-discovery tests and your personal pack', 'Career explorer', 'Habits, focus, calm, boards and widgets', 'Cancel any time'], False),
     ('yearly', 'Pro Yearly', '24.000', '59', 'year', 'A full year of cycles, about 30% cheaper.',
      ['Everything in Pro Monthly', 'Nine 40-day cycles a year', 'Priority email support', 'Best value'], True),
     ('coach', 'Coaching', '25.000', '65', 'month', 'The app plus a real coach.',
@@ -37,6 +37,8 @@ ICON = {
     'ring': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/></svg>',
     'lock': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>',
     'book': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/></svg>',
+    'spark': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3l2.2 5.6L20 11l-5.8 2.4L12 19l-2.2-5.6L4 11l5.8-2.4z"/></svg>',
+    'compass': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></svg>',
     'phone': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg>',
 }
 
@@ -49,6 +51,8 @@ FEATURES = [
     ('board', 'Boards for every project', 'A Trello-style board and a Notion-style table for each project, with its own daily tasks.', 's6-board'),
     ('calm', 'Focus and Calm', 'A calm full-screen focus timer with ambient sound, breathing exercises and short guided reflections.', 's9-breathe'),
     ('chart', 'Insights', 'Clear charts of your day scores, focus time, habits and balance over 7, 30 or 90 days.', 's4-insights'),
+    ('spark', 'Self-discovery tests', 'DISC, 16 types, Big Five, Enneagram, career interests, values, conflict style and emotional intelligence. Every result adds to your personal pack.', 's12-test'),
+    ('compass', 'Career explorer', 'Turn your experience into a skill fingerprint, see the careers that fit you on a visual map and make the best one your next goal.', 's13-career'),
     ('ring', 'Rings, levels and widgets', 'Close three daily rings, earn points and badges, and keep your progress on your home screen with live widgets.', 's1b-today-plan'),
 ]
 
@@ -61,6 +65,8 @@ FAQ = [
     ('Can I cancel?', 'Yes, at any time. Your plan stays active until the end of the period you paid for.'),
     ('What is the Coaching plan?', 'Everything in Pro plus one online 1:1 session a month with Milad Ebrahimi, author of <i>Self-Coaching Blueprint</i>, to review your Wheel, your cycle and your plan. Places are limited.'),
     ('Can I pay in Omani rial?', 'Yes. Prices are shown in Omani rial and US dollars. Card payment and local options are available; if you prefer bank transfer, choose a plan in the app and follow the instructions.'),
+    ('Which tests are included?', 'DISC style, 16 Types (an independent, MBTI-style questionnaire based on Jung’s ideas; not the official MBTI), Big Five, Enneagram, career interests (Holland RIASEC), core values, conflict style, emotional intelligence and an energy check. They come with any paid plan; the Wheel of Life test is free for everyone. They are tools for reflection, not clinical or hiring assessments.'),
+    ('Who is Emi?', 'Emi is your 3D guide inside ME.Coach. Emi waves in the morning, cheers when you keep a habit, breathes with you in Calm, celebrates finished tests and suggests your next tiny step. You can hide Emi any time.'),
     ('Is the book really free?', 'Yes. Download the PDF of <i>Self-Coaching Blueprint</i> from this site or inside the app.'),
 ]
 
@@ -179,6 +185,21 @@ def landing_html():
 <p class="lead">Every project gets its own board and table. Your day becomes a timeline. When it gets heavy, take two minutes to breathe. ME.Coach keeps the whole picture, so you only think about the next step.</p>
 <ul class="s-list"><li>Drag cards between To do, Doing, Waiting and Done</li><li>Breathing exercises and short guided reflections</li><li>Live widgets for your iPhone, iPad and desktop</li><li>Sign in with Face ID or Google</li></ul></div>
 <div class="s-duo">{shot('s6-board', 'Project board in ME.Coach')}{shot('s8-calm', 'Calm screen with breathing and meditation')}</div></div></section>
+
+<section class="s-sec alt" id="emi"><div class="s-wrap s-split"><div><span class="kicker">Meet Emi</span><h2>A guide that walks with you, every day.</h2>
+<p class="lead">Emi lives in your app. Emi waves in the morning, cheers when you keep a habit, breathes with you in Calm, celebrates every finished test and points you to your next tiny step.</p>
+<ul class="s-list"><li>Reacts to what you do, all day</li><li>Suggests your next step in each life area</li><li>Sits with you during every test</li></ul><p class="muted small">Drag Emi to see every side. Tap for a reaction.</p></div>
+<div class="s-emi" id="site-emi" aria-label="Emi, the ME.Coach guide, in 3D"><img src="assets/img/emi.webp" alt="Emi, the ME.Coach guide" width="420" height="480" loading="lazy"></div></div></section>
+<script>(function(){{var el=document.getElementById('site-emi');if(!el||!('IntersectionObserver' in window))return;var go=function(){{var l=function(s,cb){{var x=document.createElement('script');x.src=s;x.onload=cb;document.head.appendChild(x)}};l('assets/vendor/three.min.js?v={VERSION}',function(){{l('assets/emi.js?v={VERSION}',function(){{if(!window.Emi||!Emi.supported())return;el.innerHTML='';var e=Emi.mount(el,{{orbit:true,zoom:6.6}});if(e){{e.play('wave');e.say('Hi, I am Emi! Drag me around.',4000)}}}})}})}};var io=new IntersectionObserver(function(es){{if(es[0].isIntersecting){{io.disconnect();go()}}}},{{rootMargin:'200px'}});io.observe(el)}})();</script>
+
+<section class="s-sec"><div class="s-wrap s-split rev"><div><span class="kicker">Know yourself</span><h2>Nine tests. One personal pack.</h2>
+<p class="lead">DISC, 16 types, Big Five, Enneagram, career interests, values, conflict style and emotional intelligence. ME.Coach turns your answers into one pack: who you are, how you work best, how to deal with other people, and tiny steps for each area of your life.</p>
+<ul class="s-list"><li>A “How to talk to me” card you can share with your team</li><li>Career fit from your interests and your experience</li><li>Micro-actions for all 8 areas of the Wheel of Life</li></ul></div>
+<div class="s-duo">{shot('s12-test', 'DISC result in ME.Coach')}{shot('s15-pack', 'Self-knowledge pack in ME.Coach')}</div></div></section>
+
+<section class="s-sec alt"><div class="s-wrap s-split"><div><span class="kicker">Career explorer</span><h2>From your story to your next career.</h2>
+<p class="lead">Add the roles you have had and what you want more of. ME.Coach builds your skill fingerprint and career identity, maps the careers that fit you, shows the skills you have and the ones to build, and turns your choice into a goal with milestones and micro-actions.</p></div>
+{shot('s13-career', 'Career map in ME.Coach')}</div></section>
 
 {book_block()}
 

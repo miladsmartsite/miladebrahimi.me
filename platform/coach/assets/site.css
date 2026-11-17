@@ -114,3 +114,7 @@ html:not(.in-app) #app .boot{display:none}
 @media (max-width:760px){.s-foot-in{grid-template-columns:1fr 1fr}.s-foot-in>div:first-child{grid-column:1/-1}}
 @media (prefers-reduced-motion:reduce){.s-btn{transition:none}}
 .s-foot .s-brand b{display:inline;color:var(--s-gold);margin:0}
+.s-emi{height:480px;max-width:100%;display:grid;place-items:center;position:relative;background:radial-gradient(circle at 50% 55%,#fbf1cf 0,transparent 62%)}
+.s-emi img{max-width:100%;height:auto}.s-emi .emi-cv{width:100%;height:100%}
+@media (max-width:860px){.s-emi{height:400px}}
+#site main,.s-page main{max-width:none;padding:0;margin:0}

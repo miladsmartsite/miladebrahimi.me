@@ -5,10 +5,10 @@
 (() => {
 'use strict';
 
-const VERSION = '7.1.0';
+const VERSION = '8.0.0';
 const API = 'api.php';
 const K = { db: 'mec.db', out: 'mec.outbox', tok: 'mec.token', rev: 'mec.rev', ui: 'mec.ui', last: 'mec.lastSync', user: 'mec.user' };
-const COLS = ['tasks','events','projects','goals','skills','logs','evidence','decisions','notes','ielts','sessions','settings','milestones','applications','immigration','habits','money','templates','courses','areas','wheel','cycles','focus','products'];
+const COLS = ['tasks','events','projects','goals','skills','logs','evidence','decisions','notes','ielts','sessions','settings','milestones','applications','immigration','habits','money','templates','courses','areas','wheel','cycles','focus','products','tests','careers'];
 const STATES = ['To do','Doing','Waiting','Done','Cancelled'];
 const LEGACY = { 'Not Started': 'To do', 'Waiting for Me': 'To do', 'In Progress': 'Doing', 'Ready for Review': 'Doing', 'Waiting for External Input': 'Waiting', 'Blocked': 'Waiting', 'Completed & Verified': 'Done', 'Completed - Not Verified': 'Done', 'Cancelled': 'Cancelled' };
 const stOf = t => STATES.includes(t.state) ? t.state : (LEGACY[t.state] || 'To do');
@@ -262,7 +262,7 @@ Object.assign(I, {
 });
 const GLYPH = { '✓': I.tick, '★': I.star, '●': I.dot, '→': I.arrow, '⇥': I.skip, '📅': I.cal, '⏸': I.pause, '▶': I.play, '◷': I.timer, '↻': I.repeat, '⟳': I.repeat, '✎': I.edit, '🗑': I.trash, '↺': I.undo, '✕': I.close, '≡': I.tasks, '+': I.plus, '⏰': I.bell };
 const icoize = h => String(h).replace(/<span>([^<]{1,3})<\/span>/gu, (m, g) => GLYPH[g] ? `<span class="ai">${GLYPH[g]}</span>` : m).replace(/🔥 ?/g, `<i class="ii fl">${I.flame}</i>`).replace(/🕘 ?/g, `<i class="ii">${I.clock}</i>`).replace(/📌 ?/g, `<i class="ii">${I.pin}</i>`).replace(/✨ ?/g, `<i class="ii">${I.spark}</i>`).replace(/★ /g, `<i class="ii st">${I.star}</i>`);
-const NAV_MAIN = [['today', 'Today', I.today], ['tasks', 'Tasks', I.tasks], ['calendar', 'Calendar', I.cal], ['habits', 'Habits', I.tick], ['progress', 'Coach', I.prog]];
+const NAV_MAIN = [['today', 'Today', I.today], ['calendar', 'Calendar', I.cal], ['life', 'Life', '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6 5.6 18.4"/></svg>'], ['discover', 'Discover', '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3l2.2 5.6L20 11l-5.8 2.4L12 19l-2.2-5.6L4 11l5.8-2.4z"/></svg>'], ['hub', 'More', '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/></svg>']];
 Object.assign(I, { board: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="5" height="15" rx="1.5"/><rect x="10" y="4" width="5" height="10" rx="1.5"/><rect x="17" y="4" width="4" height="7" rx="1.5"/></svg>', calm: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 21c-4-2.5-7-6-7-10a7 7 0 0 1 14 0c0 4-3 7.5-7 10z"/><path d="M12 8v6M9 11h6"/></svg>', users: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/></svg>' });
 const NAV_MORE = [['projects', 'Boards', I.board], ['calm', 'Calm', I.calm], ['products', 'Products', I.money], ['jobs', 'Job search', I.jobs], ['admin', 'Members', I.users], ['settings', 'Settings', I.set]];
 const P_TABS = [['overview', 'Coach'], ['insights', 'Insights'], ['wheel', 'Wheel'], ['goals', 'Goals'], ['roadmap', 'Roadmap'], ['learning', 'Learning'], ['money', 'Money']];
@@ -569,6 +569,7 @@ function vToday() {
   ${coachCard()}
   ${widgetGrid()}
   ${bookCard()}
+  ${microCard()}
   ${!closed && !mlog ? `<div class="card balcard morning" data-act="morning" role="button"><span class="bal-i">${I.today}</span><div class="main"><b>Morning Balance</b><div class="small">1 minute · expectation, focus, Top 3</div></div><button class="btn ${hr < 14 ? 'primary' : ''}" data-act="morning">Start</button></div>` : ''}
   ${!closed && mlog ? `<div class="mline" data-act="morning" role="button"><span class="hstat ok">${I.tick}</span><div class="main">${mlog.focus || (mlog.focusAreas || []).length ? `<b>Focus:</b> <span dir="auto">${esc(mlog.focus || (mlog.focusAreas || []).map(id => (get('areas', id) || {}).title).filter(Boolean).join(', '))}</span>` : '<b>Morning Balance done</b>'}${mlog.expect ? `<div class="small" dir="auto">${esc(mlog.expect)}</div>` : ''}</div></div>` : ''}
   ${quickBar('What needs doing?')}`;
@@ -1271,8 +1272,8 @@ const hidden = () => new Set(prefs().hidden || []);
 const navMore = () => NAV_MORE.filter(([k]) => can(k) && !hidden().has(k));
 function badge(k) {
   if (k === 'today') { const n = list('tasks').filter(t => isOpen(t) && t.due && t.due < today()).length; return n ? `<b class="badge">${n > 99 ? '99+' : n}</b>` : ''; }
-  if (k === 'progress') return weeklyDue() || list('courses').some(c => ['Active', 'Paused'].includes(c.status) && c.nextReview && c.nextReview <= today()) ? '<b class="badge dot"></b>' : '';
-  if (k === 'more') { const hs = hidden(); const n = hs.has('jobs') || !isOwner() ? 0 : followUps().length; return n ? `<b class="badge">${n}</b>` : ''; }
+  if (k === 'progress' || k === 'life') return weeklyDue() || list('courses').some(c => ['Active', 'Paused'].includes(c.status) && c.nextReview && c.nextReview <= today()) ? '<b class="badge dot"></b>' : '';
+  if (k === 'more' || k === 'hub') { const hs = hidden(); const n = hs.has('jobs') || !isOwner() ? 0 : followUps().length; return n ? `<b class="badge">${n}</b>` : ''; }
   return '';
 }
 /* ---------- setup checklist ---------- */
@@ -1418,7 +1419,7 @@ function vSettings() {
 function header(title, sub) {
   if (ui.lang === 'fa') { title = trStr(title) || title; sub = sub && (trStr(sub) || sub); }
   const pg = route().page; const back = !NAV_MAIN.some(([k]) => k === pg) && pg !== 'plan' && pg !== 'learn';
-  return `<div class="top"><div class="top-row">${back ? `<button class="icon-btn hback" data-act="back" aria-label="Back">${I.left}</button>` : ''}<h1 dir="auto">${esc(title)}</h1>${syncHtml()}<button class="icon-btn hsearch" data-act="search" aria-label="Search">${I.search}</button><a class="icon-btn hmore" href="#/more" aria-label="More">${I.more}${badge('more')}</a></div>${sub ? `<div class="sub" dir="auto">${esc(sub)}</div>` : ''}</div><div class="spacer" style="height:14px"></div>`;
+  return `<div class="top"><div class="top-row">${back ? `<button class="icon-btn hback" data-act="back" aria-label="Back">${I.left}</button>` : ''}<h1 dir="auto">${esc(title)}</h1>${syncHtml()}<button class="icon-btn hsearch" data-act="search" aria-label="Search">${I.search}</button><a class="icon-btn hmore" href="#/hub" aria-label="More">${I.more}${badge('more')}</a></div>${sub ? `<div class="sub" dir="auto">${esc(sub)}</div>` : ''}</div><div class="spacer" style="height:14px"></div>`;
 }
 
 /* ================= v7: owner mode, boards, job sprint, motivation, calm ================= */
@@ -1828,6 +1829,391 @@ function v71Acts(a, id) {
   };
 }
 
+/* ================= v8: Emi guide, Discover (tests + pack + career), Life hub, micro-actions, grouped navigation ================= */
+Object.assign(I, {
+  wheel: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6 5.6 18.4"/></svg>',
+  compass: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></svg>',
+  grid: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/></svg>',
+  spark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3l2.2 5.6L20 11l-5.8 2.4L12 19l-2.2-5.6L4 11l5.8-2.4z"/></svg>',
+  user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
+  rocket: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 15c-1.5 1.5-2 5-2 5s3.5-.5 5-2M9 15l-3-3c1-4 5-9 12-9 0 7-5 11-9 12z"/><circle cx="14.5" cy="9.5" r="1.5"/></svg>',
+  lock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg>',
+  bolt: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M13 3 5 13.5h6L10 21l8-10.5h-6z"/></svg>'
+});
+const paid = () => !!me && (me.plan === 'owner' || me.plan === 'active');
+const jsLoads = {};
+function loadJs(src) { if (jsLoads[src]) return jsLoads[src]; jsLoads[src] = new Promise((res, rej) => { const s = document.createElement('script'); s.src = src + '?v=' + VERSION; s.onload = () => res(); s.onerror = () => { delete jsLoads[src]; rej(new Error('Could not load ' + src)); }; document.head.appendChild(s); }); return jsLoads[src]; }
+const needTests = () => window.MEC_TESTS ? Promise.resolve() : loadJs('assets/tests-data.js');
+const needCareers = () => window.MEC_CAREERS ? Promise.resolve() : loadJs('assets/career-data.js');
+const needEmi = () => window.Emi ? Promise.resolve() : loadJs('assets/vendor/three.min.js').then(() => loadJs('assets/emi.js'));
+const AREA_EMOJI = { 'Career': '💼', 'Money': '💰', 'Health': '💪', 'Family': '🏠', 'Relationships': '🤝', 'Personal growth': '🌱', 'Fun & recreation': '🎈', 'Home & environment': '🪴' };
+const areaEmoji = a => AREA_EMOJI[a && a.title] || '◎';
+const areaByName = n => areas().find(a => a.title === n) || null;
+
+/* ---------- Emi: floating guide ---------- */
+let emiInst = null, emiReactAt = 0;
+const emiAllowed = () => !ui.emiOff && (!navigator.webdriver || ui.emiForce) && !(window.matchMedia && matchMedia('(max-width: 340px)').matches);
+function emiDock() {
+  let d = $('#emi-dock');
+  if (!emiAllowed() || !ls.get(K.tok)) { if (d) { if (emiInst) emiInst.destroy(); emiInst = null; d.remove(); } return; }
+  if (d) return;
+  d = document.createElement('div'); d.id = 'emi-dock'; d.innerHTML = '<div class="emi-stage"></div><button class="emi-more" data-act="emi-sheet" aria-label="Talk to Emi">…</button>'; document.body.appendChild(d);
+  needEmi().then(() => {
+    if (!window.Emi || !Emi.supported()) { d.classList.add('emi-flat'); return; }
+    emiInst = Emi.mount(d.querySelector('.emi-stage'), { fps: 30, zoom: 6.8, onTap: () => emiTalk() });
+    if (!emiInst) { d.classList.add('emi-flat'); return; }
+    const h = new Date().getHours(); setTimeout(() => { if (!emiInst) return; if (h >= 23 || h < 5) emiInst.play('sleep'); else { emiInst.play('wave'); emiInst.say(emiGreeting(), 5200); } }, 900);
+  }).catch(() => d.classList.add('emi-flat'));
+}
+function emiGreeting() { const h = new Date().getHours(), nm = me && me.name ? me.name.split(' ')[0] : ''; return (h < 12 ? 'Good morning' : h < 18 ? 'Hi' : 'Good evening') + (nm ? ', ' + nm : '') + '! ' + (coachMsgs()[slotOf(h)] || '').split('. ')[0] + '.'; }
+function emiTalk() { if (!emiInst) return; const tips = emiTips(); const t = tips[Math.floor(Math.random() * Math.min(3, tips.length))]; emiInst.say(t ? t[0] : coachMsgs()[slotOf(new Date().getHours())]); }
+function emiTips() {
+  const t = today(), out = [], mlog = list('logs').find(l => l.type === 'morning' && l.date === t), done = id => list('tests').some(x => x.test === id);
+  if (!mlog && new Date().getHours() < 14) out.push(['One minute of Morning Balance sets up your whole day.', 'morning', 'Start Morning Balance']);
+  if (!wheels().length) out.push(['Let’s score your Wheel of Life. It takes two minutes.', 'wheel-test', 'Take the Wheel test']);
+  const m = microToday()[0]; if (m) out.push([`Tiny step for today: ${m.t}`, 'go', 'Open Life', 'life']);
+  if (paid() && !done('disc')) out.push(['Want to know your communication style? Try the DISC test.', 'test-start', 'Start DISC', 'disc']);
+  else if (paid() && !done('riasec')) out.push(['Your career interests unlock the Career explorer.', 'test-start', 'Start Career interests', 'riasec']);
+  else if (!paid()) out.push(['The personality tests and your self-knowledge pack come with a plan.', 'plans', 'See plans']);
+  const low = areas().filter(a => areaScore(a.id) != null).sort((a, b) => areaScore(a.id) - areaScore(b.id))[0]; if (low) out.push([`${low.title} needs you most right now (${areaScore(low.id)}/10). One small action today?`, 'go', 'Open ' + low.title, 'area/' + encodeURIComponent(low.id)]);
+  if (new Date().getHours() >= 19) out.push(['Close the day with Night Balance. One minute.', 'closeout', 'Night Balance']);
+  out.push([coachMsgs()[slotOf(new Date().getHours())], 'go', 'Open Today', 'today']);
+  return out;
+}
+function emiSheet() {
+  const tips = emiTips();
+  openSheet('Emi · your guide', `<div class="emi-sh"><div class="emi-sh-stage" id="emi-sh-stage"></div><div class="main"><b>Hi, I’m Emi.</b><p class="small">I walk with you through your plan, your tests and your 8 life areas. Tap me any time.</p></div></div>
+    <div class="list">${tips.slice(0, 4).map(([t, act, l, arg]) => `<div class="row"><span class="att-i">${I.spark}</span><div class="main"><div class="t" dir="auto">${esc(t)}</div></div><button class="btn small" data-act="${act}" ${act === 'go' ? `data-to="${esc(arg)}"` : arg ? `data-id="${esc(arg)}"` : ''}>${esc(l)}</button></div>`).join('')}</div>
+    <div class="btns" style="margin-top:12px"><a class="btn primary" href="#/emi" data-act="sheet-close-go">Meet Emi in 3D</a><button class="btn ghost" data-act="emi-hide">Hide Emi</button></div>`, '', { noFocus: true });
+  if (emiInst) emiInst.play('nod');
+}
+function emiReact(kind, text) {
+  if (!emiInst || Date.now() - emiReactAt < 1500) return; emiReactAt = Date.now();
+  const map = { habit: 'cheer', task: 'thumbs', morning: 'wave', night: 'nod', test: 'celebrate', calm: 'breathe', focus: 'celebrate', goal: 'think', micro: 'cheer', career: 'surprised' };
+  emiInst.play(map[kind] || 'nod'); if (text) emiInst.say(text, 4200);
+}
+/* react to what the user does, without touching every action */
+const _saveV7 = save;
+save = function (c, rec) {
+  const prev = rec && rec.id && db[c] && db[c][rec.id] ? Object.assign({}, db[c][rec.id]) : null; const r = _saveV7(c, rec);
+  try {
+    if (c === 'habits' && prev) { const t = today(), was = !!(prev.done || {})[t], now = !!(r.done || {})[t]; if (!was && now) emiReact('habit', `Yes! ${r.title} done. ${habitStreak(r) > 1 ? habitStreak(r) + '-day streak 🔥' : ''}`); }
+    else if (c === 'tasks' && prev && !DONE.has(prev.state) && r.state === 'Done') emiReact('task', 'Nice work. One more thing off your list.');
+    else if (c === 'logs' && !prev && r.type === 'morning') emiReact('morning', 'Great start. Protect your first block for your Top 3.');
+    else if (c === 'logs' && !prev && r.type === 'closeout') emiReact('night', 'Day closed. Rest well, you earned it.');
+    else if (c === 'focus' && !prev) emiReact(r.kind === 'calm' ? 'calm' : 'focus', r.kind === 'calm' ? 'Calm and clear. Well done.' : `${r.minutes} focused minutes. Great job!`);
+    else if (c === 'goals' && !prev) emiReact('goal', 'New goal! Let’s break it into tiny steps.');
+  } catch (e) { }
+  return r;
+};
+function vEmi() {
+  setTimeout(() => { const el = $('#emi-big'); if (!el || el.dataset.on) return; el.dataset.on = 1; needEmi().then(() => { if (!$('#emi-big')) return; if (!Emi.supported()) { el.innerHTML = '<div class="empty">3D is not available on this device.</div>'; return; } const x = Emi.mount(el, { orbit: true, zoom: window.innerWidth < 700 ? 7.4 : 6.2, onTap: () => {} }); vEmi.inst = x; if (x) { x.play('wave'); x.say('Hi! Drag me to see me from every side.', 4500); } }); }, 0);
+  const acts = [['wave', 'Wave'], ['celebrate', 'Celebrate'], ['think', 'Think'], ['dance', 'Dance'], ['shy', 'Shy'], ['surprised', 'Surprised'], ['thumbs', 'Thumbs up'], ['cheer', 'Cheer'], ['stretch', 'Stretch'], ['breathe', 'Breathe'], ['sleep', 'Sleep'], ['point-left', 'Point left'], ['point-right', 'Point right']];
+  return header('Meet Emi', 'Your ME.Coach guide') + `<div class="emi-page"><div class="card emi-viewer"><div id="emi-big"></div><div class="emi-views">${[['front', 'Front'], ['three', '¾'], ['right', 'Right'], ['back', 'Back'], ['left', 'Left'], ['top', 'Top']].map(([k, l]) => `<button data-act="emi-view" data-v="${k}">${l}</button>`).join('')}<button data-act="emi-spin">Turntable</button></div></div>
+  <div class="card"><h2>Make Emi move</h2><div class="emi-acts">${acts.map(([k, l]) => `<button class="btn small" data-act="emi-play" data-v="${k}">${l}</button>`).join('')}</div>
+  <h2 style="margin-top:16px">About Emi</h2><p class="small">Emi lives in the corner of your app. Emi waves in the morning, cheers when you keep a habit, breathes with you in Calm, celebrates finished tests and suggests your next tiny step. Tap Emi for a tip; drag here to see every side.</p>
+  <div class="btns"><button class="btn" data-act="emi-toggle">${ui.emiOff ? 'Show Emi in the app' : 'Hide Emi in the app'}</button></div></div></div>`;
+}
+
+/* ---------- micro-actions (tiny steps for every goal) ---------- */
+const MICRO_TPL = {
+  'Career': ['Write the next tiny step for “{g}”', 'Send one message that moves “{g}” forward', 'Spend 10 minutes learning a skill for “{g}”', 'Add one line to your CV or LinkedIn', 'Block 25 minutes tomorrow for “{g}”', 'Ask one person for advice on “{g}”'],
+  'Money': ['Check today’s spending in 2 minutes', 'Move a small amount to savings', 'Cancel one subscription you don’t use', 'Write one idea to earn more for “{g}”', 'Update your savings number'],
+  'Health': ['Walk for 10 minutes', 'Drink a glass of water now', 'Do 10 squats or push-ups', 'Go to bed 15 minutes earlier', 'Stretch for 3 minutes', 'Plan one healthy meal for tomorrow'],
+  'Family': ['Call or message a family member', 'Plan one family activity this week', 'Ask someone at home how their day was', 'Put your phone away during one meal'],
+  'Relationships': ['Send a thank-you message', 'Check in on a friend', 'Give one sincere compliment', 'Plan a coffee with someone you miss'],
+  'Personal growth': ['Read 10 pages', 'Write 3 lines in your journal', 'Watch one 10-minute lesson for “{g}”', 'Practise “{g}” for 15 minutes', 'Reflect: what did I learn today?'],
+  'Fun & recreation': ['Do something fun for 15 minutes', 'Plan one adventure this month', 'Play, draw or make music for 10 minutes', 'Spend time outside without your phone'],
+  'Home & environment': ['Tidy one small surface', 'Clear 10 items you don’t need', 'Fix one small thing at home', 'Prepare tomorrow’s clothes and bag'],
+  default: ['Write the next tiny step for “{g}”', 'Spend 10 minutes on “{g}”', 'Tell someone about “{g}”']
+};
+function goalMicros(g) {
+  const own = (g.micro || []).filter(Boolean); const a = goalArea(g), tpl = (MICRO_TPL[a && a.title] || MICRO_TPL.default).map(x => x.replace(/\{g\}/g, String(g.title || '').slice(0, 60)));
+  return own.length ? own : tpl;
+}
+const dayIdx = () => Math.floor(Date.parse(today()) / 864e5);
+function microToday() {
+  const gs = list('goals').filter(g => !['Done', 'Achieved', 'Dropped', 'Cancelled'].includes(g.status)).sort((a, b) => (areaScore((goalArea(a) || {}).id) ?? 10) - (areaScore((goalArea(b) || {}).id) ?? 10)).slice(0, 3);
+  return gs.map(g => { const ms = goalMicros(g), shift = Number((g.microShift || {})[today()]) || 0, t = ms[(dayIdx() + shift) % ms.length]; return { g, t, done: !!(g.microDone || {})[today()] }; });
+}
+function microCard() {
+  const ms = microToday(); if (!ms.length) return '';
+  return `<div class="card microcard"><h2>${I.bolt} Tiny steps today <span class="count">${ms.filter(m => m.done).length}/${ms.length}</span><span style="flex:1"></span><a class="btn small ghost" href="#/life">Life</a></h2><div class="list">${ms.map(m => { const a = goalArea(m.g); return `<div class="row micro ${m.done ? 'done' : ''}" style="--ac:${a ? areaColor(a) : 'var(--line)'}"><button class="check ${m.done ? 'done' : ''}" data-act="micro-done" data-id="${esc(m.g.id)}" aria-label="Done">${I.tick}</button><div class="main"><div class="t" dir="auto">${esc(m.t)}</div><div class="m"><span>${areaEmoji(a)} ${esc(a ? a.title : 'Goal')}</span><span dir="auto">${esc(m.g.title)}</span></div></div>${m.done ? '' : `<button class="icon-btn" data-act="micro-shuffle" data-id="${esc(m.g.id)}" aria-label="Another step" title="Another step">↻</button>`}</div>`; }).join('')}</div></div>`;
+}
+function goalMicroCard(id) {
+  const g = get('goals', id); if (!g) return '';
+  const ms = goalMicros(g), log = Object.entries(g.microDone || {}).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 7);
+  return `<div class="card"><h2>${I.bolt} Micro-actions <span class="count">${ms.length}</span><span style="flex:1"></span><button class="btn small ghost" data-act="micro-add" data-id="${esc(id)}">${I.plus} Add</button></h2>
+  <p class="small" style="margin-top:-4px">Steps of 2 to 15 minutes. One shows on Today each day${(g.micro || []).length ? '' : '. These are suggestions for this area; add your own to replace them'}.</p>
+  <div class="list">${ms.map((t, i) => `<div class="row"><span class="mnum">${i + 1}</span><div class="main"><div class="t" dir="auto">${esc(t)}</div></div>${(g.micro || []).length ? `<button class="icon-btn" data-act="micro-del" data-id="${esc(id)}" data-i="${i}" aria-label="Remove">${I.close}</button>` : ''}</div>`).join('')}</div>
+  ${log.length ? `<div class="small" style="margin-top:10px">Done recently: ${log.map(([d]) => esc(fmtDate(d))).join(' · ')}</div>` : ''}</div>`;
+}
+const _vGoalV7 = vGoal;
+vGoal = id => _vGoalV7(id) + goalMicroCard(id);
+
+/* ---------- Life: the 8 areas ---------- */
+function vLife() {
+  const as = areas(), w = wheels()[0], prev = wheels()[1], sc = as.map(a => areaScore(a.id)).filter(x => x != null), avg = sc.length ? Math.round(10 * sc.reduce((s, x) => s + x, 0) / sc.length) / 10 : null;
+  if (!as.length) return header('Life', 'Your 8 areas of life') + `<div class="card empty">Set up your Wheel of Life to see your areas.<div class="btns" style="justify-content:center;margin-top:10px"><button class="btn primary" data-act="wheel-start">Set up</button></div></div>`;
+  const ms = microToday(), habs = list('habits');
+  const card = a => { const s = areaScore(a.id), ps = prev ? areaScore(a.id, prev) : null, gs = list('goals').filter(g => goalArea(g) && goalArea(g).id === a.id && !['Done', 'Achieved', 'Dropped'].includes(g.status)), hs = habs.filter(h => h.areaId === a.id || gs.some(g => g.id === h.goalId)), m = ms.find(x => goalArea(x.g) && goalArea(x.g).id === a.id), tr = s != null && ps != null ? s - ps : 0;
+    return `<a class="acard" href="#/area/${encodeURIComponent(a.id)}" style="--ac:${areaColor(a)}"><div class="ac-top"><span class="ac-e">${areaEmoji(a)}</span><b dir="auto">${esc(a.title)}</b><span class="ac-s">${s ?? '–'}<small>/10</small>${tr ? `<i class="${tr > 0 ? 'up' : 'dn'}">${tr > 0 ? '▲' : '▼'}${Math.abs(tr)}</i>` : ''}</span></div>
+    <div class="ac-bar"><i style="width:${(s || 0) * 10}%"></i><em style="left:${areaTarget(a) * 10}%"></em></div>
+    <div class="ac-m"><span>${gs.length} goal${gs.length === 1 ? '' : 's'}</span><span>${hs.length} habit${hs.length === 1 ? '' : 's'}</span></div>
+    ${m ? `<div class="ac-micro ${m.done ? 'done' : ''}">${m.done ? '✓' : I.bolt} <span dir="auto">${esc(m.t)}</span></div>` : gs.length ? '' : '<div class="ac-micro empty">No goal yet · add one</div>'}</a>`; };
+  const tools = [['progress', 'p-tab', 'goals', I.flag, 'Goals'], ['habits', 'go', 'habits', I.repeat, 'Habits'], ['progress', 'p-tab', 'overview', I.prog, '40-day cycle'], ['progress', 'p-tab', 'roadmap', I.plan, 'Roadmap'], ['progress', 'p-tab', 'insights', I.health, 'Insights'], ['progress', 'p-tab', 'learning', I.course, 'Learning'], ['progress', 'p-tab', 'money', I.money, 'Money']];
+  return header('Life', avg != null ? `Balance ${avg}/10 · ${w ? 'tested ' + fmtDate(w.date, true) : ''}` : 'Your 8 areas of life') + `
+  <div class="life-hero card"><div class="lh-w" data-act="p-tab" data-t="wheel" role="button">${w ? wheelSvg(w, prev, { size: 260, labels: false }) : ''}</div><div class="main"><div class="small">Wheel of Life</div><div class="lh-n">${avg ?? '–'}<small>/10</small></div>
+    ${sc.length ? (() => { const srt = as.filter(a => areaScore(a.id) != null).sort((a, b) => areaScore(b.id) - areaScore(a.id)); return `<div class="lh-g"><span>Strongest <b style="color:${areaColor(srt[0])}">${esc(srt[0].title)}</b></span><span>Needs you <b style="color:${areaColor(srt[srt.length - 1])}">${esc(srt[srt.length - 1].title)}</b></span></div>`; })() : ''}
+    <div class="btns" style="margin-top:10px"><button class="btn primary small" data-act="wheel-test">Retake the test</button><button class="btn small" data-act="new-goal">${I.plus} Goal</button></div></div></div>
+  ${microCard()}
+  <div class="agrid">${as.map(card).join('')}</div>
+  <h2 class="sec-h">Tools for your areas</h2><div class="tiles2">${tools.map(([pg, act, t, ic, l]) => `<button class="tile2" data-act="${act}" ${act === 'go' ? `data-to="${t}"` : `data-t="${t}"`}><span>${ic}</span>${l}</button>`).join('')}</div>`;
+}
+const _vAreaV7 = vArea;
+vArea = id => {
+  const a = get('areas', id); let extra = '';
+  if (a) {
+    const hs = list('habits').filter(h => h.areaId === id), tm = testMicros().filter(m => m[0] === a.title);
+    extra = `<div class="card"><h2>${I.repeat} Habits <span class="count">${hs.length}</span><span style="flex:1"></span><button class="btn small ghost" data-act="new-habit-area" data-id="${esc(id)}">${I.plus} Habit</button></h2>${hs.length ? `<div class="list">${hs.map(h => `<div class="row" data-act="habit-open" data-id="${esc(h.id)}"><div class="main"><div class="t" dir="auto">${esc(h.title)}</div><div class="m"><span>🔥 ${habitStreak(h)}</span></div></div></div>`).join('')}</div>` : '<div class="empty">Link a habit to this area to see it here.</div>'}</div>
+    ${tm.length ? `<div class="card"><h2>${I.spark} From your tests</h2><div class="list">${tm.map(m => microRow(m)).join('')}</div></div>` : ''}`;
+  }
+  return _vAreaV7(id) + extra;
+};
+
+/* ---------- Discover: tests, pack, career ---------- */
+const testsDone = () => { const o = {}; list('tests').sort((a, b) => String(a.date + a.createdAt).localeCompare(String(b.date + b.createdAt))).forEach(r => { o[r.test] = r; }); return o; };
+function testMicros() { if (!window.MEC_TESTS) return []; const d = testsDone(), out = []; Object.values(d).forEach(r => { try { const rep = MEC_TESTS.report(r.test, r.result); rep.micro.forEach(m => out.push([m[0], m[1], r.test])); } catch (e) { } }); return out; }
+function microRow(m) { const a = areaByName(m[0]); return `<div class="row"><span class="att-i" style="color:${a ? areaColor(a) : 'inherit'}">${AREA_EMOJI[m[0]] || '◎'}</span><div class="main"><div class="t" dir="auto">${esc(m[1])}</div><div class="m"><span>${esc(m[0])}</span></div></div><div class="btns"><button class="btn small" data-act="micro-task" data-v="${esc(m[1])}" data-a="${esc(m[0])}">Today</button><button class="btn small ghost" data-act="micro-habit" data-v="${esc(m[1])}" data-a="${esc(m[0])}">Habit</button></div></div>`; }
+function vDiscover() {
+  if (!window.MEC_TESTS) { needTests().then(render); return header('Discover', 'Know yourself') + '<div class="card empty">Loading…</div>'; }
+  const T = MEC_TESTS, d = testsDone(), n = T.order.filter(k => d[k]).length, lock = !paid();
+  const cats = [...new Set(T.order.map(k => T.tests[k].cat))];
+  const tile = k => { const t = T.tests[k], r = d[k]; let chip = ''; if (r) { try { chip = T.report(k, r.result).chips[0]; } catch (e) { } }
+    return `<button class="tcard ${r ? 'done' : ''}" style="--tc:${t.color}" data-act="${lock ? 'plans' : r ? 'go' : 'test-start'}" ${r && !lock ? `data-to="test/${k}"` : `data-id="${k}"`}><span class="tc-i">${t.icon}</span><b>${esc(t.name)}</b><span class="small">${esc(t.short)}</span><span class="tc-f">${lock ? `${I.lock} With a plan` : r ? `<span class="chip">${esc(chip)}</span> Result` : `${t.mins} min · Start`}</span></button>`; };
+  return header('Discover', 'Know yourself. Know others. Choose your path.') + `
+  <div class="card packcard"><div class="pk-l"><div class="small">Your self-knowledge pack</div><b>${n ? `${n} of ${T.order.length} tests done` : 'Take your first test'}</b><div class="bar" style="margin:8px 0"><i style="width:${Math.round(100 * n / T.order.length)}%"></i></div><p class="small">Every test adds to one personal pack: who you are, how you work, how to deal with others and tiny steps for each life area.</p>
+    <div class="btns"><a class="btn primary" href="#/me">${I.user} Open my pack</a>${lock ? `<button class="btn" data-act="plans">${I.lock} Unlock all tests</button>` : ''}</div></div><div class="pk-r">${T.order.map(k => `<i style="background:${d[k] ? T.tests[k].color : 'var(--paper-dim)'}" title="${esc(T.tests[k].name)}"></i>`).join('')}</div></div>
+  <a class="card careerbanner" href="#/career"><div class="main"><span class="small">New</span><b>Career explorer</b><p class="small">Turn your experience into skills, see the careers that fit you on a map, and make the best one your next goal.</p></div><span class="cb-art">${I.compass}</span></a>
+  ${cats.map(c => `<h2 class="sec-h">${esc(c)}</h2><div class="tgrid">${T.order.filter(k => T.tests[k].cat === c).map(tile).join('')}${c === 'Wellbeing' ? `<button class="tcard" style="--tc:#2a78d6" data-act="wheel-test"><span class="tc-i">◎</span><b>Wheel of Life</b><span class="small">Balance across your 8 areas</span><span class="tc-f">2 min · Free</span></button>` : ''}</div>`).join('')}
+  <p class="small" style="margin-top:16px">These tests are tools for reflection, written for ME.Coach and based on well-known public models. They are not clinical or hiring assessments.</p>`;
+}
+/* test runner */
+let trun = null, trEmi = null;
+function testStart(id) {
+  if (!paid()) { plansSheet('Unlock the tests'); return; }
+  needTests().then(() => {
+    const t = MEC_TESTS.tests[id]; if (!t) return; if (sheetCtx) closeSheet(true);
+    const dr = (ui.tdraft || {})[id]; trun = { id, i: dr && dr.a ? Math.min(dr.i, t.items.length - 1) : 0, a: dr && dr.a ? dr.a.slice() : [] };
+    let el = $('#trun'); if (!el) { el = document.createElement('div'); el.id = 'trun'; document.body.appendChild(el); }
+    el.style.setProperty('--tc', t.color);
+    el.innerHTML = `<div class="tr-top"><button class="icon-btn" data-act="tr-close" aria-label="Close">${I.close}</button><div class="tr-bar"><i></i></div><span class="tr-n small"></span></div><div class="tr-body"><div class="tr-emi"></div><div class="tr-q"></div></div>`;
+    trDraw(); if (emiAllowed()) needEmi().then(() => { const st = $('#trun .tr-emi'); if (st && Emi.supported()) { trEmi = Emi.mount(st, { fps: 30, zoom: 6.6 }); if (trEmi) { trEmi.play('wave'); trEmi.say(dr && dr.a && dr.a.length ? 'Welcome back! Let’s continue.' : `Let’s do ${t.name}. Answer with your first instinct.`, 4000); } } }).catch(() => { });
+  });
+}
+function trDraw() {
+  const t = MEC_TESTS.tests[trun.id], it = t.items[trun.i], n = t.items.length, el = $('#trun'); if (!el) return;
+  el.querySelector('.tr-bar i').style.width = Math.round(100 * trun.i / n) + '%'; el.querySelector('.tr-n').textContent = `${trun.i + 1} / ${n}`;
+  const cur = trun.a[trun.i];
+  el.querySelector('.tr-q').innerHTML = `<div class="small tr-k">${esc(t.name)}</div>` + (t.kind === 'pair'
+    ? `<h2 dir="auto">${esc(it[0])}</h2><div class="tr-pair">${[it[1], it[2]].map((x, v) => `<button class="${cur === v ? 'on' : ''}" data-act="tr-ans" data-v="${v}">${esc(x)}</button>`).join('')}</div>`
+    : `<h2 dir="auto">${esc(it[0])}</h2><div class="tr-lik">${t.scale.map((x, v) => `<button class="${cur === v ? 'on' : ''}" data-act="tr-ans" data-v="${v}"><i style="--s:${.55 + v * .12}"></i><span>${esc(x)}</span></button>`).join('')}</div>`)
+    + `<div class="tr-nav">${trun.i ? `<button class="btn ghost small" data-act="tr-back">${I.left} Back</button>` : '<span></span>'}<span class="small">${esc(t.about.split('.')[0])}.</span></div>`;
+}
+function trAnswer(v) {
+  const t = MEC_TESTS.tests[trun.id], n = t.items.length; trun.a[trun.i] = v; trun.i++;
+  ui.tdraft = Object.assign({}, ui.tdraft, { [trun.id]: { i: trun.i, a: trun.a } }); saveUi();
+  if (trEmi) { if (trun.i === Math.floor(n / 2)) { trEmi.play('cheer'); trEmi.say('Halfway there!', 2200); } else if (trun.i % 6 === 0) trEmi.play(['nod', 'thumbs', 'listen'][trun.i % 3]); }
+  if (trun.i >= n) return trFinish(); trDraw();
+}
+function trFinish() {
+  const id = trun.id, r = MEC_TESTS.score(id, trun.a); save('tests', { test: id, date: today(), answers: trun.a, result: r });
+  const d = Object.assign({}, ui.tdraft); delete d[id]; ui.tdraft = d; saveUi();
+  if (trEmi) { trEmi.play('celebrate'); trEmi.say('Done! Here is what I found.', 2500); }
+  setTimeout(() => { trClose(); location.hash = '#/test/' + id; celebrate(); }, 1400);
+}
+function trClose() { if (trEmi) { trEmi.destroy(); trEmi = null; } const el = $('#trun'); if (el) el.remove(); trun = null; }
+function testBars(t, r) {
+  const T = MEC_TESTS;
+  if (t.kind === 'pair') return `<div class="tbars">${['EI', 'SN', 'TF', 'JP'].map(d => { const p = r.pct[d]; return `<div class="tb2"><span class="${p >= 50 ? 'on' : ''}">${esc(t.letters[d[0]][0])}</span><div class="tb2-b"><i style="width:${p}%"></i></div><span class="${p < 50 ? 'on' : ''}">${esc(t.letters[d[1]][0])}</span><b>${p >= 50 ? p : 100 - p}%</b></div>`; }).join('')}</div>`;
+  const lab = k => t.results && t.results[k] ? (Array.isArray(t.results[k]) ? (t.id === 'ennea' ? `${k} · ${t.results[k][0]}` : t.results[k][0]) : t.results[k].name) : t.traits ? t.traits[k][0] : k === 'EN' ? 'Energy' : k;
+  return `<div class="tbars">${r.top.map(k => `<div class="tb"><span dir="auto">${esc(lab(k))}</span><div class="tb-b"><i style="width:${r.pct[k]}%"></i></div><b>${r.pct[k]}%</b></div>`).join('')}</div>`;
+}
+function vTest(id) {
+  if (!window.MEC_TESTS) { needTests().then(render); return header('Result', '') + '<div class="card empty">Loading…</div>'; }
+  const t = MEC_TESTS.tests[id], d = testsDone()[id]; if (!t) return header('Not found', '') + '<div class="card empty">Unknown test.</div>';
+  if (!d) return header(t.name, t.short) + `<div class="card"><p>${esc(t.about)}</p><button class="btn primary" data-act="test-start" data-id="${id}">Start · ${t.mins} min</button></div>`;
+  const R = MEC_TESTS.report(id, d.result), hist = list('tests').filter(x => x.test === id).sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  return header(t.name, 'Taken ' + fmtDate(d.date, true)) + `
+  <div class="card thero" style="--tc:${t.color}"><span class="th-i">${t.icon}</span><div class="small">${esc(R.tag)}</div><h2 class="th-t" dir="auto">${esc(R.title)}</h2><p dir="auto">${esc(R.summary)}</p></div>
+  <div class="card" style="--tc:${t.color}"><h2>Your scores</h2>${testBars(t, d.result)}<p class="small" style="margin-top:8px">${esc(t.about)}</p></div>
+  ${R.blocks.map(([h, items]) => `<div class="card"><h2>${esc(h)}</h2><ul class="tlist">${items.map(x => `<li dir="auto">${esc(x)}</li>`).join('')}</ul></div>`).join('')}
+  ${R.others.length ? `<div class="card"><h2>${I.users} Working with others</h2><div class="list">${R.others.map(([k, v]) => `<div class="row"><div class="main"><div class="t">${esc(k)}</div><div class="m"><span dir="auto">${esc(v)}</span></div></div></div>`).join('')}</div></div>` : ''}
+  <div class="card"><h2>${I.bolt} Tiny steps for your life areas</h2><div class="list">${R.micro.map(m => microRow(m)).join('')}</div></div>
+  <div class="btns" style="margin:4px 0 14px"><a class="btn primary" href="#/me">${I.user} My full pack</a><button class="btn" data-act="test-start" data-id="${id}">Retake</button>${id === 'riasec' ? `<a class="btn" href="#/career">${I.compass} Career explorer</a>` : ''}</div>
+  ${hist.length > 1 ? `<div class="small">Earlier: ${hist.slice(1, 5).map(h => { let c = ''; try { c = MEC_TESTS.report(id, h.result).chips[0]; } catch (e) { } return esc(fmtDate(h.date) + ' ' + c); }).join(' · ')}</div>` : ''}`;
+}
+/* the self-knowledge pack */
+function vMe() {
+  if (!window.MEC_TESTS || !window.MEC_CAREERS) { Promise.all([needTests(), needCareers()]).then(render); return header('My pack', '') + '<div class="card empty">Loading…</div>'; }
+  const T = MEC_TESTS, d = testsDone(), got = T.order.filter(k => d[k]), rep = k => T.report(k, d[k].result);
+  if (!got.length) return header('My pack', 'Your self-knowledge pack') + `<div class="card empty">Take a test in Discover and your pack starts here.<div class="btns" style="justify-content:center;margin-top:10px"><a class="btn primary" href="#/discover">Go to Discover</a></div></div>`;
+  const chips = got.flatMap(k => rep(k).chips.map(c => [T.tests[k].color, T.tests[k].name, c]));
+  const disc = d.disc && rep('disc'), types = d.types && rep('types'), riasec = d.riasec && rep('riasec');
+  const talk = [disc && T.tests.disc.results[d.disc.result.top[0]].talk, types && (d.types.result.type[0] === 'I' ? 'Give me time to think before I answer.' : 'I think out loud; talking it through helps me.'), d.conflict && `In disagreements I tend to ${T.tests.conflict.results[d.conflict.result.top[0]][0].toLowerCase()}.`].filter(Boolean);
+  const works = [disc && T.tests.disc.results[d.disc.result.top[0]].work, types && types.blocks[0][1][0], d.big5 && rep('big5').blocks[0][1][1]].filter(Boolean);
+  const others = [].concat(disc ? disc.others : [], d.conflict ? rep('conflict').others.slice(0, 5) : []);
+  const fit = riasec ? careerRank(careerProfile(), riasec.code).slice(0, 5) : [];
+  const micros = testMicros(), byArea = T.areas.map(a => [a, micros.filter(m => m[0] === a)]).filter(x => x[1].length);
+  const nm = me && me.name || 'Me';
+  return header('My pack', 'Your self-knowledge pack') + `
+  <div class="card mehero"><div class="mh-av">${esc(nm.slice(0, 1).toUpperCase())}</div><div class="main"><b dir="auto">${esc(nm)}</b><div class="mh-chips">${chips.map(([c, n, v]) => `<span class="mchip" style="--tc:${c}" title="${esc(n)}">${esc(v)}</span>`).join('')}</div><div class="small">${got.length} of ${T.order.length} tests · updated ${esc(fmtDate(Object.values(d).map(x => x.date).sort().pop(), true))}</div></div><button class="btn small" data-act="print-pack">PDF</button></div>
+  <div class="card"><h2>${I.user} Who you are</h2><div class="list">${got.map(k => { const r = rep(k); return `<a class="row" href="#/test/${k}"><span class="att-i" style="color:${T.tests[k].color}">${T.tests[k].icon}</span><div class="main"><div class="t">${esc(T.tests[k].name)} · <span dir="auto">${esc(r.title)}</span></div><div class="m"><span dir="auto">${esc(r.summary).slice(0, 220)}</span></div></div></a>`; }).join('')}</div></div>
+  ${works.length ? `<div class="card"><h2>${I.rocket} How you work best</h2><ul class="tlist">${works.map(x => `<li dir="auto">${esc(x)}</li>`).join('')}</ul></div>` : ''}
+  ${talk.length ? `<div class="card talkcard"><h2>${I.users} How to talk to me</h2><ul class="tlist">${talk.map(x => `<li dir="auto">${esc(x)}</li>`).join('')}</ul><button class="btn small" data-act="copy" data-text="${esc('How to work with ' + nm + ':\n- ' + talk.join('\n- '))}">Copy to share with your team</button></div>` : ''}
+  ${others.length ? `<div class="card"><h2>${I.users} Dealing with other people</h2><div class="list">${others.map(([k, v]) => `<div class="row"><div class="main"><div class="t">${esc(k)}</div><div class="m"><span dir="auto">${esc(v)}</span></div></div></div>`).join('')}</div></div>` : ''}
+  ${d.values ? `<div class="card"><h2>${I.star} What drives you</h2><p dir="auto">${esc(rep('values').summary)}</p>${d.ennea ? `<p dir="auto">${esc(rep('ennea').summary)}</p>` : ''}</div>` : ''}
+  ${fit.length ? `<div class="card"><h2>${I.compass} Career fit · code ${esc(riasec.code)}</h2><div class="list">${fit.map(c => `<a class="row" href="#/career/${c.id}"><div class="main"><div class="t">${esc(c.title)}</div><div class="bar thin" style="margin-top:6px"><i style="width:${c.match}%;background:${MEC_CAREERS.FAM[c.fam][1]}"></i></div></div><b class="small">${c.match}%</b></a>`).join('')}</div><a class="btn small" href="#/career" style="margin-top:8px">Open the Career explorer</a></div>` : ''}
+  <div class="card"><h2>${I.wheel} Your growth plan across the 8 areas</h2>${byArea.length ? byArea.map(([a, ms]) => `<div class="pk-area"><div class="pk-ah">${AREA_EMOJI[a] || ''} <b>${esc(a)}</b>${areaByName(a) && areaScore(areaByName(a).id) != null ? `<span class="chip">${areaScore(areaByName(a).id)}/10</span>` : ''}</div><div class="list">${ms.map(m => microRow(m)).join('')}</div></div>`).join('') : '<div class="empty">Take more tests to fill your growth plan.</div>'}</div>
+  <p class="small">Based on your answers. Use it as a mirror for reflection; people grow and change.</p>`;
+}
+
+/* ---------- Career explorer ---------- */
+const careerProfile = () => get('careers', 'profile') || { id: 'profile', roles: [], exps: [], skills: [], wants: [], edu: '', saved: [] };
+function careerSkills(p) {
+  const C = MEC_CAREERS, w = {}; const add = (ids, n) => ids.forEach(s => { w[s] = (w[s] || 0) + n; });
+  (p.roles || []).forEach(r => { const R = C.ROLES.find(x => x[0] === r); if (R) add(R[1], 2); });
+  (p.exps || []).forEach(r => { const E = C.EXPS.find(x => x[0] === r); if (E) add(E[1], 1); });
+  add(p.skills || [], 2); (p.off || []).forEach(s => { if (!(p.skills || []).includes(s)) delete w[s]; });
+  const mx = Math.max(1, ...Object.values(w)); return Object.entries(w).map(([s, v]) => [s, v / mx]).sort((a, b) => b[1] - a[1]);
+}
+function careerCode(p) { const d = testsDone().riasec; return d ? d.result.top.slice(0, 3).join('') : (p.code || ''); }
+function careerRank(p, code) {
+  const C = MEC_CAREERS, sk = Object.fromEntries(careerSkills(p)), cd = code || careerCode(p), wantFam = new Set((p.wants || []).flatMap(w => C.WANT_FAM[w] || []));
+  return C.careers.map(c => { const have = c.skills.filter(s => sk[s]), skill = Math.sqrt(c.skills.reduce((s, x) => s + Math.min(1, sk[x] || 0), 0) / c.skills.length);
+    const inter = cd ? ([...c.code].reduce((s, l, i) => s + (cd.indexOf(l) === 0 ? 1 : cd.indexOf(l) === 1 ? .7 : cd.indexOf(l) === 2 ? .45 : 0) * (i ? .6 : 1), 0) / 1.6) : .4;
+    const want = wantFam.size ? (wantFam.has(c.fam) ? 1 : .2) : .5;
+    return Object.assign({}, c, { have, miss: c.skills.filter(s => !sk[s]), match: Math.round(100 * Math.min(1, .6 * skill + .3 * Math.min(1, inter) + .1 * want)) }); }).sort((a, b) => b.match - a.match);
+}
+function identity(p) {
+  const C = MEC_CAREERS, sk = careerSkills(p).slice(0, 3).map(([s]) => C.S[s].toLowerCase()), top = careerRank(p).slice(0, 3), fam = top[0] ? C.FAM[top[0].fam][0].toLowerCase() : 'my field';
+  const roles = (p.roles || []).slice(0, 2).join(' and ').toLowerCase(), wants = (p.wants || []).map(w => (C.WANTS.find(x => x[0] === w) || [, ''])[1].toLowerCase()).slice(0, 2).join(' and ');
+  if (!sk.length) return '';
+  return `I am a ${roles ? roles + ' ' : ''}professional who brings ${sk.slice(0, -1).join(', ')}${sk.length > 1 ? ' and ' : ''}${sk[sk.length - 1]}. I am moving toward ${fam}${wants ? `, looking for ${wants}` : ''}.`;
+}
+function vCareer(arg) {
+  if (!window.MEC_CAREERS) { Promise.all([needCareers(), needTests()]).then(render); return header('Career explorer', '') + '<div class="card empty">Loading…</div>'; }
+  const C = MEC_CAREERS, p = careerProfile(); if (!['story', 'skills', 'map', 'saved'].includes(ui.cStep)) { ui.cStep = (p.roles || []).length ? 'map' : 'story'; saveUi(); } const step = ui.cStep;
+  if (arg) setTimeout(() => careerSheet(arg), 30);
+  const steps = [['story', '1', 'Your story'], ['skills', '2', 'Your skills'], ['map', '3', 'Explore'], ['saved', '4', `Saved${(p.saved || []).length ? ' · ' + p.saved.length : ''}`]];
+  const nav = `<div class="cstep">${steps.map(([k, n, l]) => `<button class="${step === k ? 'on' : ''}" data-act="c-step" data-v="${k}"><b>${n}</b>${l}</button>`).join('')}</div>`;
+  let body = '';
+  if (step === 'story') {
+    const q = (ui.cq || '').toLowerCase(), roles = C.ROLES.map(r => r[0]).filter(r => !q || r.toLowerCase().includes(q));
+    body = `<div class="card"><h2>Roles you have had</h2><p class="small">Pick every job or role you have done, including part-time and freelance.</p><input class="search" type="search" placeholder="Search roles" data-input="cq" value="${esc(ui.cq || '')}" style="width:100%;margin:6px 0 10px"><div class="ochips">${roles.map(r => `<button class="ochip ${(p.roles || []).includes(r) ? 'on' : ''}" data-act="c-tog" data-k="roles" data-v="${esc(r)}">${esc(r)}</button>`).join('')}</div></div>
+    <div class="card"><h2>Other experience</h2><div class="ochips">${C.EXPS.map(([e]) => `<button class="ochip ${(p.exps || []).includes(e) ? 'on' : ''}" data-act="c-tog" data-k="exps" data-v="${esc(e)}">${esc(e)}</button>`).join('')}</div></div>
+    <div class="card"><h2>What you want more of</h2><div class="ochips">${C.WANTS.map(([k, l]) => `<button class="ochip ${(p.wants || []).includes(k) ? 'on' : ''}" data-act="c-tog" data-k="wants" data-v="${k}">${esc(l)}</button>`).join('')}</div></div>
+    <div class="card"><h2>Your interests</h2>${testsDone().riasec ? `<p>From your Career interests test: <b>${esc(careerCode(p))}</b></p>` : `<p class="small">Pick up to three, or take the Career interests test for a precise code.</p><div class="ochips">${['R', 'I', 'A', 'S', 'E', 'C'].map(l => `<button class="ochip ${(p.code || '').includes(l) ? 'on' : ''}" data-act="c-code" data-v="${l}">${esc({ R: 'Hands-on', I: 'Analysing', A: 'Creating', S: 'Helping', E: 'Leading', C: 'Organising' }[l])}</button>`).join('')}</div>${paid() ? '<button class="btn small" data-act="test-start" data-id="riasec" style="margin-top:10px">Take the 6-minute test</button>' : ''}`}</div>
+    <div class="btns"><button class="btn primary" data-act="c-step" data-v="skills" ${(p.roles || []).length + (p.exps || []).length ? '' : 'disabled'}>See my skills →</button></div>`;
+  } else if (step === 'skills') {
+    const sk = careerSkills(p), id = identity(p);
+    body = sk.length ? `<div class="card idcard"><div class="small">Your career identity</div><p class="id-s" dir="auto">${esc(id)}</p><button class="btn small" data-act="copy" data-text="${esc(id)}">Copy</button></div>
+    <div class="card"><h2>Your skill fingerprint <span class="count">${sk.length}</span></h2><p class="small">Bigger means more evidence from your story. Tap a skill to remove it, or add more below.</p><div class="skcloud">${sk.map(([s, w]) => `<button class="skb" style="--w:${(.8 + w * .7).toFixed(2)}" data-act="c-skill-off" data-v="${s}">${esc(C.S[s])}</button>`).join('')}</div>
+    <details style="margin-top:10px"><summary class="small">Add a skill</summary><div class="ochips" style="margin-top:8px">${Object.entries(C.S).filter(([k]) => !sk.some(x => x[0] === k)).map(([k, l]) => `<button class="ochip" data-act="c-tog" data-k="skills" data-v="${k}">${esc(l)}</button>`).join('')}</div></details></div>
+    <div class="btns"><button class="btn primary" data-act="c-step" data-v="map">Explore careers →</button></div>` : '<div class="card empty">Add your roles first.</div>';
+  } else if (step === 'map') {
+    const ranked = careerRank(p), fam = ui.cFam || 'all', shown = ranked.filter(c => fam === 'all' || c.fam === fam), view = ui.cView === 'list' ? 'list' : 'map';
+    body = `<div class="toolbar"><div class="seg"><button class="${view === 'map' ? 'on' : ''}" data-act="c-view" data-v="map">Map</button><button class="${view === 'list' ? 'on' : ''}" data-act="c-view" data-v="list">List</button></div></div>
+    <div class="ochips cfam"><button class="ochip ${fam === 'all' ? 'on' : ''}" data-act="c-fam" data-v="all">All</button>${Object.entries(C.FAM).map(([k, [l, col]]) => `<button class="ochip ${fam === k ? 'on' : ''}" data-act="c-fam" data-v="${k}" style="--fc:${col}"><i class="fdot" style="background:${col}"></i>${esc(l)}</button>`).join('')}</div>
+    ${view === 'map' ? careerMap(shown.slice(0, 28), p) : `<div class="clist">${shown.slice(0, 40).map(c => `<button class="ccard" data-act="c-open" data-id="${c.id}" style="--fc:${C.FAM[c.fam][1]}"><div class="cc-top"><b>${esc(c.title)}</b><span class="cc-m">${c.match}%</span></div><div class="bar thin"><i style="width:${c.match}%;background:var(--fc)"></i></div><div class="small">${esc(C.FAM[c.fam][0])} · ${c.have.length}/${c.skills.length} skills · ${(p.saved || []).includes(c.id) ? '♥ saved' : esc(c.code)}</div></button>`).join('')}</div>`}`;
+  } else {
+    const ranked = careerRank(p), sv = (p.saved || []).map(id => ranked.find(c => c.id === id)).filter(Boolean);
+    body = sv.length ? `<div class="ctable-wrap card tight"><table class="ntable ccomp"><thead><tr><th></th>${sv.map(c => `<th><a href="#" data-act="c-open" data-id="${c.id}">${esc(c.title)}</a></th>`).join('')}</tr></thead><tbody>
+      <tr><td>Match</td>${sv.map(c => `<td><b>${c.match}%</b></td>`).join('')}</tr><tr><td>Field</td>${sv.map(c => `<td>${esc(C.FAM[c.fam][0])}</td>`).join('')}</tr><tr><td>Skills you have</td>${sv.map(c => `<td>${c.have.length}/${c.skills.length}</td>`).join('')}</tr><tr><td>To build</td>${sv.map(c => `<td class="small">${c.miss.map(s => esc(C.S[s])).join(', ') || '—'}</td>`).join('')}</tr><tr><td>Start</td>${sv.map(c => `<td class="small">${esc(c.start)}</td>`).join('')}</tr><tr><td></td>${sv.map(c => `<td><button class="btn small primary" data-act="c-goal" data-id="${c.id}">Make it my goal</button></td>`).join('')}</tr></tbody></table></div>` : '<div class="card empty">Tap ♥ on a career to save it and compare here.</div>';
+  }
+  return header('Career explorer', 'From your story to your next career') + nav + body;
+}
+function careerMap(cs, p) {
+  const C = MEC_CAREERS, narrow = window.innerWidth < 700, W = narrow ? 420 : 760, H = narrow ? 640 : 540, cx = W / 2, cy = H / 2, saved = new Set(p.saved || []);
+  const fams = Object.keys(C.FAM).filter(f => cs.some(c => c.fam === f)), mx = Math.max(...cs.map(c => c.match)), mn = Math.min(...cs.map(c => c.match)), rx = W / 2 - 46, ry = H / 2 - 46;
+  const nodes = cs.map(c => { const fi = fams.indexOf(c.fam), sector = (Math.PI * 2) / fams.length, sib = cs.filter(x => x.fam === c.fam), k = sib.indexOf(c), ang = -Math.PI / 2 + sector * fi + sector * ((k + .5) / sib.length - .5) * .8, rel = mx > mn ? (mx - c.match) / (mx - mn) : .5, d = .3 + rel * .66; return Object.assign({ x: cx + Math.cos(ang) * rx * d, y: cy + Math.sin(ang) * ry * d, r: (narrow ? 9 : 8) + (c.match - mn) / Math.max(1, mx - mn) * (narrow ? 9 : 10) }, c); });
+  const placed = [], lab = new Set(); nodes.slice().sort((a, b) => b.match - a.match).forEach(n => { if (lab.size >= (narrow ? 7 : 14)) return; const ly = n.y + n.r + 14; if (placed.some(q => Math.abs(q[0] - n.x) < (narrow ? 185 : 165) && Math.abs(q[1] - ly) < 30)) return; placed.push([n.x, ly]); lab.add(n.id); });
+  const fs = narrow ? 13 : 12;
+  return `<div class="card cmap-wrap"><svg class="cmap" viewBox="0 0 ${W} ${H}" role="img" aria-label="Career map">
+    ${[.36, .63, .96].map((r, i) => `<ellipse cx="${cx}" cy="${cy}" rx="${(rx * r).toFixed(0)}" ry="${(ry * r).toFixed(0)}" class="cm-ring"/><text x="${cx}" y="${(cy - ry * r + 13).toFixed(0)}" class="cm-rl" text-anchor="middle">${['Strongest fit', 'Good fit', 'Stretch'][i]}</text>`).join('')}
+    ${nodes.map(n => `<line x1="${cx}" y1="${cy}" x2="${n.x.toFixed(1)}" y2="${n.y.toFixed(1)}" class="cm-ln" style="stroke:${C.FAM[n.fam][1]}"/>`).join('')}
+    <g class="cm-me"><circle cx="${cx}" cy="${cy}" r="${narrow ? 30 : 34}"/><text x="${cx}" y="${cy + 5}" text-anchor="middle">You</text></g>
+    ${nodes.map(n => { const t = n.title.length > 22 ? n.title.slice(0, 20) + '…' : n.title, ax = Math.max(60, Math.min(W - 60, n.x)); return `<g class="cm-n" data-act="c-open" data-id="${n.id}" role="button" tabindex="0"><circle cx="${n.x.toFixed(1)}" cy="${n.y.toFixed(1)}" r="${n.r.toFixed(1)}" fill="${C.FAM[n.fam][1]}"/>${saved.has(n.id) ? `<text x="${n.x.toFixed(1)}" y="${(n.y + 4).toFixed(1)}" text-anchor="middle" class="cm-heart">♥</text>` : ''}${lab.has(n.id) ? `<text x="${ax.toFixed(1)}" y="${(n.y + n.r + 14).toFixed(1)}" text-anchor="middle" class="cm-t" style="font-size:${fs}px">${esc(t)} <tspan class="cm-p">${n.match}%</tspan></text>` : ''}<title>${esc(n.title)} · ${n.match}%</title></g>`; }).join('')}
+  </svg><div class="small" style="text-align:center">Closer to you means a stronger fit. Colours show the field. Tap a circle for details, or switch to List.</div></div>`;
+}
+function careerSheet(id) {
+  const C = MEC_CAREERS, p = careerProfile(), c = careerRank(p).find(x => x.id === id); if (!c) return;
+  const pitch = `I am interested in the ${c.title} role. In my experience as ${(p.roles || []).slice(0, 2).join(' and ') || 'a professional'}, I built ${c.have.slice(0, 3).map(s => C.S[s].toLowerCase()).join(', ') || 'relevant skills'}. I am now developing ${c.miss.slice(0, 2).map(s => C.S[s].toLowerCase()).join(' and ') || 'further expertise'} to grow in this direction.`;
+  openSheet(c.title, `<div class="csh" style="--fc:${C.FAM[c.fam][1]}"><div class="csh-top">${ring(c.match, 76, c.match + '%')}<div class="main"><span class="chip" style="background:color-mix(in srgb,var(--fc) 18%,transparent);color:var(--fc)">${esc(C.FAM[c.fam][0])}</span><p dir="auto">${esc(c.what)}</p><div class="small">Interest code ${esc(c.code)}</div></div></div>
+    <h3>Skills you already have</h3><div class="ochips">${c.have.map(s => `<span class="skc ok">✓ ${esc(C.S[s])}</span>`).join('') || '<span class="small">None yet from your story.</span>'}</div>
+    <h3>Skills to build</h3><div class="ochips">${c.miss.map(s => `<span class="skc gap">+ ${esc(C.S[s])}</span>`).join('') || '<span class="small">You have them all.</span>'}</div>
+    <h3>How to start</h3><p class="small">${esc(c.start)}</p><ol class="cpath">${c.path.map(x => `<li>${esc(x)}</li>`).join('')}</ol>
+    <h3>Related careers</h3><div class="ochips">${c.rel.map(r => C.careers.find(x => x.id === r)).filter(Boolean).map(r => `<button class="ochip" data-act="c-open" data-id="${r.id}">${esc(r.title)}</button>`).join('')}</div>
+    <h3>Your pitch</h3><p class="small pitch" dir="auto">${esc(pitch)}</p></div>`,
+    `<button class="btn" data-act="c-save" data-id="${c.id}">${(p.saved || []).includes(c.id) ? '♥ Saved' : '♡ Save'}</button><button class="btn" data-act="copy" data-text="${esc(pitch)}">Copy pitch</button><button class="btn primary" data-act="c-goal" data-id="${c.id}">Make it my goal</button>`, { noFocus: true });
+  emiReact('career', `${c.title}: ${c.match}% match.`);
+}
+function careerGoal(id) {
+  const C = MEC_CAREERS, p = careerProfile(), c = careerRank(p).find(x => x.id === id); if (!c) return;
+  if (list('goals').some(g => g.careerId === id)) { toast('This career is already a goal'); return; }
+  const a = areaByName('Career'), t = today(), tgt = addDays(t, 365);
+  const g = save('goals', { title: 'Become a ' + c.title, areaId: a ? a.id : '', area: 'Career', target: tgt, status: 'In progress', careerId: id, why: c.what, micro: [...c.miss.slice(0, 4).map(s => `Spend 15 minutes building ${C.S[s].toLowerCase()}`), `Read one job ad for ${c.title} and note 3 requirements`, `Message one ${c.title} on LinkedIn for advice`] });
+  c.path.forEach((s, i) => save('milestones', { title: s, goalId: g.id, target: addDays(t, Math.round(365 * (i + 1) / c.path.length)), status: 'Planned' }));
+  closeSheet(true); toast('Goal created with milestones and micro-actions'); location.hash = '#/goal/' + encodeURIComponent(g.id);
+}
+function careerSave(fn) { const p = careerProfile(); const n = fn(Object.assign({}, p, { roles: (p.roles || []).slice(), exps: (p.exps || []).slice(), skills: (p.skills || []).slice(), wants: (p.wants || []).slice(), saved: (p.saved || []).slice(), off: (p.off || []).slice() })) || p; save('careers', Object.assign({ id: 'profile' }, n)); }
+
+/* ---------- navigation: grouped and visual ---------- */
+const NAV_GROUPS = () => [
+  ['Plan', [['today', 'Today', I.today], ['calendar', 'Calendar', I.cal], ['tasks', 'Tasks', I.tasks], ['projects', 'Boards', I.board]]],
+  ['Grow', [['life', 'Life areas', I.wheel], ['habits', 'Habits', I.repeat], ['progress', 'Coach', I.prog]]],
+  ['Discover', [['discover', 'Tests', I.spark], ['me', 'My pack', I.user], ['career', 'Career explorer', I.compass]]],
+  ['Wellbeing', [['calm', 'Calm', I.calm], ['emi', 'Emi guide', I.star]]],
+  ...(isOwner() ? [['Business', [['products', 'Products', I.money], ['jobs', 'Job search', I.jobs], ['admin', 'Members', I.users]]]] : []),
+  ['', [['settings', 'Settings', I.set]]]
+];
+const navActive = page => ({ today: 'today', calendar: 'calendar', life: 'life', area: 'life', goal: 'life', habits: 'life', progress: 'life', plan: 'life', learn: 'life', discover: 'discover', test: 'discover', me: 'discover', career: 'discover' })[page] || 'hub';
+function sideHtml(page) {
+  return `<aside class="side"><div class="brand">ME<b>.</b>Coach<span>self-coaching</span></div>${NAV_GROUPS().map(([g, items]) => `${g ? `<div class="grp">${g}</div>` : '<div class="grp sp"></div>'}${items.filter(([k]) => can(k) && !hidden().has(k)).map(([k, l, ic]) => `<a href="#/${k}" class="${page === k || (navActive(page) === k && page !== 'today') || (k === 'projects' && page === 'board') ? 'on' : ''}">${ic}${l}${badge(k)}</a>`).join('')}`).join('')}</aside>`;
+}
+function vHub() {
+  const desc = { today: 'Plan and close your day', calendar: 'Day, week and month', tasks: 'Everything to do', projects: 'Boards for every project', life: 'Your 8 areas and goals', habits: 'Daily habits and streaks', progress: '40-day cycle, insights, roadmap', discover: '9 tests to know yourself', me: 'Your self-knowledge pack', career: 'Find careers that fit you', calm: 'Breathe and reflect', emi: 'Meet your 3D guide', products: 'Your products and sales', jobs: 'Applications and follow-ups', admin: 'Accounts and payments', settings: 'Account, data, reminders' };
+  const col = { Plan: '#2a78d6', Grow: '#1baf7a', Discover: '#6250d6', Wellbeing: '#e87ba4', Business: '#c9a227', '': '#787774' };
+  return header('More', '') + NAV_GROUPS().map(([g, items]) => `${g ? `<h2 class="sec-h">${g}</h2>` : '<h2 class="sec-h">Account</h2>'}<div class="hubgrid">${items.filter(([k]) => can(k) && !hidden().has(k)).map(([k, l, ic]) => `<a class="hubt" href="#/${k}" style="--hc:${col[g]}"><span class="hi">${ic}</span><b>${l}</b><span class="small">${desc[k] || ''}</span>${badge(k)}</a>`).join('')}</div>`).join('') +
+    `<h2 class="sec-h">Extras</h2><div class="hubgrid"><a class="hubt" href="${BOOK_URL}" target="_blank" rel="noopener" style="--hc:#c9a227"><span class="hi">📘</span><b>Free book</b><span class="small">Self-Coaching Blueprint</span></a><a class="hubt" href="#/journal" style="--hc:#787774"><span class="hi">${I.journal}</span><b>Journal</b><span class="small">Your Night Balance days</span></a><a class="hubt" href="#/trash" style="--hc:#787774"><span class="hi">${I.trash}</span><b>Trash</b><span class="small">Restore deleted items</span></a></div>`;
+}
+
+function v8Acts(a, id) {
+  return {
+    'emi-sheet': () => emiSheet(), 'emi-hide': () => { ui.emiOff = true; saveUi(); closeSheet(true); emiDock(); toast('Emi is hidden. Turn it back on in More → Emi guide.'); },
+    'emi-toggle': () => { ui.emiOff = !ui.emiOff; saveUi(); emiDock(); render(); },
+    'emi-view': () => vEmi.inst && vEmi.inst.view(a.dataset.v), 'emi-spin': () => vEmi.inst && vEmi.inst.autoRotate(true), 'emi-play': () => vEmi.inst && vEmi.inst.play(a.dataset.v),
+    'sheet-close-go': () => closeSheet(true),
+    'test-start': () => testStart(id), 'tr-ans': () => trAnswer(Number(a.dataset.v)), 'tr-back': () => { if (trun && trun.i > 0) { trun.i--; trDraw(); if (trEmi) trEmi.play('listen'); } }, 'tr-close': () => { trClose(); toast('Progress saved. Continue any time.'); },
+    'micro-done': () => { const g = get('goals', id); if (!g) return; const md = Object.assign({}, g.microDone || {}), t = today(); if (md[t]) delete md[t]; else md[t] = microToday().find(m => m.g.id === id)?.t || true; save('goals', Object.assign({}, g, { microDone: md })); if (md[t]) emiReact('micro', 'Tiny step, big direction. 👏'); },
+    'micro-shuffle': () => { const g = get('goals', id); if (!g) return; const sh = Object.assign({}, g.microShift || {}); sh[today()] = (Number(sh[today()]) || 0) + 1; save('goals', Object.assign({}, g, { microShift: sh })); },
+    'micro-add': () => { const g = get('goals', id); if (!g) return; form('New micro-action', [{ k: 't', label: 'A step of 2 to 15 minutes', req: true, ph: 'e.g. Write the first line of my cover letter' }], {}, v => { save('goals', Object.assign({}, g, { micro: [...(g.micro || []), v.t.trim()] })); toast('Added'); }); },
+    'micro-del': () => { const g = get('goals', id); if (!g) return; const m = (g.micro || []).slice(); m.splice(Number(a.dataset.i), 1); save('goals', Object.assign({}, g, { micro: m })); },
+    'micro-task': () => { const ar = areaByName(a.dataset.a); save('tasks', { title: a.dataset.v, due: today(), state: 'To do', priority: 'P2', owner: 'Me', areaId: ar ? ar.id : '' }); toast('Added to today'); },
+    'micro-habit': () => { const ar = areaByName(a.dataset.a); save('habits', { title: a.dataset.v.replace(/ today\.?$/i, '').replace(/\.$/, ''), days: [0, 1, 2, 3, 4, 5, 6], perWeek: 7, areaId: ar ? ar.id : '', color: ar ? ar.color : 0 }); toast('New habit added'); },
+    'new-habit-area': () => FORMS.habit({ areaId: id, days: [0, 1, 2, 3, 4, 5, 6] }),
+    'print-pack': () => { document.documentElement.classList.add('printing'); setTimeout(() => { window.print(); document.documentElement.classList.remove('printing'); }, 60); },
+    'c-step': () => { ui.cStep = a.dataset.v; saveUi(); render(); window.scrollTo(0, 0); },
+    'c-tog': () => { const k = a.dataset.k, v = a.dataset.v; careerSave(p => { const arr = p[k] || []; const i = arr.indexOf(v); if (i >= 0) arr.splice(i, 1); else arr.push(v); p[k] = arr; if (k === 'skills') p.off = (p.off || []).filter(x => x !== v); return p; }); },
+    'c-code': () => careerSave(p => { let c = p.code || ''; c = c.includes(a.dataset.v) ? c.replace(a.dataset.v, '') : (c + a.dataset.v).slice(-3); p.code = c; return p; }),
+    'c-skill-off': () => careerSave(p => { const v = a.dataset.v; p.skills = (p.skills || []).filter(s => s !== v); p.off = [...(p.off || []).filter(x => x !== v), v]; return p; }),
+    'c-view': () => { ui.cView = a.dataset.v; saveUi(); render(); }, 'c-fam': () => { ui.cFam = a.dataset.v; saveUi(); render(); },
+    'c-open': () => careerSheet(id),
+    'c-save': () => { careerSave(p => { const s = p.saved || []; const i = s.indexOf(id); if (i >= 0) s.splice(i, 1); else s.push(id); p.saved = s; return p; }); careerSheet(id); },
+    'c-goal': () => careerGoal(id)
+  };
+}
+
 /* ---------------- shell + router ---------------- */
 function route() { const h = location.hash.replace(/^#\/?/, '') || 'today'; const [p, ...rest] = h.split('/'); return { page: p, arg: decodeURIComponent(rest.join('/')) }; }
 function render() {
@@ -1835,17 +2221,17 @@ function render() {
   if (drag && drag.on) { render.pending = true; return; }
   const { page, arg } = route();
   if (REMOVED.has(page) || (me && !can(page))) { location.replace('#/today'); return; }
-  const views = { projects: vBoards, board: () => vBoard(arg), calm: vCalm,  today: vToday, tasks: vTasks, calendar: vCalendar, plan: vPlan, more: vMore, learn: vLearn, evidence: vEvidence, decisions: vDecisions, notes: vNotes, note: () => vNote(arg), review: vReview, settings: vSettings, jobs: vJobs, immigration: vImmigration, progress: vProgress, journal: vJournal, report: vReport, templates: vTemplates, trash: vTrash, health: vHealth, course: () => vCourse(arg), documents: vDocuments, notes: vNotesHub, goal: () => vGoal(arg), area: () => vArea(arg), admin: vAdmin, habits: vHabits, products: vProducts };
+  const views = { life: vLife, discover: vDiscover, test: () => vTest(arg), me: vMe, career: () => vCareer(arg), emi: vEmi, hub: vHub, projects: vBoards, board: () => vBoard(arg), calm: vCalm,  today: vToday, tasks: vTasks, calendar: vCalendar, plan: vPlan, more: vHub, learn: vLearn, evidence: vEvidence, decisions: vDecisions, notes: vNotes, note: () => vNote(arg), review: vReview, settings: vSettings, jobs: vJobs, immigration: vImmigration, progress: vProgress, journal: vJournal, report: vReport, templates: vTemplates, trash: vTrash, health: vHealth, course: () => vCourse(arg), documents: vDocuments, notes: vNotesHub, goal: () => vGoal(arg), area: () => vArea(arg), admin: vAdmin, habits: vHabits, products: vProducts };
   if (page === 'immigration' || page === 'evidence') { ui.dTab = page; views[page] = vDocuments; } if (page === 'journal') views.journal = () => header('Journal', 'Your Night Balance days') + stripHead(vJournal());
   if (page === 'plan') { ui.pTab = ui.planTab === 'goals' ? 'goals' : 'roadmap'; views.plan = vProgress; } if (page === 'learn') { ui.pTab = 'learning'; views.learn = vProgress; }
   const html = icoize((views[page] || vToday)());
-  const active = NAV_MAIN.some(([k]) => k === page) ? page : page === 'more' ? 'more' : ['plan', 'learn', 'report', 'course', 'goal', 'area'].includes(page) ? 'progress' : page === 'board' ? 'more' : NAV_MORE.some(([k]) => k === page) ? 'more' : 'today';
+  const active = navActive(page);
   const focusKey = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.input : null;
   const sel = focusKey ? [document.activeElement.selectionStart, document.activeElement.selectionEnd] : null;
   const scrollY = window.scrollY;
   const app = $('#app');
   app.innerHTML = `<div class="shell">
-    <aside class="side"><div class="brand">ME<b>.</b>Coach<span>self-coaching</span></div>${NAV_MAIN.map(([k, l, ic]) => `<a href="#/${k}" class="${active === k ? 'on' : ''}">${ic}${l}${badge(k)}</a>`).join('')}<div class="grp">Workspace</div>${navMore().map(([k, l, ic]) => `<a href="#/${k}" class="${page === k || (k === 'projects' && page === 'board') ? 'on' : ''}">${ic}${l}</a>`).join('')}</aside>
+    ${sideHtml(page)}
     <main class="pg-${esc(page)}${render.lastPage !== page ? ' pg-in' : ''}">${html}</main>
     <nav class="tabs">${NAV_MAIN.map(([k, l, ic]) => `<a href="#/${k}" class="${active === k ? 'on' : ''}">${ic}${badge(k)}<span>${l}</span></a>`).join('')}</nav>
     <button class="fab" data-act="quick" aria-label="Add">${I.plus}</button></div>`;
@@ -2170,7 +2556,7 @@ function simpleForm(c, title, fields, rec) {
 }
 const FORMS = {
   product: r => simpleForm('products', 'product', [{ k: 'title', label: 'Product', req: true }, [{ k: 'type', label: 'Type', type: 'select', options: PROD_TYPES, blank: false, def: 'Book' }, { k: 'status', label: 'Status', type: 'select', options: PROD_STATES, blank: false, def: 'Idea' }], [{ k: 'price', label: 'Price', type: 'number', step: 0.01 }, { k: 'currency', label: 'Currency', ph: 'OMR, USD…' }], 'MORE', [{ k: 'platform', label: 'Sold on', ph: 'Amazon, website, YouTube…' }, { k: 'launch', label: 'Launch date', type: 'date' }], { k: 'link', label: 'Store link', type: 'url' }, { k: 'notes', label: 'Notes', type: 'textarea' }], r),
-  habit: r => simpleForm('habits', 'habit', [{ k: 'title', label: 'Habit', req: true, ph: 'e.g. 30 min walk' }, { k: 'days', label: 'Which days', type: 'days' }, [{ k: 'time', label: 'Time (optional)', type: 'time' }, { k: 'color', label: 'Colour', type: 'select', options: AREA_COL.map((c, i) => [i, ['Blue', 'Orange', 'Aqua', 'Yellow', 'Pink', 'Green', 'Violet', 'Red'][i]]), blank: false }], 'MORE', { k: 'goalId', label: 'Supports goal', type: 'select', options: goalOpts }, { k: 'why', label: 'Why this habit', type: 'textarea' }], Object.assign({ days: [0, 1, 2, 3, 4, 5, 6], color: list('habits').length % 8 }, r)),
+  habit: r => simpleForm('habits', 'habit', [{ k: 'title', label: 'Habit', req: true, ph: 'e.g. 30 min walk' }, { k: 'days', label: 'Which days', type: 'days' }, { k: 'areaId', label: 'Area of life', type: 'select', options: () => areas().map(a => [a.id, a.title]) }, [{ k: 'time', label: 'Time (optional)', type: 'time' }, { k: 'color', label: 'Colour', type: 'select', options: AREA_COL.map((c, i) => [i, ['Blue', 'Orange', 'Aqua', 'Yellow', 'Pink', 'Green', 'Violet', 'Red'][i]]), blank: false }], 'MORE', { k: 'goalId', label: 'Supports goal', type: 'select', options: goalOpts }, { k: 'why', label: 'Why this habit', type: 'textarea' }], Object.assign({ days: [0, 1, 2, 3, 4, 5, 6], color: list('habits').length % 8 }, r)),
   milestone: r => simpleForm('milestones', 'milestone', [{ k: 'title', label: 'Milestone', req: true, ph: 'e.g. Official IELTS 7.5 achieved' }, [{ k: 'target', label: 'Target date', type: 'date' }, { k: 'status', label: 'Status', type: 'select', options: MS_STATES, blank: false, def: 'Planned' }], 'MORE', [{ k: 'goalId', label: 'Goal', type: 'select', options: goalOpts }, { k: 'area', label: 'Area', type: 'select', options: AREAS }], { k: 'proof', label: 'How I will know it is achieved', type: 'textarea' }, { k: 'notes', label: 'Notes', type: 'textarea' }], r),
   application: r => simpleForm('applications', 'application', [[{ k: 'company', label: 'Company', req: true }, { k: 'role', label: 'Role', req: true }], [{ k: 'stage', label: 'Stage', type: 'select', options: APP_STAGES, blank: false, def: 'Saved' }, { k: 'appliedOn', label: 'Applied on', type: 'date' }], { k: 'followUp', label: 'Follow up on', type: 'date', hint: 'Appears in Today and the calendar.' }, 'MORE', [{ k: 'location', label: 'Location' }, { k: 'source', label: 'Found via', ph: 'LinkedIn, referral…' }], { k: 'link', label: 'Job ad link', type: 'url' }, [{ k: 'easy', label: 'Easy Apply', type: 'check' }, { k: 'contactEmail', label: 'Contact email', type: 'email' }], { k: 'contactUrl', label: 'Contact LinkedIn profile', type: 'url' }, [{ k: 'cvVersion', label: 'CV version used' }, { k: 'contact', label: 'Contact person' }], { k: 'notes', label: 'Notes', type: 'textarea' }], r),
   immig: r => simpleForm('immigration', 'document', [{ k: 'title', label: 'Document', req: true }, [{ k: 'status', label: 'Status', type: 'select', options: IMM_STATES, blank: false, def: 'Not started' }, { k: 'category', label: 'Category', type: 'select', options: IMM_CATS, blank: false, def: 'Other' }], { k: 'expiry', label: 'Expiry date (if any)', type: 'date' }, 'MORE', { k: 'source', label: 'Official requirement link', type: 'url' }, { k: 'evidenceId', label: 'Linked evidence item', type: 'select', options: () => list('evidence').map(e => [e.id, (e.code ? e.code + ' · ' : '') + e.title]) }, { k: 'notes', label: 'Notes', type: 'textarea' }], r),
@@ -2453,7 +2839,7 @@ document.addEventListener('click', async e => {
     password: () => form('Change password', [{ k: 'current', label: 'Current password', type: 'password', req: true }, { k: 'next', label: 'New password (10+ characters)', type: 'password', req: true }], {}, v => { api('password', { body: v }).then(j => { ls.set(K.tok, j.token); toast('Password changed. Other devices must sign in again.'); }).catch(err => toast(err.message)); }),
     logout: async () => { if (!confirm('Sign out on this device? Data stays on the server.')) return; if (Object.keys(outbox).length) await sync(); try { await api('logout', { method: 'POST' }); } catch {} ls.del(K.tok); ls.del(K.db); ls.del(K.out); ls.del(K.rev); ls.del(K.user); me = null; db = blankDb(); outbox = {}; showLanding(); }
   };
-  Object.assign(map, v7Acts(a, id, e), v71Acts(a, id), { 'board-open': () => { closeSheet(true); location.hash = '#/board/' + encodeURIComponent(id); }, 'habit-open-s': () => {} });
+  Object.assign(map, v7Acts(a, id, e), v71Acts(a, id), v8Acts(a, id), { 'board-open': () => { closeSheet(true); location.hash = '#/board/' + encodeURIComponent(id); }, 'habit-open-s': () => {} });
   if (map[act]) { if (act !== 'sheet-close' && act !== 'form-save' && act !== 'form-del' && sheetCtx && ['new-task', 'new-event', 'new-note', 'new-decision', 'new-evidence', 'new-session', 'closeout', 'log-time', 'new-application', 'new-milestone', 'new-immig', 'weekly', 'money-add', 'from-tpl', 'new-course', 'morning', 'new-goal', 'wheel-test', 'cycle-new', 'focus-free', 'new-habit'].includes(act)) closeSheet(true); map[act](); }
 });
 document.addEventListener('input', e => { const k = e.target.dataset && e.target.dataset.input; if (k) { ui[k] = e.target.value; saveUi(); if (e.target.dataset.norender) return; clearTimeout(render.t); render.t = setTimeout(render, 180); } });
@@ -2494,6 +2880,7 @@ const GOAL_TPL = { 'Career': 'Take one career step every week', 'Money': 'Save a
 const mideast = () => /Muscat|Dubai|Riyadh|Qatar|Bahrain|Kuwait|Tehran|Baghdad|Amman/.test(Intl.DateTimeFormat().resolvedOptions().timeZone || '');
 const brandMark = `<span class="mark">ME<b>.</b></span>`;
 function showLanding(msg) {
+  setTimeout(emiDock, 0);
   const site = document.getElementById('site');
   if (site) { closeSheet(true); document.documentElement.classList.remove('in-app'); $('#app').innerHTML = ''; document.title = 'ME.Coach · Your self-coaching app'; const q = new URLSearchParams(location.search); if (q.has('start')) onboard(); else if (q.has('signin')) signInSheet(msg); else if (msg) toast(msg); return; }
   closeSheet(true); const app = $('#app'); document.title = 'ME.Coach · Your self-coaching app';
@@ -2658,7 +3045,7 @@ function migrate() {
   }
   if (n) { persist(); queueSync(); }
 }
-function start() { document.documentElement.classList.add('in-app'); loadBilling(); document.title = 'ME.Coach'; db = normalise(ls.get(K.db, null)); outbox = ls.get(K.out, {}) || {}; migrate(); render.keepScroll = false; render(); sync(); refreshMe().then(() => { render(); if (me && me.access === false) paywall(); else if (sheetCtx && sheetCtx.paywall) closeSheet(); }); if (ui.focus) focusShow(); else if (!signedIn.pk) setTimeout(tour, 900); signedIn.pk = false; }
+function start() { setTimeout(emiDock, 400); document.documentElement.classList.add('in-app'); loadBilling(); document.title = 'ME.Coach'; db = normalise(ls.get(K.db, null)); outbox = ls.get(K.out, {}) || {}; migrate(); render.keepScroll = false; render(); sync(); refreshMe().then(() => { render(); if (me && me.access === false) paywall(); else if (sheetCtx && sheetCtx.paywall) closeSheet(); }); if (ui.focus) focusShow(); else if (!signedIn.pk) setTimeout(tour, 900); signedIn.pk = false; }
 
 /* ---------------- boot ---------------- */
 if ('serviceWorker' in navigator && location.protocol === 'https:') { const had = !!navigator.serviceWorker.controller; navigator.serviceWorker.register('sw.js').catch(() => {}); navigator.serviceWorker.addEventListener('controllerchange', () => { if (had) toast('ME.Coach was updated', 'Reload', () => location.reload()); }); }
