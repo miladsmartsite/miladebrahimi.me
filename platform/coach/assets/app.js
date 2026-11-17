@@ -5,7 +5,7 @@
 (() => {
 'use strict';
 
-const VERSION = '8.0.0';
+const VERSION = '9.0.0';
 const API = 'api.php';
 const K = { db: 'mec.db', out: 'mec.outbox', tok: 'mec.token', rev: 'mec.rev', ui: 'mec.ui', last: 'mec.lastSync', user: 'mec.user' };
 const COLS = ['tasks','events','projects','goals','skills','logs','evidence','decisions','notes','ielts','sessions','settings','milestones','applications','immigration','habits','money','templates','courses','areas','wheel','cycles','focus','products','tests','careers'];
@@ -114,7 +114,7 @@ function syncHtml() {
   const pending = Object.keys(outbox).length;
   const last = ls.get(K.last);
   const label = syncState === 'off' ? 'offline' : pending ? `${pending} to sync` : last ? 'synced ' + fmtTime(last) : 'synced';
-  return `<span class="sync" id="syncind" title="${esc(lastError)}"><i class="dot ${syncState === 'off' ? 'off' : pending ? 'pending' : ''}"></i>${esc(label)}</span>`;
+  return `<span class="sync" id="syncind" title="${esc(lastError)}"><i class="dot ${syncState === 'off' ? 'off' : pending ? 'pending' : ''}"></i><span class="sync-l">${esc(label)}</span></span>`;
 }
 async function sync() {
   if (!ls.get(K.tok)) return;
@@ -874,7 +874,7 @@ function vArea(id) {
   const gs = list('goals').filter(g => goalArea(g) && goalArea(g).id === id), cs = list('courses').filter(c => c.areaId === id), s = areaScore(id);
   const hist = wheels().slice(0, 8).reverse().filter(w => areaScore(id, w) != null);
   return header(a.title, a.vision || '') + `
-  <div class="card areahero" style="--ac:${areaColor(a)}"><div class="ah-n">${s ?? '–'}<span>/10</span></div><div class="main"><div class="small">Target ${areaTarget(a)} · gap ${areaGap(a)}</div><div class="spark">${hist.map(w => `<i style="height:${areaScore(id, w) * 10}%" title="${esc(fmtDate(w.date))}: ${areaScore(id, w)}"></i>`).join('')}</div></div><button class="btn small ghost" data-act="area-form" data-id="${esc(id)}">Edit</button></div>
+  <div class="card areahero" style="--ac:${areaColor(a)}"><div class="ah-n">${s ?? '–'}<span>/10</span></div><div class="main"><div class="small">Target ${areaTarget(a)} · gap ${Math.round(areaGap(a) * 10) / 10}</div><div class="spark">${hist.map(w => `<i style="height:${areaScore(id, w) * 10}%" title="${esc(fmtDate(w.date))}: ${areaScore(id, w)}"></i>`).join('')}</div></div><button class="btn small ghost" data-act="area-form" data-id="${esc(id)}">Edit</button></div>
   <div class="card"><h2>Goals <span class="count">${gs.length}</span><span style="flex:1"></span><button class="btn small ghost" data-act="new-goal" data-area="${esc(id)}">${I.plus} Goal</button></h2>${gs.length ? `<div class="list">${gs.map(goalRow).join('')}</div>` : '<div class="empty">No goal for this area yet.</div>'}</div>
   <div class="card"><h2>Courses <span class="count">${cs.length}</span><span style="flex:1"></span><button class="btn small ghost" data-act="new-course" data-area="${esc(id)}">${I.plus} Course</button></h2>${cs.length ? `<div class="list">${cs.map(courseRow).join('')}</div>` : '<div class="empty">No course linked to this area.</div>'}</div>`;
 }
@@ -1869,20 +1869,20 @@ function emiGreeting() { const h = new Date().getHours(), nm = me && me.name ? m
 function emiTalk() { if (!emiInst) return; const tips = emiTips(); const t = tips[Math.floor(Math.random() * Math.min(3, tips.length))]; emiInst.say(t ? t[0] : coachMsgs()[slotOf(new Date().getHours())]); }
 function emiTips() {
   const t = today(), out = [], mlog = list('logs').find(l => l.type === 'morning' && l.date === t), done = id => list('tests').some(x => x.test === id);
-  if (!mlog && new Date().getHours() < 14) out.push(['One minute of Morning Balance sets up your whole day.', 'morning', 'Start Morning Balance']);
-  if (!wheels().length) out.push(['Let’s score your Wheel of Life. It takes two minutes.', 'wheel-test', 'Take the Wheel test']);
-  const m = microToday()[0]; if (m) out.push([`Tiny step for today: ${m.t}`, 'go', 'Open Life', 'life']);
+  if (!mlog && new Date().getHours() < 14) out.push(['Psst… one minute of Morning Balance and your day plans itself. Almost. ☀', 'morning', 'Start Morning Balance']);
+  if (!wheels().length) out.push(['Want to see your life as a wheel? The book test is my favourite thing ever. 📘', 'wheel-test', 'Take the Wheel test']);
+  const m = microToday()[0]; if (m) out.push([`Tiny step for today: ${m.t}. You’ve got this!`, 'go', 'Open Life', 'life']);
   if (paid() && !done('disc')) out.push(['Want to know your communication style? Try the DISC test.', 'test-start', 'Start DISC', 'disc']);
   else if (paid() && !done('riasec')) out.push(['Your career interests unlock the Career explorer.', 'test-start', 'Start Career interests', 'riasec']);
   else if (!paid()) out.push(['The personality tests and your self-knowledge pack come with a plan.', 'plans', 'See plans']);
   const low = areas().filter(a => areaScore(a.id) != null).sort((a, b) => areaScore(a.id) - areaScore(b.id))[0]; if (low) out.push([`${low.title} needs you most right now (${areaScore(low.id)}/10). One small action today?`, 'go', 'Open ' + low.title, 'area/' + encodeURIComponent(low.id)]);
-  if (new Date().getHours() >= 19) out.push(['Close the day with Night Balance. One minute.', 'closeout', 'Night Balance']);
+  if (new Date().getHours() >= 19) out.push(['Let’s close the day together. One minute, then rest. 🌙', 'closeout', 'Night Balance']);
   out.push([coachMsgs()[slotOf(new Date().getHours())], 'go', 'Open Today', 'today']);
   return out;
 }
 function emiSheet() {
   const tips = emiTips();
-  openSheet('Emi · your guide', `<div class="emi-sh"><div class="emi-sh-stage" id="emi-sh-stage"></div><div class="main"><b>Hi, I’m Emi.</b><p class="small">I walk with you through your plan, your tests and your 8 life areas. Tap me any time.</p></div></div>
+  openSheet('Emi · your guide', `<div class="emi-sh"><div class="emi-sh-stage" id="emi-sh-stage"></div><div class="main"><b>Hi, I’m Emi! 👋</b><p class="small">Your slightly goofy, always-on-your-side guide. I cheer, I nudge, I tell bad jokes. Tap me any time.</p></div></div>
     <div class="list">${tips.slice(0, 4).map(([t, act, l, arg]) => `<div class="row"><span class="att-i">${I.spark}</span><div class="main"><div class="t" dir="auto">${esc(t)}</div></div><button class="btn small" data-act="${act}" ${act === 'go' ? `data-to="${esc(arg)}"` : arg ? `data-id="${esc(arg)}"` : ''}>${esc(l)}</button></div>`).join('')}</div>
     <div class="btns" style="margin-top:12px"><a class="btn primary" href="#/emi" data-act="sheet-close-go">Meet Emi in 3D</a><button class="btn ghost" data-act="emi-hide">Hide Emi</button></div>`, '', { noFocus: true });
   if (emiInst) emiInst.play('nod');
@@ -1908,7 +1908,7 @@ save = function (c, rec) {
 };
 function vEmi() {
   setTimeout(() => { const el = $('#emi-big'); if (!el || el.dataset.on) return; el.dataset.on = 1; needEmi().then(() => { if (!$('#emi-big')) return; if (!Emi.supported()) { el.innerHTML = '<div class="empty">3D is not available on this device.</div>'; return; } const x = Emi.mount(el, { orbit: true, zoom: window.innerWidth < 700 ? 7.4 : 6.2, onTap: () => {} }); vEmi.inst = x; if (x) { x.play('wave'); x.say('Hi! Drag me to see me from every side.', 4500); } }); }, 0);
-  const acts = [['wave', 'Wave'], ['celebrate', 'Celebrate'], ['think', 'Think'], ['dance', 'Dance'], ['shy', 'Shy'], ['surprised', 'Surprised'], ['thumbs', 'Thumbs up'], ['cheer', 'Cheer'], ['stretch', 'Stretch'], ['breathe', 'Breathe'], ['sleep', 'Sleep'], ['point-left', 'Point left'], ['point-right', 'Point right']];
+  const acts = [['laugh', 'Laugh'], ['wink', 'Wink'], ['giggle', 'Giggle'], ['hop', 'Hop'], ['heart', 'Love'], ['facepalm', 'Facepalm'], ['yawn', 'Yawn'], ['lookaround', 'Look around'], ['wave', 'Wave'], ['celebrate', 'Celebrate'], ['think', 'Think'], ['dance', 'Dance'], ['shy', 'Shy'], ['surprised', 'Surprised'], ['thumbs', 'Thumbs up'], ['cheer', 'Cheer'], ['stretch', 'Stretch'], ['breathe', 'Breathe'], ['sleep', 'Sleep'], ['point-left', 'Point left'], ['point-right', 'Point right']];
   return header('Meet Emi', 'Your ME.Coach guide') + `<div class="emi-page"><div class="card emi-viewer"><div id="emi-big"></div><div class="emi-views">${[['front', 'Front'], ['three', '¾'], ['right', 'Right'], ['back', 'Back'], ['left', 'Left'], ['top', 'Top']].map(([k, l]) => `<button data-act="emi-view" data-v="${k}">${l}</button>`).join('')}<button data-act="emi-spin">Turntable</button></div></div>
   <div class="card"><h2>Make Emi move</h2><div class="emi-acts">${acts.map(([k, l]) => `<button class="btn small" data-act="emi-play" data-v="${k}">${l}</button>`).join('')}</div>
   <h2 style="margin-top:16px">About Emi</h2><p class="small">Emi lives in the corner of your app. Emi waves in the morning, cheers when you keep a habit, breathes with you in Calm, celebrates finished tests and suggests your next tiny step. Tap Emi for a tip; drag here to see every side.</p>
@@ -2839,7 +2839,7 @@ document.addEventListener('click', async e => {
     password: () => form('Change password', [{ k: 'current', label: 'Current password', type: 'password', req: true }, { k: 'next', label: 'New password (10+ characters)', type: 'password', req: true }], {}, v => { api('password', { body: v }).then(j => { ls.set(K.tok, j.token); toast('Password changed. Other devices must sign in again.'); }).catch(err => toast(err.message)); }),
     logout: async () => { if (!confirm('Sign out on this device? Data stays on the server.')) return; if (Object.keys(outbox).length) await sync(); try { await api('logout', { method: 'POST' }); } catch {} ls.del(K.tok); ls.del(K.db); ls.del(K.out); ls.del(K.rev); ls.del(K.user); me = null; db = blankDb(); outbox = {}; showLanding(); }
   };
-  Object.assign(map, v7Acts(a, id, e), v71Acts(a, id), v8Acts(a, id), { 'board-open': () => { closeSheet(true); location.hash = '#/board/' + encodeURIComponent(id); }, 'habit-open-s': () => {} });
+  Object.assign(map, v7Acts(a, id, e), v71Acts(a, id), v8Acts(a, id), v9Acts(a, id), v9JobActs(a, id), { 'board-open': () => { closeSheet(true); location.hash = '#/board/' + encodeURIComponent(id); }, 'habit-open-s': () => {} });
   if (map[act]) { if (act !== 'sheet-close' && act !== 'form-save' && act !== 'form-del' && sheetCtx && ['new-task', 'new-event', 'new-note', 'new-decision', 'new-evidence', 'new-session', 'closeout', 'log-time', 'new-application', 'new-milestone', 'new-immig', 'weekly', 'money-add', 'from-tpl', 'new-course', 'morning', 'new-goal', 'wheel-test', 'cycle-new', 'focus-free', 'new-habit'].includes(act)) closeSheet(true); map[act](); }
 });
 document.addEventListener('input', e => { const k = e.target.dataset && e.target.dataset.input; if (k) { ui[k] = e.target.value; saveUi(); if (e.target.dataset.norender) return; clearTimeout(render.t); render.t = setTimeout(render, 180); } });
@@ -3046,6 +3046,482 @@ function migrate() {
   if (n) { persist(); queueSync(); }
 }
 function start() { setTimeout(emiDock, 400); document.documentElement.classList.add('in-app'); loadBilling(); document.title = 'ME.Coach'; db = normalise(ls.get(K.db, null)); outbox = ls.get(K.out, {}) || {}; migrate(); render.keepScroll = false; render(); sync(); refreshMe().then(() => { render(); if (me && me.access === false) paywall(); else if (sheetCtx && sheetCtx.paywall) closeSheet(); }); if (ui.focus) focusShow(); else if (!signedIn.pk) setTimeout(tour, 900); signedIn.pk = false; }
+
+/* ================= v9: the book's method end to end, growth library, visual roadmap, friendlier Emi ================= */
+const needGrowth = () => window.MEC_GROWTH ? Promise.resolve() : loadJs('assets/growth-data.js');
+const BOOK8 = ['Business', 'Finance', 'Lifestyle', 'Health', 'Relationships', 'Social', 'Mental', 'Spiritual'];
+/* new accounts use the 8 fields of the book */
+CLASSIC.splice(0, CLASSIC.length, ...BOOK8); WHEEL_PRESETS[0][1] = 'Self-Coaching Blueprint wheel';
+Object.assign(AREA_HINT, { Business: 'Your job or business, growth and how work feels', Finance: 'Income, savings and feeling secure', Lifestyle: 'Routine, fun, rest and your space', Health: 'Energy, sleep, fitness and body', Relationships: 'Family, partner and the people closest to you', Social: 'Friends, community and how you connect', Mental: 'Calm, focus, mindset and self-talk', Spiritual: 'Purpose, values, gratitude and faith' });
+Object.assign(AREA_EMOJI, { Business: '💼', Finance: '💰', Lifestyle: '🎈', Relationships: '🏠', Social: '🤝', Mental: '🧠', Spiritual: '✨' });
+Object.assign(GOAL_TPL, { Business: 'Take one career step every week', Finance: 'Save a fixed amount every month', Lifestyle: 'A daily routine I enjoy', Health: 'Move 30 minutes, 4 days a week', Relationships: 'Quality family time every week', Social: 'See a friend every week', Mental: 'A calm mind: 10 minutes a day', Spiritual: 'Daily gratitude and reflection' });
+Object.assign(MICRO_TPL, { Business: MICRO_TPL.Career, Finance: MICRO_TPL.Money, Lifestyle: MICRO_TPL['Fun & recreation'], Relationships: MICRO_TPL.Family, Social: MICRO_TPL.Relationships, Mental: MICRO_TPL['Personal growth'], Spiritual: ['Write 3 things you are thankful for', 'Take 8 minutes for prayer or silence', 'Do one kind thing without being asked', 'Read one page that feeds your soul'] });
+FOCUS_OPTS.splice(0, FOCUS_OPTS.length, ['Business', 'Career or business', 'Business'], ['Finance', 'Money', 'Finance'], ['Health', 'Health and energy', 'Health'], ['Relationships', 'Family and love', 'Relationships'], ['Mental', 'Calm and focus', 'Mental'], ['Lifestyle', 'A better routine', 'Lifestyle'], ['Social', 'Friends', 'Social'], ['Spiritual', 'Meaning and faith', 'Spiritual'], ['Balance', 'More balance', '']);
+COURSE_STARTERS.splice(0, COURSE_STARTERS.length); if (!APP_STAGES.includes('Found')) APP_STAGES.push('Found');
+const fieldKey = a => window.MEC_GROWTH ? MEC_GROWTH.fieldOf(a && a.title) : '';
+const fieldName = k => ({ business: 'Business', finance: 'Finance', lifestyle: 'Lifestyle', health: 'Health', relationships: 'Relationships', social: 'Social', mental: 'Mental', spiritual: 'Spiritual' })[k] || '';
+const areaForField = k => areas().find(a => fieldKey(a) === k) || null;
+
+/* ---------- owner: his course list only (once) ---------- */
+const MY_COURSES = [['Google Project Management', 'specializations/google-project-management', 'Active', '2026-11-20', 'Business'], ['Power BI Basics: Requirements to Visualizations', 'learn/powerbi-basics/home/welcome', 'Active', '2026-11-20', 'Business'],
+  ['The Science of Mind and Decision Making', 'specializations/the-science-of-mind-and-decision-making', 'Planned', '2027-03-16', 'Mental'], ['Microsoft Power BI Data Analyst', 'specializations/microsoft-power-bi-data-analyst', 'Planned', '2027-03-16', 'Business'],
+  ['Project Management and Planning', 'specializations/project-management-and-planning', 'Planned', '2027-03-16', 'Business'], ['Microsoft Project Management: Build Job-Ready Skills', 'specializations/microsoft-project-management', 'Planned', '2027-03-16', 'Business'],
+  ['Meta Social Media Marketing', 'specializations/facebook-social-media-marketing', 'Planned', '2027-03-16', 'Business'], ['Google Business Intelligence', 'specializations/google-business-intelligence', 'Planned', '2027-03-16', 'Business'],
+  ['Google AI Essentials', 'specializations/ai-essentials-google', 'Planned', '2027-03-16', 'Business'], ['Generative AI for Project Managers', 'specializations/generative-ai-for-project-managers', 'Planned', '2027-03-16', 'Business'],
+  ['Google AI', 'specializations/google-ai', 'Planned', '2027-03-16', 'Business'], ['Next-Gen Workplace Automation with GenAI', 'specializations/next-gen-workplace-automation-with-genai', 'Planned', '2027-03-16', 'Business'],
+  ['Google Data Analytics', 'specializations/google-data-analytics', 'Planned', '2027-03-16', 'Business'], ['Personality Types at Work', '', 'Planned', '2027-03-16', 'Mental']];
+function ownerCourses() {
+  if (!isOwner() || !ls.get(K.rev) || prefs().coursesV9) return;
+  needGrowth().then(() => {
+    if (prefs().coursesV9) return;
+    const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, ''), keep = new Set();
+    MY_COURSES.forEach(([title, path, status, target, f], i) => {
+      const ex = list('courses').find(c => norm(c.title) === norm(title)) || get('courses', 'c-' + String(i + 1).padStart(2, '0'));
+      const ar = areaForField(f.toLowerCase()) || areas()[0];
+      const r = save('courses', Object.assign({ status, target, progress: 0, perWeek: 5, reviewEvery: 30, lessons: [] }, ex || { id: 'c-' + String(i + 1).padStart(2, '0') }, { title, link: path ? 'https://www.coursera.org/' + path : '', provider: path ? 'Coursera' : (ex && ex.provider) || '', order: i + 1, areaId: (ex && ex.areaId) || (ar ? ar.id : '') }));
+      keep.add(r.id);
+    });
+    let gone = 0; list('courses').filter(c => !keep.has(c.id)).forEach(c => { remove('courses', c.id); gone++; });
+    save('settings', Object.assign({}, prefs(), { id: 'prefs', coursesV9: today() }));
+    toast(`Your ${MY_COURSES.length} Coursera courses are in Learning${gone ? ` · ${gone} other courses moved to Trash` : ''}`);
+  });
+}
+
+/* ---------- the Balance Wheel Test from the book: 8 fields × 10 keywords ---------- */
+function wheelChooser() {
+  openSheet('Wheel of Life test', `<div class="wchoose"><button class="wc" data-act="bt-start"><span class="wc-i">📘</span><b>The full book test</b><span class="small">80 questions · about 8 minutes · the exact Balance Wheel Test from <i>Self-Coaching Blueprint</i>, with a score for every keyword</span><em>Recommended</em></button>
+    <button class="wc" data-act="wq-start"><span class="wc-i">⚡</span><b>Quick check</b><span class="small">8 taps · 1 minute · one score per area</span></button></div>`, '', { noFocus: true });
+}
+function bookTest() {
+  needGrowth().then(() => {
+    const G = MEC_GROWTH, draft = ui.btDraft && ui.btDraft.v === 1 ? ui.btDraft : { v: 1, s: {} };
+    const step = f => ({ next: true, nextLabel: 'Next area', html: a => { const sc = a.s[f.key] || [], tot = sc.reduce((s, x) => s + (x || 0), 0), n = sc.filter(Boolean).length;
+      return `<div class="bt"><div class="bt-h" style="--ac:${AREA_COL[BOOK8.indexOf(f.name) % 8]}"><span class="bt-e">${f.emoji}</span><div><div class="small">${BOOK8.indexOf(f.name) + 1} of 8 · ${esc(f.hint)}</div><h2>${esc(f.label)}</h2></div><div class="bt-avg">${n ? (Math.round(10 * tot / n) / 10) : '–'}<small>avg</small></div></div>
+      <p class="small">Rate each statement from 1 to 10. The higher the score, the more you agree. Be honest: no one else will see it.</p>
+      ${f.rows.map((r, i) => `<div class="bt-q ${sc[i] ? 'ok' : ''}"><div class="bt-t"><span class="bt-n">${i + 1}</span><span>${esc(r.q)}<em>${esc(r.k)}</em></span></div><div class="bt-nums">${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(v => `<button data-act="bt-score" data-f="${f.key}" data-i="${i}" data-v="${v}" class="${sc[i] === v ? 'on' : ''}">${v}</button>`).join('')}</div></div>`).join('')}</div>`; },
+      check: a => (a.s[f.key] || []).filter(Boolean).length < 10 ? 'Score all 10 statements' : '' });
+    flowOpen({ cls: 'wheelflow booktest', a: draft, steps: [{ nextLabel: 'Begin the test', html: () => `<div class="ob"><div class="ob-k">📘 Self-Coaching Blueprint · Chapter 2</div><h2>The Balance Wheel Test</h2><p>Eight fields, ten statements each. Score every statement from 1 to 10 based on your life right now. Take your time and trust your inner voice.</p><div class="ob-wheel">${miniWheel(BOOK8, {}, -1)}</div><p class="small">Your answers are saved as you go. You can stop and continue later.</p></div>` },
+      ...G.fields.map(step),
+      { nextLabel: 'Save my wheel', html: a => bookResultHtml(a.s), done: a => bookSave(a.s) }] });
+  });
+}
+function bookAvg(s, k) { const sc = (s[k] || []).filter(Boolean); return sc.length ? Math.round(10 * sc.reduce((x, y) => x + y, 0) / sc.length) / 10 : null; }
+function bookResultHtml(s) {
+  const G = MEC_GROWTH, avgs = BOOK8.map((n, i) => bookAvg(s, G.fields[i].key)), sc = {}; avgs.forEach((v, i) => { if (v != null) sc[i] = v; });
+  const all = avgs.filter(v => v != null), avg = all.length ? Math.round(10 * all.reduce((a, b) => a + b, 0) / all.length) / 10 : 0;
+  const weak = G.fields.flatMap(f => f.rows.map((r, i) => [f, r.k, (s[f.key] || [])[i] || 0])).filter(x => x[2]).sort((a, b) => a[2] - b[2]).slice(0, 5);
+  return `<div class="wres"><div class="wres-w">${miniWheel(BOOK8, sc, -1)}</div><div class="wres-n">${avg}<span>/10</span></div><div class="small">The state of balance in my life · ${esc(fmtDate(today(), true))}</div></div>
+  <div class="bt-res">${G.fields.map((f, i) => `<div class="bt-r"><span>${f.emoji} ${esc(f.name)}</span><i><b style="width:${(avgs[i] || 0) * 10}%;background:${AREA_COL[i]}"></b></i><em>${avgs[i] ?? '–'}</em></div>`).join('')}</div>
+  ${weak.length ? `<div class="card" style="margin-top:12px"><h2>Keywords that need you most</h2><div class="pick">${weak.map(([f, k, v]) => `<span class="kwchip">${f.emoji} ${esc(k)} <b>${v}</b></span>`).join('')}</div><p class="small" style="margin-bottom:0">Next, the book’s Step 1: choose a field and a keyword, then turn it into a 40-day goal with micro-actions.</p></div>` : ''}`;
+}
+function bookSave(s) {
+  const G = MEC_GROWTH, scores = {}, book = {};
+  G.fields.forEach(f => { if ((s[f.key] || []).filter(Boolean).length) book[f.key] = s[f.key].slice(0, 10); });
+  areas().forEach(a => { const k = fieldKey(a); const v = k && bookAvg(s, k); if (v != null && v !== '') scores[a.id] = v; });
+  if (!Object.keys(book).length) { toast('Score at least one field'); return; }
+  save('wheel', { date: today(), scores, book, kind: 'book' }); delete ui.btDraft; saveUi(); flowClose();
+  toast('Your Balance Wheel is saved'); celebrate(); emiReact('test', 'Wheel done! Now let’s pick what to grow in the next 40 days.');
+  location.hash = '#/life'; setTimeout(() => goalWizard(), 900);
+}
+const bookLatest = () => wheels().find(w => w.book) || null;
+function kwScores(fk) { const w = bookLatest(); if (!w || !w.book || !w.book[fk] || !window.MEC_GROWTH) return []; const f = MEC_GROWTH.field(fk); return f.rows.map((r, i) => [r.k, w.book[fk][i] || 0, r.q]); }
+function kwCard(a) {
+  const fk = fieldKey(a), ks = kwScores(fk); if (!ks.length) return `<div class="card kwcard"><h2>📘 Keywords</h2><p class="small">Take the full book test to see a score for each of the 10 keywords in ${esc(a.title)}.</p><button class="btn small primary" data-act="bt-start">Take the book test</button></div>`;
+  return `<div class="card kwcard"><h2>📘 Keywords <span class="count">${esc(fmtDate(bookLatest().date))}</span></h2><div class="kwbars">${ks.slice().sort((x, y) => x[1] - y[1]).map(([k, v, q]) => `<button class="kwb" data-act="gw-kw" data-a="${esc(a.id)}" data-k="${esc(k)}" title="${esc(q)}"><span>${esc(k)}</span><i><b style="width:${v * 10}%;background:${areaColor(a)}"></b></i><em>${v}</em></button>`).join('')}</div><p class="small" style="margin:8px 0 0">Tap a keyword to turn it into a 40-day goal.</p></div>`;
+}
+
+/* ---------- Goal to Micro-Action: the five steps from Chapter 3 ---------- */
+function goalWizard(preArea, preKw, fromGoal) {
+  needGrowth().then(() => {
+    const G = MEC_GROWTH, as = areas(); if (!as.length) { toast('Set up your areas first'); return; }
+    const low = as.filter(a => areaScore(a.id) != null).sort((a, b) => areaScore(a.id) - areaScore(b.id))[0];
+    const fg = fromGoal && get('goals', fromGoal); const a0 = { pattern: preArea ? 'Intention' : 'Balance', area: preArea || (low || as[0]).id, kw: preKw || '', days: '40', micro: [], counts: {}, syms: {}, goal: fg ? fg.title : '', fromGoal: fg ? fg.id : '' };
+    const ar = st => get('areas', st.area), fk = st => fieldKey(ar(st)) || 'lifestyle';
+    const kwList = st => { const sc = kwScores(fk(st)); const f = G.field(fk(st)); return f.rows.map((r, i) => [r.k, sc.length ? sc[i][1] : null]).sort((x, y) => (x[1] ?? 11) - (y[1] ?? 11)); };
+    const ideas = st => { const kws = st.kw ? [st.kw] : kwList(st).slice(0, 3).map(x => x[0]); const a = ar(st); return [...new Set(kws.flatMap(k => G.KW[k] || []).concat((G.LIB[fk(st)] || []).filter(x => x.kind === 'habit').map(x => x.t)).concat((MICRO_TPL[a && a.title] || []).map(x => x.replace(/“?\{g\}”?/g, 'my goal'))))].slice(0, 14); };
+    const defCount = days => Math.round(Number(days) * 5 / 7);
+    flowOpen({ cls: 'goalflow', a: a0, steps: [
+      { html: st => `<div class="ob"><div class="ob-k">Step 1 · Choosing a field</div><h2>Which area of your life do you want to change?</h2>
+        <div class="small" style="margin:6px 0">Pattern</div><div class="ochips">${[['Balance', 'Balance · my lowest score'], ['Intention', 'Intention · where I want to invest'], ['Aggression', 'Aggression · most crucial right now']].map(([v, l]) => chip('pattern', v, l, st.pattern === v)).join('')}</div>
+        <div class="gw-areas">${as.map(a => `<button class="gw-a ${st.area === a.id ? 'on' : ''}" data-act="gw-area" data-id="${esc(a.id)}" style="--ac:${areaColor(a)}"><span>${areaEmoji(a)}</span><b dir="auto">${esc(a.title)}</b><em>${areaScore(a.id) ?? '–'}</em></button>`).join('')}</div></div>` },
+      { html: st => `<div class="ob"><div class="ob-k">Step 1 · Keyword</div><h2>Which keyword in ${esc(ar(st).title)} do you want to improve?</h2><p class="small">${kwScores(fk(st)).length ? 'Sorted from your lowest score in the book test.' : 'Take the full book test later to see your score for each keyword.'}</p>
+        <div class="ochips">${kwList(st).map(([k, v]) => chip('kw', k, k + (v != null ? ' · ' + v : ''), st.kw === k)).join('')}</div></div>`, check: st => st.kw ? '' : 'Pick one keyword' },
+      { html: st => { const pp = (G.PAIN[fk(st)] || []); return `<div class="ob"><div class="ob-k">Step 2 · Pain and pleasure</div><h2>What do you not want any more?</h2><div class="ochips">${pp.map(([p]) => chip('pain', p, p, st.pain === p)).join('')}</div><input class="big" data-k="painTxt" value="${esc(st.painTxt || '')}" placeholder="Or in your own words (optional)" dir="auto">
+        <h2 style="margin-top:18px">What do you want to experience instead?</h2><div class="ochips">${pp.map(([, q]) => chip('goal', q, q, st.goal === q)).join('')}${chip('goal', 'Better ' + st.kw.toLowerCase(), 'Better ' + st.kw.toLowerCase(), st.goal === 'Better ' + st.kw.toLowerCase())}</div><input class="big" data-k="goalTxt" value="${esc(st.goalTxt || '')}" placeholder="Or write your goal in your words" dir="auto"></div>`; }, check: st => { st.goal = (st.goalTxt || '').trim() || st.goal || ''; st.pain = (st.painTxt || '').trim() || st.pain || ''; return st.goal ? '' : 'Pick or write what you want instead'; } },
+      { html: st => `<div class="ob"><div class="ob-k">Step 2 · Timeline</div><h2>By when?</h2><p class="small">The book recommends 40 days: short enough to stay focused, long enough to change.</p><div class="ochips">${[['40', '40 days (recommended)'], ['90', '3 months'], ['180', '6 months'], ['365', '1 year']].map(([v, l]) => chip('days', v, l, st.days === v)).join('')}</div>
+        <div class="gw-goal" style="--ac:${areaColor(ar(st))}"><span>${areaEmoji(ar(st))}</span><div><b dir="auto">${esc(st.goal)}</b><div class="small">${esc(ar(st).title)} · ${esc(st.kw)} · by ${esc(fmtDate(addDays(today(), Number(st.days) - 1), true))}</div></div></div></div>` },
+      { html: st => `<div class="ob"><div class="ob-k">Step 3 · Micro-actions</div><h2>What can you do every day to get there?</h2><p class="small">Pick up to 3 small actions. Until an action is a micro-action, it is hard to do every day.</p>
+        <div class="gw-mic">${ideas(st).concat(st.micro.filter(m => !ideas(st).includes(m))).map(m => `<button class="${st.micro.includes(m) ? 'on' : ''}" data-act="gw-mic" data-v="${esc(m)}" dir="auto">${st.micro.includes(m) ? '✓ ' : ''}${esc(m)}</button>`).join('')}</div>
+        <form class="qadd" data-form="gw-own" style="margin-top:10px"><input name="q" placeholder="Or write your own…" dir="auto" autocomplete="off"><button class="btn primary" type="submit">${I.plus}</button></form></div>`, check: st => st.micro.length ? '' : 'Pick at least one micro-action' },
+      { html: st => `<div class="ob"><div class="ob-k">Step 4 · Number of actions</div><h2>How many times in the next ${st.days} days?</h2>${st.micro.map((m, i) => { const c = Number(st.counts[i]) || defCount(st.days); return `<div class="gw-cnt"><div dir="auto">${esc(m)}</div><div class="nums sm">${[...new Set([5, 10, 20, defCount(st.days), Number(st.days)])].sort((x, y) => x - y).map(v => `<button data-act="gw-count" data-i="${i}" data-v="${v}" class="${c === v ? 'on' : ''}">${v}</button>`).join('')}</div></div>`; }).join('')}<p class="small">${defCount(st.days)} = five days a week. ${st.days} = every day.</p></div>` },
+      { html: st => `<div class="ob"><div class="ob-k">Step 5 · Action symbol</div><h2>Give each action a symbol</h2><p class="small">You will see it every morning in “My improvement action”.</p>${st.micro.map((m, i) => { const s = st.syms[i] || G.SYMBOLS[i]; return `<div class="gw-cnt"><div dir="auto"><b class="gw-sym">${esc(s)}</b> ${esc(m)}</div><div class="gw-syms">${G.SYMBOLS.map(x => `<button data-act="gw-sym" data-i="${i}" data-v="${esc(x)}" class="${s === x ? 'on' : ''}">${x}</button>`).join('')}</div></div>`; }).join('')}</div>` },
+      { nextLabel: 'Create my goal', html: st => `<div class="ob"><div class="ob-k">Goal to Micro-Action table</div><h2>Your plan</h2><div class="gmtable"><div class="gm-top" style="--ac:${areaColor(ar(st))}"><span>${areaEmoji(ar(st))} ${esc(ar(st).title)} · ${esc(st.kw)}</span><b dir="auto">${esc(st.goal)}</b><span>by ${esc(fmtDate(addDays(today(), Number(st.days) - 1), true))}</span></div><div class="gm-h"><span>Sample</span><span>Micro-action</span><span>Count</span></div>${st.micro.map((m, i) => `<div class="gm-r"><span class="gw-sym">${esc(st.syms[i] || G.SYMBOLS[i])}</span><span dir="auto">${esc(m)}</span><span>× ${Number(st.counts[i]) || defCount(st.days)}</span></div>`).join('')}</div>
+        <p class="small">Each morning you choose your improvement actions, each night you tick what you did. ME.Coach counts every action towards your goal.</p></div>`,
+        done: st => {
+          const t = today(), tgt = addDays(t, Number(st.days) - 1), a = ar(st);
+          const plan = st.micro.map((m, i) => ({ id: 'p' + i + Math.random().toString(36).slice(2, 6), t: m, count: Number(st.counts[i]) || defCount(st.days), sym: st.syms[i] || G.SYMBOLS[i], done: {} }));
+          const base = st.fromGoal && get('goals', st.fromGoal); const g = save('goals', Object.assign({}, base || {}, { title: st.goal.trim(), areaId: a.id, area: a.title, target: tgt, status: 'In progress', keyword: st.kw, pattern: st.pattern, pain: (st.pain || '').trim(), why: st.pain ? 'Instead of: ' + st.pain.trim() : '', measure: plan.map(p => `${p.sym} ${p.t} × ${p.count}`).join(' · '), plan, method: 'book' }));
+          save('milestones', { title: 'Halfway check: day ' + Math.round(Number(st.days) / 2), target: addDays(t, Math.round(Number(st.days) / 2) - 1), goalId: g.id, status: 'Planned', area: a.title });
+          save('milestones', { title: 'Goal reached: ' + st.goal.trim(), target: tgt, goalId: g.id, status: 'Planned', area: a.title });
+          const c = activeCycle(); if (c) save('cycles', Object.assign({}, c, { goals: [...new Set([...(c.goals || []), g.id])], focus: [...new Set([...(c.focus || []), a.id])] }));
+          else save('cycles', { start: t, days: 40, focus: [a.id], goals: [g.id], intention: 'In 40 days: ' + st.goal.trim(), status: 'active' });
+          flowClose(); toast('Goal created with ' + plan.length + ' micro-actions'); celebrate(); location.hash = '#/goal/' + encodeURIComponent(g.id);
+        } }
+    ] });
+  });
+}
+
+/* ---------- micro-actions: plan items count towards the goal ---------- */
+const livePlanGoals = () => list('goals').filter(g => Array.isArray(g.plan) && g.plan.length && !['Done', 'Achieved', 'Dropped', 'Cancelled'].includes(g.status));
+const pDone = p => Object.keys(p.done || {}).length;
+function planItems() { return livePlanGoals().flatMap(g => g.plan.map(p => ({ g, p, key: g.id + ':' + p.id }))); }
+const _microTodayV8 = microToday;
+microToday = function () {
+  const t = today(), m = logOf('morning'), chosen = (m && m.impIds) || null, items = planItems();
+  let pick = chosen ? items.filter(x => chosen.includes(x.key)) : items.slice().sort((x, y) => (pDone(x.p) / x.p.count) - (pDone(y.p) / y.p.count)).filter((x, i, arr) => arr.findIndex(z => z.g.id === x.g.id) === i).slice(0, 3);
+  if (!chosen && pick.length < 3) pick = pick.concat(items.filter(x => !pick.includes(x)).slice(0, 3 - pick.length));
+  const out = pick.map(x => ({ g: x.g, t: x.p.t, sym: x.p.sym, pid: x.p.id, key: x.key, done: !!(x.p.done || {})[t], n: pDone(x.p), count: x.p.count }));
+  const legacy = _microTodayV8().filter(x => !(Array.isArray(x.g.plan) && x.g.plan.length));
+  return out.concat(legacy).slice(0, Math.max(3, out.length));
+};
+microCard = function () {
+  const ms = microToday(); if (!ms.length) return `<div class="card microcard"><h2>${I.bolt} My improvement actions</h2><div class="empty">Turn a goal into daily micro-actions, the way the book does it.<div class="btns" style="justify-content:center;margin-top:8px"><button class="btn primary small" data-act="goal-wizard">Plan a goal in 5 steps</button></div></div></div>`;
+  return `<div class="card microcard"><h2>${I.bolt} My improvement actions <span class="count">${ms.filter(m => m.done).length}/${ms.length}</span><span style="flex:1"></span><button class="btn small ghost" data-act="imp-pick">Change</button></h2><div class="list">${ms.map(m => { const a = goalArea(m.g); return `<div class="row micro ${m.done ? 'done' : ''}" style="--ac:${a ? areaColor(a) : 'var(--line)'}"><button class="check ${m.done ? 'done' : ''}" data-act="${m.pid ? 'plan-done' : 'micro-done'}" data-id="${esc(m.g.id)}" data-p="${esc(m.pid || '')}" aria-label="Done">${I.tick}</button>${m.sym ? `<span class="psym">${esc(m.sym)}</span>` : ''}<div class="main"><div class="t" dir="auto">${esc(m.t)}</div><div class="m"><span dir="auto">${esc(m.g.title)}</span>${m.count ? `<span>${m.n}/${m.count}</span>` : ''}</div></div>${m.done || m.pid ? '' : `<button class="icon-btn" data-act="micro-shuffle" data-id="${esc(m.g.id)}" aria-label="Another step">↻</button>`}</div>`; }).join('')}</div></div>`;
+};
+function impPickSheet() {
+  const items = planItems(), m = logOf('morning') || {}, cur = (m.impIds || microToday().filter(x => x.key).map(x => x.key));
+  if (!items.length) { goalWizard(); return; }
+  openSheet('My improvement actions today', `<p class="small" style="margin-top:0">Pick up to three. Each one you do earns a point in today’s assessment.</p><div class="list">${items.map(x => `<label class="row"><input type="checkbox" name="imp" value="${esc(x.key)}" ${cur.includes(x.key) ? 'checked' : ''} style="width:20px;height:20px"><span class="psym">${esc(x.p.sym)}</span><div class="main"><div class="t" dir="auto">${esc(x.p.t)}</div><div class="m"><span dir="auto">${esc(x.g.title)}</span><span>${pDone(x.p)}/${x.p.count}</span></div></div></label>`).join('')}</div>`,
+    '<button class="btn primary wide" data-act="form-save">Save</button>', { noFocus: true, onSave: () => { const ids = [...sheetCtx.el.querySelectorAll('[name=imp]:checked')].map(x => x.value); if (ids.length > 3) { toast('Three is enough'); return; } const ex = logOf('morning'); save('logs', Object.assign({ type: 'morning', date: today(), title: 'Morning Balance ' + fmtDate(today()) }, ex || {}, { impIds: ids })); closeSheet(); } });
+}
+function planToggle(gid, pid, day = today(), force) {
+  const g = get('goals', gid); if (!g || !Array.isArray(g.plan)) return;
+  const plan = g.plan.map(p => { if (p.id !== pid) return p; const d = Object.assign({}, p.done || {}); const on = force != null ? force : !d[day]; if (on) d[day] = true; else delete d[day]; return Object.assign({}, p, { done: d }); });
+  save('goals', Object.assign({}, g, { plan })); const p = plan.find(x => x.id === pid);
+  if (p && p.done[day] && force == null) { const n = pDone(p); emiReact('micro', n >= p.count ? `🎉 ${p.t}: ${n} of ${p.count}. You did it!` : `${p.sym} ${n} of ${p.count}. Look at you go!`); }
+}
+goalMicroCard = function (id) {
+  const g = get('goals', id); if (!g) return '';
+  if (!(Array.isArray(g.plan) && g.plan.length)) {
+    const ms = goalMicros(g);
+    return `<div class="card"><h2>${I.bolt} Micro-actions</h2><p class="small" style="margin-top:-4px">Turn this goal into a Goal to Micro-Action plan: daily actions, how many times, and a symbol for each.</p><div class="btns"><button class="btn primary small" data-act="plan-from-goal" data-id="${esc(id)}">Make my action plan</button></div><div class="list" style="margin-top:8px">${ms.slice(0, 4).map((t, i) => `<div class="row"><span class="mnum">${i + 1}</span><div class="main"><div class="t" dir="auto">${esc(t)}</div></div></div>`).join('')}</div></div>`;
+  }
+  const tot = g.plan.reduce((s, p) => s + p.count, 0), dn = g.plan.reduce((s, p) => s + Math.min(p.count, pDone(p)), 0), t = today();
+  return `<div class="card gmcard"><h2>${I.bolt} Action plan <span class="count">${dn}/${tot}</span><span style="flex:1"></span><button class="btn small ghost" data-act="plan-add" data-id="${esc(id)}">${I.plus} Action</button></h2>
+  ${g.keyword ? `<div class="small" style="margin:-4px 0 8px">📘 ${esc(g.keyword)}${g.pain ? ` · instead of “${esc(g.pain)}”` : ''}</div>` : ''}
+  <div class="list">${g.plan.map(p => { const n = pDone(p); return `<div class="row gmrow"><button class="check ${(p.done || {})[t] ? 'done' : ''}" data-act="plan-done" data-id="${esc(id)}" data-p="${esc(p.id)}" aria-label="Done today">${I.tick}</button><span class="psym">${esc(p.sym)}</span><div class="main"><div class="t" dir="auto">${esc(p.t)}</div><div class="bar" style="margin:6px 0 2px"><i style="width:${Math.min(100, Math.round(100 * n / p.count))}%"></i></div><div class="m"><span>${n} of ${p.count}</span>${n >= p.count ? '<span class="chip s-done">done</span>' : ''}</div></div><button class="icon-btn" data-act="plan-del" data-id="${esc(id)}" data-p="${esc(p.id)}" aria-label="Remove">${I.close}</button></div>`; }).join('')}</div>
+  <div class="pdots">${(() => { const days = []; for (let i = 13; i >= 0; i--) days.push(addDays(t, -i)); return days.map(d => { const k = g.plan.filter(p => (p.done || {})[d]).length; return `<i title="${esc(fmtDate(d))}" style="opacity:${k ? .35 + .65 * k / g.plan.length : 1}" class="${k ? 'on' : ''}"></i>`; }).join(''); })()}</div><div class="small">Last 14 days</div></div>`;
+};
+
+/* ---------- Morning & Night Balance, following the book (with the daily assessment score) ---------- */
+function assess(d = today()) {
+  const m = logOf('morning', d), n = logOf('closeout', d), top = list('tasks').filter(x => x.focusDate === d), topDone = top.filter(x => !isOpen(x)).length;
+  const imp = planItems().filter(x => (x.p.done || {})[d]).length + list('goals').filter(g => (g.microDone || {})[d]).length;
+  const feel = n && n.feel != null && n.feel !== '' ? Number(n.feel) : 0;
+  const s = (m ? 1 : 0) + (n ? 1 : 0) + Math.min(3, topDone) + Math.min(3, imp) + Math.min(2, feel);
+  return { s, m: !!m, n: !!n, top: Math.min(3, topDone), imp: Math.min(3, imp), feel, level: s < 3 ? 'Standard' : s < 6 ? 'Sound' : 'Excellent' };
+}
+function assessChip(d) { const a = assess(d); return `<button class="assess lv-${a.level.toLowerCase()}" data-act="assess-info"><b>${a.s}</b>/10 · ${a.level} level</button>`; }
+function assessSheet() {
+  const a = assess();
+  openSheet('My assessment today', `<div class="asx"><div class="asx-n">${a.s}<small>/10</small></div><div class="small">${a.level} level</div></div><div class="list">${[['Morning Balance', a.m ? 1 : 0, 1], ['Night Balance', a.n ? 1 : 0, 1], ['My important tasks (Top 3)', a.top, 3], ['My improvement actions', a.imp, 3], ['How I feel about myself today', a.feel, 2]].map(([l, v, mx]) => `<div class="row"><div class="main"><div class="t">${l}</div><div class="bar" style="margin-top:6px"><i style="width:${100 * v / mx}%"></i></div></div><b>${v}/${mx}</b></div>`).join('')}</div>
+    <p class="small">From the book’s assessment template: below 3 is Standard, 3 to 6 is Sound, 6 to 10 is Excellent.</p>`, '', { noFocus: true });
+}
+morningSheet = function () {
+  const t = today(), ex = logOf('morning') || {}, c = activeCycle(), open = list('tasks').filter(isOpen);
+  const top = open.filter(x => x.focusDate === t).map(x => x.id), cand = sortTasks(open.filter(x => x.focusDate === t || (x.due && x.due <= t))).concat(suggestTop(t)).filter((x, i, arr) => arr.findIndex(y => y.id === x.id) === i).slice(0, 8);
+  const focusAreas = (c ? c.focus.map(id => get('areas', id)).filter(Boolean) : []).concat(areas()).filter((a, i, arr) => arr.findIndex(b => b.id === a.id) === i);
+  const items = planItems(), cur = ex.impIds || microToday().filter(x => x.key).map(x => x.key);
+  const f = (k, html) => balOn('m', k) ? `<div class="bq"><div class="bl">${BAL_LABEL.m[k]}</div>${html}</div>` : '';
+  const exps = ['A calm and focused day', 'Good news', 'A great conversation', 'Real progress on my goal', 'Energy and joy'];
+  openSheet('Morning Balance', `<div class="small bal-sub">${esc(fmtDate(t, true))}${c ? ` · day ${cycleDay(c)} of ${c.days || 40}` : ''}</div>
+    ${f('expect', chipsFor('expectC', exps.map(x => [x, x]), [ex.expect], 5) + `<input name="expect" dir="auto" value="${esc(ex.expect || '')}" placeholder="Or in your words: today I would like to experience…" style="margin-top:6px">`)}
+    ${f('focus', chipsFor('focusAreas', focusAreas.map(a => [a.id, a.title]), ex.focusAreas || (c ? c.focus : []), 8) + `<input name="focus" dir="auto" value="${esc(ex.focus || '')}" placeholder="In one line (optional)" style="margin-top:6px">`)}
+    ${f('top', cand.length ? chipsFor('top', cand.map(x => [x.id, x.title]), top, 8) + '<div class="small" style="margin-top:4px">Tap up to three.</div>' : '<div class="small">No open tasks. Add some from Today.</div>')}
+    ${f('improve', items.length ? `<div class="pick bal" data-name="imp">${items.map(x => `<button type="button" data-act="bal-chip" data-v="${esc(x.key)}" class="${cur.includes(x.key) ? 'on' : ''}" dir="auto">${esc(x.p.sym)} ${esc(x.p.t)}</button>`).join('')}</div><div class="small" style="margin-top:4px">Up to three, from your goals.</div>` : `<div class="small">No micro-actions yet. <a href="#" data-act="goal-wizard">Plan a goal in 5 steps</a></div>`)}
+    ${f('thanks', chipsFor('thanksC', ['My health', 'My family', 'A new day', 'My work', 'Small joys'].map(x => [x, x]), [], 5) + `<input name="thanks" dir="auto" value="${esc(ex.thanks || '')}" placeholder="I am grateful for…" style="margin-top:6px">`)}
+    ${f('note', `<input name="note" dir="auto" value="${esc(ex.note || '')}">`)}`,
+    '<button class="btn primary wide" data-act="form-save">Start my day</button>', { noFocus: true, onSave: () => {
+      const el = sheetCtx.el, val = n => (el.querySelector(`[name=${n}]`) || {}).value || '', on = n => [...el.querySelectorAll(`.bal[data-name=${n}] .on`)].map(b => b.dataset.v);
+      const tops = on('top'); if (tops.length > 3) { toast('Keep it to three'); return; } const imp = on('imp'); if (imp.length > 3) { toast('Three improvement actions are enough'); return; }
+      if (balOn('m', 'top')) { for (const x of open) { const want = tops.includes(x.id); if (want && x.focusDate !== t) save('tasks', Object.assign({}, x, { focusDate: t })); if (!want && x.focusDate === t) save('tasks', Object.assign({}, x, { focusDate: '' })); } }
+      const pickTxt = (n, k) => val(k).trim() || on(n).join(', ');
+      save('logs', Object.assign({}, ex, { type: 'morning', date: t, title: 'Morning Balance ' + fmtDate(t), expect: pickTxt('expectC', 'expect'), focus: val('focus').trim(), focusAreas: on('focusAreas'), impIds: imp, improve: items.filter(x => imp.includes(x.key)).map(x => x.p.t), thanks: pickTxt('thanksC', 'thanks'), note: val('note').trim() }));
+      closeSheet(); toast('Have a great day ☀');
+    } });
+};
+nightSheet = function () {
+  const t = today(), tm = addDays(t, 1), ex = logOf('closeout') || {}, open = list('tasks').filter(isOpen);
+  const left = open.filter(x => x.focusDate === t || x.due === t), doneN = list('tasks').filter(x => !isOpen(x) && x.completedOn === t).length;
+  const m = logOf('morning'), f = (k, html) => balOn('n', k) ? `<div class="bq"><div class="bl">${BAL_LABEL.n[k]}</div>${html}</div>` : '';
+  const imps = microToday().filter(x => x.pid), a0 = assess();
+  openSheet('Night Balance', `<div class="small bal-sub">${doneN} done today${m && m.expect ? ` · this morning: “${esc(m.expect)}”` : ''}</div>
+    ${imps.length ? `<div class="bq"><div class="bl">My improvement actions today</div><div class="list">${imps.map(x => `<label class="row" style="cursor:pointer;padding:6px 2px"><input type="checkbox" name="impd" value="${esc(x.g.id + ':' + x.pid)}" ${x.done ? 'checked' : ''} style="width:20px;height:20px"><span class="psym">${esc(x.sym)}</span><div class="main"><div class="t" dir="auto">${esc(x.t)}</div></div></label>`).join('')}</div></div>` : ''}
+    <div class="bq"><div class="bl">How do I feel about myself today?</div><div class="nums feel">${[[0, '😐 Not great'], [1, '🙂 Good'], [2, '😄 Great']].map(([v, l]) => `<button data-act="score-pick" data-v="${v}" class="${Number(ex.feel) === v && ex.feel !== '' && ex.feel != null ? 'on' : ''}">${l}</button>`).join('')}</div></div>
+    ${f('score', `<div class="small" style="margin-bottom:6px">Your assessment so far: <b>${a0.s}/10</b> (${a0.level}). Adjust if it feels different.</div><div class="nums score">${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(v => `<button data-act="score-pick" data-v="${v}" class="${(Number(ex.score) || 0) === v ? 'on' : ''}">${v}</button>`).join('')}</div>`)}
+    ${f('better', chipsFor('betterC', ['Start my Top 3 earlier', 'Less phone', 'Sleep on time', 'Do my micro-actions first'].map(x => [x, x]), [], 4) + `<input name="better" dir="auto" value="${esc(ex.better || '')}" placeholder="Tomorrow I will…" style="margin-top:6px">`)}
+    ${f('carry', left.length ? `<div class="list">${left.map(x => `<label class="row" style="cursor:pointer;padding:6px 2px"><input type="checkbox" name="carry" value="${esc(x.id)}" checked style="width:20px;height:20px"><div class="main"><div class="t" dir="auto">${esc(x.title)}</div></div></label>`).join('')}</div>` : '<div class="small">Nothing left over. Well done.</div>')}
+    ${f('ideas', `<input name="ideas" dir="auto" value="${esc(ex.ideas || '')}">`)}${f('persp', `<input name="persp" dir="auto" value="${esc(ex.persp || '')}">`)}
+    ${f('thanks', `<input name="thanks" dir="auto" value="${esc(ex.thanks || '')}" placeholder="I am grateful for…">`)}${f('topics', `<input name="topics" dir="auto" value="${esc(ex.topics || '')}">`)}`,
+    '<button class="btn primary wide" data-act="form-save">Close the day</button>', { noFocus: true, onSave: () => {
+      const el = sheetCtx.el, val = n => ((el.querySelector(`[name=${n}]`) || {}).value || '').trim(), on = n => [...el.querySelectorAll(`.bal[data-name=${n}] .on`)].map(b => b.dataset.v);
+      const did = [...el.querySelectorAll('[name=impd]:checked')].map(x => x.value); imps.forEach(x => planToggle(x.g.id, x.pid, t, did.includes(x.g.id + ':' + x.pid)));
+      const fe = el.querySelector('.nums.feel .on'), feel = fe ? Number(fe.dataset.v) : '';
+      const carry = [...el.querySelectorAll('[name=carry]:checked')].map(x => x.value), sc = el.querySelector('.nums.score .on');
+      for (const x of left) if (carry.includes(x.id)) save('tasks', Object.assign({}, x, x.focusDate === t ? { focusDate: tm, due: x.due && x.due <= t ? tm : x.due } : { due: tm }));
+      const rec = Object.assign({}, ex, { type: 'closeout', date: t, title: 'Night Balance ' + fmtDate(t), feel, better: val('better') || on('betterC').join(', '), ideas: val('ideas'), persp: val('persp'), thanks: val('thanks'), topics: val('topics'), done: ex.done || '', notes: carry.length ? 'Carried over: ' + left.filter(x => carry.includes(x.id)).map(x => x.title).join('; ') : '' });
+      save('logs', rec); const auto = assess(t).s; const score = sc ? Number(sc.dataset.v) : Math.max(1, auto);
+      save('logs', Object.assign({}, logOf('closeout'), { score, assess: auto, mood: Math.ceil(score / 2) }));
+      closeSheet(); toast(`Day closed · ${auto}/10 ${assess(t).level}. Sleep well.`);
+      if (score >= 8 || auto >= 6) celebrate();
+    } });
+};
+
+/* ---------- Today: assessment chip, timeline items can be ticked done (e.g. Deep work) ---------- */
+const _vTodayV8 = vToday;
+vToday = function () { const h = _vTodayV8(); if (ui.tday && ui.tday !== today()) return h; return h.replace('<div class="spacer" style="height:14px"></div>', `<div class="spacer" style="height:10px"></div><div class="asrow">${assessChip()}</div>`); };
+const _tlItemsV8 = timelineItems;
+timelineItems = function (d) { return _tlItemsV8(d).map(x => { if (x.act === 'event' && x.id) { const e = get('events', x.id); if (e && (e.doneOn || {})[d]) x.done = true; x.evDay = d; } return x; }); };
+timeline = function (d) {
+  const all = timelineItems(d), now = new Date(), nowM = d === today() ? now.getHours() * 60 + now.getMinutes() : -1;
+  const it = all.filter(x => !x.done), dn = all.filter(x => x.done); let html = '', last = null, nowDone = nowM < 0;
+  const nowRow = () => `<div class="tl-now"><span>${fromMin(nowM)}</span><i></i></div>`;
+  const tick = x => x.act === 'event' ? `<button class="tl-tick" data-act="ev-done" data-id="${esc(x.id)}" data-day="${d}" aria-label="Mark done">${I.tick}</button>` : x.act === 'task' ? `<button class="tl-tick" data-act="complete" data-id="${esc(x.id)}" aria-label="Mark done">${I.tick}</button>` : x.act === 'hab' ? `<button class="tl-tick" data-act="hab" data-id="${esc(x.id)}" aria-label="Mark done">${I.tick}</button>` : '';
+  for (const x of it) {
+    if (!nowDone && nowM < x.s) { html += nowRow(); nowDone = true; }
+    if (last !== null && x.s - last >= 60) html += `<div class="tl-gap"><span>${dur(x.s - last)} free</span><button class="icon-btn" data-act="new-event" data-day="${d}" data-time="${fromMin(last)}" aria-label="Add">${I.plus}</button></div>`;
+    const len = Math.max(0, x.e - x.s), tall = Math.min(120, Math.max(48, len * 0.6));
+    html += `<div class="tl-it k-${x.kind}" ${x.act ? `data-act="${x.act}" data-id="${esc(x.id)}"` : ''} role="button" style="min-height:${tall}px"><div class="tl-t"><b>${fromMin(x.s)}</b>${len > 1 ? `<span>${fromMin(x.e)}</span>` : ''}</div><div class="tl-node">${TL_ICON[x.kind] || I.dot}</div><div class="tl-c"><div class="t" dir="auto">${esc(x.title)}</div>${len > 1 ? `<div class="small">${dur(len)}</div>` : ''}</div>${tick(x)}</div>`;
+    last = Math.max(last || 0, x.e);
+  }
+  if (!nowDone) html += nowRow();
+  return `<div class="timeline2">${html || '<div class="empty">Nothing left on the plan. 🎉</div>'}</div>${dn.length ? `<details class="tl-donebox"><summary>${I.tick} Done · ${dn.length}</summary>${dn.map(x => `<div class="tl-dn" ${x.act ? `data-act="${x.act}" data-id="${esc(x.id)}"` : ''}><b>${fromMin(x.s)}</b><span dir="auto">${esc(x.title)}</span>${x.act === 'event' ? `<button class="btn small ghost" data-act="ev-done" data-id="${esc(x.id)}" data-day="${d}">Undo</button>` : ''}</div>`).join('')}</details>` : ''}`;
+};
+
+/* ---------- onboarding: only the name is typed, everything else is a tap ---------- */
+onboard = function () {
+  needGrowth().catch(() => {});
+  const goalIdeas = a => { const f = (FOCUS_OPTS.find(x => x[0] === a.focus) || [])[2] || 'Lifestyle', k = f.toLowerCase(); const P = window.MEC_GROWTH ? MEC_GROWTH.PAIN[k] || [] : []; return [...new Set(P.map(x => x[1]).concat([GOAL_TPL[f]]))].filter(Boolean); };
+  const steps = [
+    { html: a => `<div class="ob"><div class="ob-k">${brandMark} Coach</div><h2>Hi! I’m Emi. What should I call you?</h2><input class="big" data-k="name" value="${esc(a.name || '')}" placeholder="Your first name" autocomplete="given-name" dir="auto"><p class="small">The rest is just taps. About one minute.</p><button class="btn ghost small" data-act="ob-skip">Skip — I will import my own data</button></div>`, check: a => a.name && a.name.trim() ? '' : 'Tell me your name' },
+    { html: a => `<div class="ob"><h2>${esc(a.name)}, what matters most right now?</h2><div class="ochips">${FOCUS_OPTS.map(([v, l]) => chip('focus', v, l, a.focus === v)).join('')}</div></div>`, check: a => a.focus ? '' : 'Pick one' },
+    { html: a => `<div class="ob"><h2>Pick your first goal</h2><p class="small">You can change the words later.</p><div class="ochips col">${goalIdeas(a).map(g => chip('goal', g, g, a.goal === g)).join('')}</div><div class="small" style="margin:16px 0 6px">By when?</div><div class="ochips">${[['40', '40 days'], ['90', '3 months'], ['180', '6 months'], ['365', '1 year']].map(([v, l]) => chip('horizon', v, l, (a.horizon || '40') === v)).join('')}</div></div>`, check: a => a.goal ? '' : 'Pick a goal' },
+    { html: () => `<div class="ob"><h2>Your Wheel of Life</h2><p>Eight quick taps, one per area of life, from 1 to 10. Later you can take the full 80-question test from the book.</p><div class="ob-wheel">${miniWheel(CLASSIC, {}, -1)}</div></div>`, nextLabel: 'Start' },
+    ...wheelSteps(CLASSIC),
+    { html: a => wheelResult(CLASSIC, a.scores || {}) },
+    { html: a => `<div class="ob"><h2>Which habits do you want?</h2><p class="small">Pick up to 4.</p><div class="ochips">${HABIT_OPTS.filter(h => h !== 'Deep work').map(h => chip('habits', h, h, (a.habits || []).includes(h), true)).join('')}</div></div>` },
+    { html: a => `<div class="ob"><h2>Your one-minute check-ins</h2><p class="small">Morning Balance plans your day. Night Balance closes it.</p><div class="small" style="margin:10px 0 6px">Morning</div><div class="ochips">${['06:00', '06:30', '07:00', '07:30', '08:00', '09:00'].map(v => chip('mt', v, v, (a.mt || '07:30') === v)).join('')}</div><div class="small" style="margin:14px 0 6px">Night</div><div class="ochips">${['20:30', '21:00', '21:30', '22:00', '22:30', '23:00'].map(v => chip('nt', v, v, (a.nt || '21:30') === v)).join('')}</div></div>` },
+    { nextLabel: 'Create my account', html: a => { const pa = primaryArea(a); return `<div class="ob"><h2>Your plan is ready</h2><div class="plan"><div class="plan-r"><span class="sw" style="background:${AREA_COL[CLASSIC.indexOf(pa) % 8]}"></span><div><b dir="auto">${esc(a.goal)}</b><div class="small">${esc(pa)} · ${({ 40: '40 days', 90: '3 months', 180: '6 months', 365: '1 year' })[a.horizon || '40']} · with 3 micro-actions</div></div></div><div class="plan-r"><span class="sw" style="background:${AREA_COL[CLASSIC.indexOf(secondArea(a)) % 8]}"></span><div><b>${esc(GOAL_TPL[secondArea(a)])}</b><div class="small">${esc(secondArea(a))} · your lowest score</div></div></div>${(a.habits || []).length ? `<div class="plan-r"><span class="sw"></span><div><b>${(a.habits || []).map(esc).join(' · ')}</b><div class="small">Habits</div></div></div>` : ''}<div class="plan-r"><span class="sw"></span><div><b>40-day cycle starts today</b><div class="small">Morning ${esc(a.mt || '07:30')} · Night ${esc(a.nt || '21:30')}</div></div></div></div>
+      <div id="gbtn-ob" class="gbtn" style="margin-top:16px"></div><div class="f" style="margin-top:12px"><label>Email</label><input data-k="email" type="email" autocomplete="username" inputmode="email" value="${esc(a.email || '')}"></div><div class="f"><label>Password (8+ characters)</label><input data-k="pw" type="password" autocomplete="new-password"></div><p class="small">7 days free. No card needed.</p></div>`; },
+      check: a => !/^\S+@\S+\.\S+$/.test(a.email || '') ? 'Enter your email' : (a.pw || '').length < 8 ? 'Use at least 8 characters' : '',
+      done: async a => { try { const r = await api('signup', { body: { email: a.email, password: a.pw, name: a.name, device: device() } }); signedIn(r, a.skip ? null : a, true); } catch (e) { toast(e.message === 'offline' ? 'No connection.' : e.message); } } }
+  ];
+  flowOpen({ cls: 'onboard', steps, a: { horizon: '40', habits: [], mt: '07:30', nt: '21:30' } });
+};
+buildPlan = function (a) {
+  const t = today(), tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC', ids = {}, G = window.MEC_GROWTH;
+  save('settings', { id: 'prefs', tz, visionName: 'My vision', visionText: '', visionDate: `${new Date().getFullYear() + 3}-12-31`, hidden: ['jobs', 'documents'], onboarded: t });
+  CLASSIC.forEach((nm, i) => { ids[nm] = save('areas', { title: nm, color: i % 8, order: i + 1, target: 8 }).id; });
+  const scores = {}; CLASSIC.forEach((nm, i) => { if ((a.scores || {})[i]) scores[ids[nm]] = a.scores[i]; }); if (Object.keys(scores).length) save('wheel', { date: t, scores });
+  const p = primaryArea(a), s = secondArea(a), days = Number(a.horizon) || 40, tgt = addDays(t, days - 1), k = p.toLowerCase();
+  const kws = G ? G.field(k).rows.map(r => r.k) : []; const mic = G ? [...new Set(kws.slice(0, 3).flatMap(x => (G.KW[x] || []).slice(0, 1)))].slice(0, 3) : (MICRO_TPL[p] || []).slice(0, 3);
+  const cnt = Math.round(Math.min(days, 40) * 5 / 7), syms = G ? G.SYMBOLS : ['►', '☺', '$'];
+  const g1 = save('goals', { title: String(a.goal).trim(), areaId: ids[p], area: p, target: tgt, status: 'In progress', method: 'book', plan: mic.map((m, i) => ({ id: 'p' + i, t: m, count: cnt, sym: syms[i], done: {} })) });
+  save('milestones', { title: 'Halfway check', target: addDays(t, Math.round(days / 2) - 1), goalId: g1.id, status: 'Planned' });
+  save('milestones', { title: 'Goal reached', target: tgt, goalId: g1.id, status: 'Planned' });
+  const g2 = save('goals', { title: GOAL_TPL[s], areaId: ids[s], area: s, target: addDays(t, 39), status: 'In progress' });
+  save('cycles', { start: t, days: 40, focus: [ids[p], ids[s]], goals: [g1.id, g2.id], intention: 'In 40 days I will be closer to: ' + String(a.goal).trim(), status: 'active' });
+  (a.habits || []).slice(0, 4).forEach(h => save('habits', { title: h, perWeek: 7, days: [0, 1, 2, 3, 4, 5, 6], areaId: ids[p] }));
+  save('tasks', { title: 'Do your first Morning Balance', due: t, focusDate: t, state: 'To do', priority: 'P1', owner: 'Me' });
+  save('tasks', { title: 'Take the full Balance Wheel Test (80 questions)', due: addDays(t, 1), state: 'To do', priority: 'P2', owner: 'Me' });
+  ui.pushMorning = a.mt || '07:30'; ui.pushEvening = a.nt || '21:30'; ui.tourDone = false; saveUi();
+};
+
+/* ---------- Life area: growth library + a new pick every visit ---------- */
+const LIB_KIND = { action: ['Action', '⚡'], habit: ['Habit', '🔁'], challenge: ['Challenge', '🏁'], read: ['Read', '📖'], listen: ['Listen', '🎧'], watch: ['Watch', '▶️'] };
+const libUrl = x => x.kind === 'watch' ? 'https://www.youtube.com/results?search_query=' + encodeURIComponent(x.t + ' ' + String(x.by || '').replace(/ · .*/, '').replace('Search on YouTube', '')) : x.kind === 'listen' ? 'https://podcasts.apple.com/search?term=' + encodeURIComponent(x.t) : 'https://www.google.com/search?q=' + encodeURIComponent(x.t + ' ' + (x.by || ''));
+function libFor(fk) { const G = window.MEC_GROWTH; if (!G) return []; const base = (G.LIB[fk] || []).map((x, i) => Object.assign({ i: 'L' + i }, x)); const kw = G.field(fk).rows.flatMap((r, ri) => (G.KW[r.k] || []).map((t, j) => ({ i: 'K' + ri + '-' + j, kind: 'action', t, d: 'Micro-action for ' + r.k, kw: r.k }))); return base.concat(kw); }
+function libNew(a) {
+  const fk = fieldKey(a), items = libFor(fk); if (!items.length) return null;
+  const st = (ui.libState = ui.libState || {})[a.id] || { seen: [], cur: null, visit: '' };
+  const visit = String(render.visit || 0);
+  if (st.visit !== visit || !st.cur) { const added = new Set((ui.libAdded || {})[a.id] || []); const pool = items.filter(x => !st.seen.includes(x.i) && !added.has(x.i)); const pick = (pool.length ? pool : items)[Math.floor(Math.random() * (pool.length || items.length))]; st.cur = pick.i; st.seen = pool.length ? [...st.seen, pick.i].slice(-200) : [pick.i]; st.visit = visit; ui.libState[a.id] = st; saveUi(); }
+  return items.find(x => x.i === st.cur) || items[0];
+}
+function libCard(x, a, big) {
+  const [kl, ke] = LIB_KIND[x.kind] || ['', '•'], added = ((ui.libAdded || {})[a.id] || []).includes(x.i), media = ['read', 'listen', 'watch'].includes(x.kind);
+  return `<div class="libc k-${x.kind} ${big ? 'big' : ''} ${added ? 'added' : ''}" style="--ac:${areaColor(a)}"><div class="libc-k"><span>${ke}</span>${kl}${x.days ? ` · ${x.days} days` : ''}${x.kw ? ` · ${esc(x.kw)}` : ''}</div><b dir="auto">${esc(x.t)}</b>${x.by ? `<div class="libc-by">${esc(x.by)}</div>` : ''}${x.d ? `<div class="small">${esc(x.d)}</div>` : ''}
+    <div class="libc-b">${media ? `<a class="btn small" href="${esc(libUrl(x))}" target="_blank" rel="noopener">${x.kind === 'watch' ? 'Watch' : x.kind === 'listen' ? 'Listen' : 'Find it'} ↗</a>` : ''}<button class="btn small ${added ? 'ok' : 'primary'}" data-act="lib-add" data-a="${esc(a.id)}" data-i="${esc(x.i)}">${added ? '✓ Added' : x.kind === 'habit' ? '+ Habit' : x.kind === 'challenge' ? 'Start' : media ? '+ My list' : '+ Today'}</button></div></div>`;
+}
+function libSection(a) {
+  if (!window.MEC_GROWTH) { needGrowth().then(() => { if (route().page === 'area') render(); }); return ['<div class="card empty">Loading ideas…</div>', '']; }
+  const fk = fieldKey(a); if (!fk) return ['', ''];
+  const items = libFor(fk), nw = libNew(a), kind = (ui.libKind || {})[a.id] || 'all';
+  const shown = items.filter(x => kind === 'all' ? !x.kw : x.kind === kind && (kind !== 'action' || true)).slice(0, kind === 'all' ? 60 : 80);
+  return [`<div class="card libnew" style="--ac:${areaColor(a)}"><h2>✨ New for you today<span style="flex:1"></span><button class="icon-btn" data-act="lib-next" data-a="${esc(a.id)}" aria-label="Another idea" title="Another idea">↻</button></h2>${nw ? libCard(nw, a, true) : ''}</div>`, `<h2 class="sec-h">Grow your ${esc(a.title)} <span class="count">${items.length}</span></h2>
+  <div class="libtabs">${[['all', 'All'], ['action', '⚡ Actions'], ['habit', '🔁 Habits'], ['challenge', '🏁 Challenges'], ['read', '📖 Read'], ['listen', '🎧 Listen'], ['watch', '▶️ Watch']].map(([k, l]) => `<button class="${kind === k ? 'on' : ''}" data-act="lib-kind" data-a="${esc(a.id)}" data-v="${k}">${l}</button>`).join('')}</div>
+  <div class="libgrid">${shown.map(x => libCard(x, a)).join('')}</div>`];
+}
+function libAdd(aid, iid) {
+  const a = get('areas', aid), x = libFor(fieldKey(a)).find(y => y.i === iid); if (!a || !x) return;
+  const t = today();
+  if (x.kind === 'habit') save('habits', { title: x.t, days: [0, 1, 2, 3, 4, 5, 6], perWeek: 7, areaId: aid, color: a.color || 0, why: x.d || '' });
+  else if (x.kind === 'challenge') { const h = save('habits', { title: `🏁 ${x.t}`, days: [0, 1, 2, 3, 4, 5, 6], perWeek: 7, areaId: aid, color: a.color || 0, why: x.d || '', until: addDays(t, (x.days || 7) - 1) }); save('tasks', { title: `Finish challenge: ${x.t}`, due: addDays(t, (x.days || 7) - 1), state: 'To do', priority: 'P2', owner: 'Me', areaId: aid, habitId: h.id }); }
+  else if (['read', 'listen', 'watch'].includes(x.kind)) save('tasks', { title: `${LIB_KIND[x.kind][0]}: ${x.t}${x.by ? ' · ' + x.by : ''}`, due: addDays(t, 6), state: 'To do', priority: 'P3', owner: 'Me', areaId: aid, link: libUrl(x), nextAction: x.d || '' });
+  else save('tasks', { title: x.t, due: t, focusDate: '', state: 'To do', priority: 'P2', owner: 'Me', areaId: aid });
+  ui.libAdded = ui.libAdded || {}; ui.libAdded[aid] = [...new Set([...(ui.libAdded[aid] || []), iid])]; saveUi();
+  toast(x.kind === 'habit' ? 'Habit added' : x.kind === 'challenge' ? `Challenge started: ${x.days || 7} days` : ['read', 'listen', 'watch'].includes(x.kind) ? 'Added to your list for this week' : 'Added to today');
+  emiReact('micro', ['Ooh, good pick!', 'Love it. Small steps, big change.', 'Added! I’ll cheer when you do it.'][Math.floor(Math.random() * 3)]);
+}
+const _vAreaV8 = vArea;
+vArea = function (id) {
+  const a = get('areas', id); if (!a) return _vAreaV8(id);
+  if (!window.MEC_GROWTH) needGrowth().then(() => { if (route().page === 'area') render(); });
+  if (render.lastPage !== 'area' || vArea.last !== id) render.visit = Date.now(); vArea.last = id;
+  const h = _vAreaV8(id), lib = libSection(a);
+  const plan = `<div class="card gw-cta" style="--ac:${areaColor(a)}"><div class="main"><b>Turn ${esc(a.title)} into a 40-day goal</b><div class="small">The book’s 5 steps: field, keyword, pain → pleasure, micro-actions, count and symbol.</div></div><button class="btn primary small" data-act="goal-wizard" data-id="${esc(id)}">Plan it</button></div>`;
+  const i = h.indexOf('<div class="card"><h2>Goals'); const head = i > 0 ? h.slice(0, i) : h, rest = i > 0 ? h.slice(i) : '';
+  return head + lib[0] + plan + (window.MEC_GROWTH ? kwCard(a) : '') + rest + lib[1];
+};
+
+/* ---------- visual roadmap ---------- */
+vRoadmap = function () {
+  const t = today(), vd = visionDate(), gs = list('goals').filter(g => g.target && !['Dropped', 'Cancelled'].includes(g.status)).sort((a, b) => String(a.target).localeCompare(String(b.target)));
+  const ms = list('milestones').filter(m => m.status !== 'Dropped'), done = ms.filter(m => m.status === 'Done').length;
+  const end = [vd, ...gs.map(g => g.target)].sort().pop(), span = Math.max(30, daysBetween(t, end)), pos = d => Math.max(0, Math.min(100, 100 * daysBetween(t, d) / span));
+  const months = []; { const d = parseD(t); d.setDate(1); for (let i = 0; i < 400 && dstr(d) <= end; i++) { const s = dstr(d); if (s >= t) months.push(s); d.setMonth(d.getMonth() + (span > 900 ? 6 : span > 400 ? 3 : 1)); } }
+  const next = ms.filter(m => m.target && m.target >= t && m.status !== 'Done').sort((a, b) => a.target.localeCompare(b.target)).slice(0, 6);
+  const c = activeCycle(), dl = daysTo(vd);
+  const row = g => { const a = goalArea(g), s = g.createdAt ? String(g.createdAt).slice(0, 10) : t, p = goalProgress(g), gm = ms.filter(m => m.goalId === g.id && m.target);
+    const plan = Array.isArray(g.plan) && g.plan.length ? Math.round(100 * g.plan.reduce((x, q) => x + Math.min(q.count, pDone(q)), 0) / g.plan.reduce((x, q) => x + q.count, 0)) : pct(p);
+    return `<div class="gt-row" data-act="goal" data-id="${esc(g.id)}" role="button" style="--ac:${a ? areaColor(a) : 'var(--brass)'}"><div class="gt-l"><span>${areaEmoji(a)}</span><b dir="auto">${esc(g.title)}</b><em>${plan}%</em></div><div class="gt-track"><i class="gt-bar" style="left:${pos(s < t ? t : s)}%;width:${Math.max(2, pos(g.target) - pos(s < t ? t : s))}%"><b style="width:${plan}%"></b></i>${gm.map(m => `<i class="gt-ms ${m.status === 'Done' ? 'done' : ''}" style="left:${pos(m.target)}%" title="${esc(m.title)} · ${esc(fmtDate(m.target))}"></i>`).join('')}</div></div>`; };
+  return header('Plan', 'Where you are going and by when') + planTabs() + `
+  <div class="card rm-hero"><div class="rm-v"><div class="small">Your vision</div><b dir="auto">${esc(prefs().visionName || 'My vision')}</b>${prefs().visionText ? `<div class="small" dir="auto">${esc(prefs().visionText)}</div>` : ''}<button class="btn small ghost" data-act="vision">Change</button></div><div class="rm-n">${dl.toLocaleString('en-GB')}<small>days to go</small></div></div>
+  <div class="card"><h2>🛣 The road ahead</h2><div class="road">${[`<div class="rd-n now"><i></i><div><b>Today</b><span>${esc(fmtDate(t, true))}${c ? ` · day ${cycleDay(c)} of 40` : ''}</span></div></div>`].concat(next.map((m, i) => { const g = m.goalId && get('goals', m.goalId), a = g ? goalArea(g) : null; return `<div class="rd-n ${i % 2 ? 'r' : 'l'}" data-act="milestone" data-id="${esc(m.id)}" role="button" style="--ac:${a ? areaColor(a) : 'var(--brass)'}"><i>${areaEmoji(a)}</i><div><b dir="auto">${esc(m.title)}</b><span>${esc(fmtDate(m.target, true))} · ${esc(rel(m.target))}</span></div></div>`; })).concat([`<div class="rd-n goal"><i>🏁</i><div><b dir="auto">${esc(prefs().visionName || 'My vision')}</b><span>${esc(fmtDate(vd, true))}</span></div></div>`]).join('')}</div>
+    <div class="small" style="margin-top:8px">${done} of ${ms.length} milestones done</div><div class="btns" style="margin-top:8px"><button class="btn primary small" data-act="new-milestone">${I.plus} Milestone</button><button class="btn small" data-act="goal-wizard">${I.plus} Goal in 5 steps</button></div></div>
+  <div class="card"><h2>📅 Goals on a timeline</h2><div class="gantt"><div class="gt-axis">${months.map(m => `<span style="left:${pos(m)}%">${esc(parseD(m).toLocaleDateString('en-GB', { month: 'short', year: span > 400 ? '2-digit' : undefined }))}</span>`).join('')}</div>${c ? `<div class="gt-cycle" style="left:${pos(c.start < t ? t : c.start)}%;width:${Math.max(1, pos(addDays(c.start, 39)) - pos(c.start < t ? t : c.start))}%"><span>40 days</span></div>` : ''}${gs.map(row).join('') || '<div class="empty">Goals with a target date appear here.</div>'}</div><div class="small" style="margin-top:6px">Bars run from today to each goal’s date. Fill = progress. Dots = milestones.</div></div>
+  ${ms.some(m => !m.target) ? `<div class="card"><h2>No date yet</h2><div class="list">${ms.filter(m => !m.target).map(m => `<div class="row" data-act="milestone" data-id="${esc(m.id)}"><div class="main"><div class="t" dir="auto">${esc(m.title)}</div></div></div>`).join('')}</div></div>` : ''}`;
+};
+
+/* ---------- Emi: warmer, funnier words ---------- */
+const EMI_JOKES = ['Why did the to-do list go to therapy? Too many unresolved issues. 😄', 'I tried to catch fog once. I mist. Anyway, how is your day going?', 'Fun fact: tiny steps are my favourite size. I am also tiny. Coincidence? 🤔', 'Coffee first, world domination second. Or Top 3 first. Your call. ☕', 'I don’t have legs for running, but I can cheer really loud. 📣', 'Plot twist: you are doing better than you think.', 'My hobby? Watching you tick boxes. It never gets old. ✓'];
+emiGreeting = function () { const h = new Date().getHours(), nm = me && me.name ? me.name.split(' ')[0] : 'friend'; const opts = h < 5 ? [`Still up, ${nm}? Sleep is a superpower 😴`] : h < 12 ? [`Morning, ${nm}! ☀ Ready for a good one?`, `Hey ${nm}! New day, fresh start.`, `Good morning, ${nm}! I saved you a seat.`] : h < 18 ? [`Hey ${nm}! How’s the day treating you?`, `Hi ${nm}! Quick win time?`, `Afternoon, ${nm}! Water break? 💧`] : [`Evening, ${nm}! Let’s land this day softly. 🌙`, `Hey ${nm}! Proud of you for showing up today.`]; return opts[Math.floor(Math.random() * opts.length)]; };
+emiTalk = function () { if (!emiInst) return; const tips = emiTips(); const r = Math.random(); if (r < .3) { emiInst.play(['laugh', 'wink', 'giggle'][Math.floor(Math.random() * 3)]); emiInst.say(EMI_JOKES[Math.floor(Math.random() * EMI_JOKES.length)]); return; } const t = tips[Math.floor(Math.random() * Math.min(3, tips.length))]; emiInst.say(t ? t[0] : emiGreeting()); };
+
+function v9Acts(a, id) {
+  return {
+    'wheel-test': () => { closeSheet(true); wheelChooser(); }, 'wq-start': () => { closeSheet(true); wheelFlow(); }, 'bt-start': () => { closeSheet(true); bookTest(); },
+    'bt-score': () => { const s = flow.a.s, f = a.dataset.f, i = Number(a.dataset.i); s[f] = (s[f] || []).slice(); s[f][i] = Number(a.dataset.v); ui.btDraft = flow.a; saveUi(); a.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === a)); a.closest('.bt-q').classList.add('ok'); const n = s[f].filter(Boolean); const av = $('#flow .bt-avg'); if (av) av.innerHTML = `${Math.round(10 * n.reduce((x, y) => x + y, 0) / n.length) / 10}<small>avg</small>`; const nx = a.closest('.bt-q').nextElementSibling; if (nx && !nx.classList.contains('ok')) setTimeout(() => nx.scrollIntoView({ behavior: 'smooth', block: 'center' }), 120); },
+    'goal-wizard': () => { closeSheet(true); goalWizard(id || ''); }, 'gw-kw': () => goalWizard(a.dataset.a, a.dataset.k),
+    'gw-area': () => { flow.a.area = id; flow.a.kw = ''; flow.a.micro = []; flowDraw(); },
+    'gw-mic': () => { const m = flow.a.micro, v = a.dataset.v, i = m.indexOf(v); if (i >= 0) m.splice(i, 1); else { if (m.length >= 3) { toast('Three is plenty for 40 days'); return; } m.push(v); } flowDraw(); },
+    'gw-count': () => { flow.a.counts[a.dataset.i] = Number(a.dataset.v); flowDraw(); }, 'gw-sym': () => { flow.a.syms[a.dataset.i] = a.dataset.v; flowDraw(); },
+    'plan-done': () => planToggle(id, a.dataset.p), 'imp-pick': () => impPickSheet(), 'assess-info': () => assessSheet(),
+    'plan-del': () => { const g = get('goals', id); if (!g || !confirm('Remove this micro-action?')) return; save('goals', Object.assign({}, g, { plan: g.plan.filter(p => p.id !== a.dataset.p) })); },
+    'plan-add': () => { const g = get('goals', id); if (!g) return; form('New micro-action', [{ k: 't', label: 'Micro-action', req: true, ph: 'e.g. Walk for 30 minutes' }, [{ k: 'count', label: 'How many times', type: 'number', def: 28 }, { k: 'sym', label: 'Symbol', def: '★' }]], {}, v => { save('goals', Object.assign({}, g, { plan: [...(g.plan || []), { id: 'p' + Date.now().toString(36), t: v.t.trim(), count: Number(v.count) || 28, sym: (v.sym || '★').slice(0, 2), done: {} }] })); toast('Added'); }); },
+    'plan-from-goal': () => { const g = get('goals', id); if (!g) return; const a2 = goalArea(g); goalWizard(a2 ? a2.id : '', g.keyword || '', g.id); },
+    'new-goal': () => { closeSheet(true); goalWizard(a.dataset.area || ''); }, 'new-goal-quick': () => FORMS.goal(a.dataset.area ? { areaId: a.dataset.area, status: 'In progress' } : { status: 'In progress' }),
+    'fl-back': () => { if (!flow) return; if (flow.i === 0) { if (/onboard|booktest/.test(flow.cls) || confirm('Leave without saving?')) { if (/booktest/.test(flow.cls)) toast('Saved. Continue the test any time.'); flowClose(); } return; } flowRead(); flow.i--; flowDraw(); },
+    'ev-done': () => { const e = get('events', id), d = a.dataset.day || today(); if (!e) return; const dn = Object.assign({}, e.doneOn || {}); if (dn[d]) delete dn[d]; else dn[d] = true; save('events', Object.assign({}, e, { doneOn: dn })); if (dn[d]) emiReact('task', ['Done and dusted! ✨', 'Another one bites the dust 🎵', 'Look at you, finishing things!'][Math.floor(Math.random() * 3)]); },
+    'lib-add': () => { libAdd(a.dataset.a, a.dataset.i); render(); }, 'lib-next': () => { render.visit = Date.now(); render(); },
+    'lib-kind': () => { ui.libKind = Object.assign({}, ui.libKind, { [a.dataset.a]: a.dataset.v }); saveUi(); render(); }
+  };
+}
+/* the old wizard gets the goal title from an existing goal when re-planned */
+document.addEventListener('submit', e => { const f = e.target; if (f.dataset && f.dataset.form === 'gw-own' && flow) { e.preventDefault(); e.stopImmediatePropagation(); const v = (f.q.value || '').trim(); if (v) { if (flow.a.micro.length >= 3) { toast('Three is plenty for 40 days'); return; } flow.a.micro.push(v); flowDraw(); } } }, true);
+/* every fresh visit (page load or entering an area) gets a new library pick */
+render.visit = Date.now();
+const _startV8 = start;
+start = function () { _startV8(); setTimeout(ownerCourses, 2500); setTimeout(ownerCourses, 9000); };
+
+/* ---------- Job autopilot: finds jobs daily, you approve, it sends your latest CV ---------- */
+let JOBST = null;
+const apPrefs = () => Object.assign({ on: false, titles: [], countries: ['gb', 'ie', 'nz'], skills: [], exclude: [], minScore: 40, arbeitnow: false, maxPerRun: 30 }, prefs().autopilot || {});
+const apSave = patch => save('settings', Object.assign({}, prefs(), { id: 'prefs', autopilot: Object.assign(apPrefs(), patch) }));
+const CC = { gb: '🇬🇧 UK', ie: '🇮🇪 Ireland', nz: '🇳🇿 New Zealand', remote: '🌍 Remote' };
+async function jobsState(force) { if (JOBST && !force) return JOBST; try { JOBST = await api('jobs-state'); } catch (e) { JOBST = { err: e.message, cv: [], state: {}, sources: {} }; } return JOBST; }
+const foundJobs = () => list('applications').filter(a => a.stage === 'Found').sort((a, b) => (Number(b.match) || 0) - (Number(a.match) || 0));
+function apSplit(splitApply) { const t = jobTpl('apply'); const m = t.match(/^Subject:\s*(.*)\n+/); return m ? [m[1], t.slice(m[0].length)] : ['Application – {role}', t]; }
+function vAuto() {
+  if (!JOBST) { jobsState().then(() => { if (route().page === 'jobs') render(); }); }
+  const ap = apPrefs(), st = (JOBST && JOBST.state) || {}, cv = (JOBST && JOBST.cv) || [], src = (JOBST && JOBST.sources) || {}, fj = foundJobs(), sel = new Set(ui.apSel || []);
+  const sent = list('applications').filter(a => a.sentAt).sort((a, b) => String(b.sentAt).localeCompare(String(a.sentAt))).slice(0, 8);
+  const jc = a => `<div class="jcard ${sel.has(a.id) ? 'sel' : ''}"><label class="jsel"><input type="checkbox" data-change="ap-sel" data-id="${esc(a.id)}" ${sel.has(a.id) ? 'checked' : ''}></label><div class="jm" style="--m:${Number(a.match) || 0}"><b>${Number(a.match) || 0}</b><small>match</small></div><div class="main"><div class="t" dir="auto">${esc(a.role)}</div><div class="small" dir="auto">${esc([a.company, a.location].filter(Boolean).join(' · '))}</div><div class="m">${a.source ? `<span class="chip">${esc(a.source)}</span>` : ''}${a.contactEmail ? '<span class="chip s-done">✉ email found</span>' : '<span class="chip">apply on site</span>'}${a.salary ? `<span>${esc(a.salary)}</span>` : ''}${a.posted ? `<span>${esc(rel(a.posted))}</span>` : ''}</div>${a.desc ? `<details class="jdesc"><summary>Details</summary><div dir="auto">${esc(String(a.desc).slice(0, 900))}${String(a.desc).length > 900 ? '…' : ''}</div></details>` : ''}
+    <div class="btns" style="margin-top:8px">${a.contactEmail ? `<button class="btn small primary" data-act="ap-send" data-id="${esc(a.id)}">✓ Approve & send CV</button>` : `<button class="btn small primary" data-act="ap-ok" data-id="${esc(a.id)}">✓ Approve</button>`}${a.link ? `<a class="btn small" href="${esc(a.link)}" target="_blank" rel="noopener">Open ↗</a>` : ''}<button class="btn small ghost" data-act="ap-no" data-id="${esc(a.id)}">Skip</button></div></div></div>`;
+  return `<div class="card aphero ${ap.on ? 'on' : ''}"><div class="ap-i">${ap.on ? '🤖' : '💤'}</div><div class="main"><b>Autopilot is ${ap.on ? 'on' : 'off'}</b><div class="small">${ap.on ? 'Searches every day and lines up matching jobs for you.' : 'Turn it on to search for jobs every day.'}${st.last ? ` Last search ${esc(rel(String(st.last).slice(0, 10)))}: ${st.added || 0} new.` : ''}</div>
+    <div class="btns" style="margin-top:10px"><button class="btn ${ap.on ? '' : 'primary'}" data-act="ap-toggle">${ap.on ? 'Pause' : 'Turn on'}</button><button class="btn primary" data-act="ap-run">🔎 Search now</button></div></div></div>
+  ${(() => { const q = jobQueue(); return `<div class="card apsprint"><div class="main"><b>${q.length} approved, ready to apply on the job site</b><div class="small">Your one-minute Sprint opens each job with the cover note copied.</div></div><div class="btns"><button class="btn small primary" data-act="sprint" ${q.length ? '' : 'disabled'}>▶ Sprint</button><button class="btn small" data-act="job-bulk">${I.plus} Add jobs</button></div></div>`; })()}
+  <div class="ap-steps"><div class="${ap.titles.length ? 'ok' : ''}"><b>1</b>What you want</div><div class="${cv.length ? 'ok' : ''}"><b>2</b>Your CV</div><div class="${fj.length ? 'ok' : ''}"><b>3</b>You approve</div><div class="${sent.length ? 'ok' : ''}"><b>4</b>Sent + follow-up</div></div>
+  <details class="card apset" ${ap.titles.length ? '' : 'open'}><summary><b>⚙ What to look for</b> <span class="small">${ap.titles.length ? esc(ap.titles.join(', ')) + ' · ' + ap.countries.map(c => CC[c] || c).join(', ') : 'Set up in 30 seconds'}</span></summary>
+    <div class="bq"><div class="bl">Job titles</div><div class="pick">${ap.titles.map(t => `<button class="on" data-act="ap-title-del" data-v="${esc(t)}">${esc(t)} ✕</button>`).join('')}${['Project Manager', 'Project Coordinator', 'Business Analyst', 'PMO Analyst', 'Data Analyst', 'Operations Manager'].filter(t => !ap.titles.includes(t)).map(t => `<button data-act="ap-title-add" data-v="${esc(t)}">+ ${esc(t)}</button>`).join('')}</div><form class="qadd" data-form="ap-title" style="margin-top:8px"><input name="q" placeholder="Add another title…" autocomplete="off"><button class="btn primary" type="submit">${I.plus}</button></form></div>
+    <div class="bq"><div class="bl">Where</div><div class="pick">${Object.entries(CC).map(([k, l]) => `<button class="${ap.countries.includes(k) ? 'on' : ''}" data-act="ap-cc" data-v="${k}">${l}</button>`).join('')}</div></div>
+    <div class="bq"><div class="bl">Your skills (they raise the match score)</div><input data-change="ap-skills" value="${esc(ap.skills.join(', '))}" placeholder="Power BI, Agile, stakeholder management, SQL…"></div>
+    <div class="bq"><div class="bl">Never show titles with</div><input data-change="ap-exclude" value="${esc(ap.exclude.join(', '))}" placeholder="intern, sales, nurse…"></div>
+    <div class="bq"><div class="bl">Minimum match</div><div class="pick">${[30, 40, 50, 60, 70].map(v => `<button class="${Number(ap.minScore) === v ? 'on' : ''}" data-act="ap-min" data-v="${v}">${v}%</button>`).join('')}</div></div>
+    <div class="small">Sources: ${['adzuna', 'reed', 'jooble'].map(k => `${{ adzuna: 'Adzuna (UK, NZ)', reed: 'Reed (UK)', jooble: 'Jooble (Ireland and all)' }[k]} ${src[k] ? '✓' : '— needs a free key'}`).join(' · ')} · Remotive ✓${isOwner() ? ' · <a href="#" data-act="ap-keys">Add keys</a>' : ''}</div></details>
+  <div class="card apcv"><h2>📄 Your CV <span class="count">${cv.length ? 'latest is sent' : 'needed'}</span></h2>${cv.length ? `<div class="row"><span class="att-i">📄</span><div class="main"><div class="t">${esc(cv[0].name)}</div><div class="m"><span>${esc(fmtDate(String(cv[0].at).slice(0, 10)))}</span><span>${Math.round(cv[0].size / 1024)} KB</span></div></div><button class="btn small ghost" data-act="cv-dl" data-id="${esc(cv[0].id)}">Download</button></div>` : '<div class="empty">Upload your latest CV (PDF). Every approved email application sends this file.</div>'}
+    <label class="btn small ${cv.length ? '' : 'primary'}" style="cursor:pointer;margin-top:8px">${cv.length ? 'Upload a newer CV' : 'Upload CV'}<input type="file" accept="application/pdf,.pdf,.docx" data-change="cv-up" hidden></label>${cv.length > 1 ? `<div class="small" style="margin-top:6px">Older: ${cv.slice(1, 4).map(c => esc(c.name) + ' · ' + esc(fmtDate(String(c.at).slice(0, 10)))).join(' · ')}</div>` : ''}</div>
+  <div class="card"><h2>👀 Waiting for your approval <span class="count">${fj.length}</span><span style="flex:1"></span>${fj.length ? `<button class="btn small" data-act="ap-selall">${sel.size ? 'Clear' : 'Select all'}</button>` : ''}</h2>
+    ${sel.size ? `<div class="apbulk"><b>${sel.size} selected</b><button class="btn small primary" data-act="ap-bulk">✓ Approve ${sel.size}</button><button class="btn small ghost" data-act="ap-bulk-no">Skip ${sel.size}</button></div>` : ''}
+    ${fj.length ? `<div class="jlist">${fj.slice(0, 60).map(jc).join('')}</div>` : `<div class="empty">${ap.titles.length ? 'No new jobs waiting. Tap “Search now” or let Autopilot search tomorrow.' : 'Add the job titles you want, then tap “Search now”.'}</div>`}</div>
+  ${sent.length ? `<div class="card"><h2>📤 Sent by ME.Coach <span class="count">${sent.length}</span></h2><div class="list">${sent.map(a => `<div class="row" data-act="application" data-id="${esc(a.id)}"><span class="att-i">✓</span><div class="main"><div class="t" dir="auto">${esc(a.role)} · ${esc(a.company || '')}</div><div class="m"><span>to ${esc(a.sentTo || '')}</span><span>${esc(rel(String(a.sentAt).slice(0, 10)))}</span>${a.cvSent ? `<span>📄 ${esc(a.cvSent)}</span>` : ''}${a.followUp ? `<span>follow up ${esc(rel(a.followUp))}</span>` : ''}</div></div></div>`).join('')}</div></div>` : ''}
+  <p class="small">Nothing is sent without your approval. Emails go from your domain with your email as the reply address, your latest CV attached, max 25 a day. Jobs without an email address (LinkedIn, Indeed, company portals) cannot be submitted by any app; approving them puts them in your one-minute Sprint with the cover note ready.</p>`;
+}
+const _vJobsV8 = vJobs;
+vJobs = function () {
+  if (!ui.jTab) ui.jTab = 'auto';
+  if (ui.jTab !== 'auto') return _vJobsV8().replace('<div class="seg ptabs" style="margin:12px 0">', `<div class="seg ptabs" style="margin:12px 0"><button data-act="j-tab" data-t="auto">🤖 Autopilot${foundJobs().length ? ` <b class="badge inl">${foundJobs().length}</b>` : ''}</button>`);
+  const h = _vJobsV8(); const i = h.indexOf('<div class="card sprint-hero">');
+  const tabs = `<div class="seg ptabs" style="margin:12px 0"><button class="on" data-act="j-tab" data-t="auto">🤖 Autopilot${foundJobs().length ? ` <b class="badge inl">${foundJobs().length}</b>` : ''}</button>${[['pipeline', 'Pipeline'], ['list', 'List'], ['follow', 'Follow-ups'], ['tpl', 'Templates']].map(([k, l]) => `<button data-act="j-tab" data-t="${k}">${l}</button>`).join('')}</div>`;
+  return h.slice(0, i) + tabs + vAuto();
+};
+function apSendSheet(ids) {
+  const apps = ids.map(id => get('applications', id)).filter(a => a && a.contactEmail), cv = (JOBST && JOBST.cv) || [];
+  if (!apps.length) { toast('No email address found for these jobs'); return; }
+  if (!cv.length) { toast('Upload your CV first'); return; }
+  const [subj, body] = apSplit(), one = apps.length === 1 ? apps[0] : null, fill = (s, a) => fillTpl(s, Object.assign({}, a, { contact: a.contact || 'Hiring Manager' }));
+  openSheet(one ? 'Send application' : `Send ${apps.length} applications`, `${one ? `<div class="f"><label>To</label><input name="to" type="email" value="${esc(one.contactEmail)}"></div><div class="f"><label>Subject</label><input name="subj" value="${esc(fill(subj, one))}"></div><div class="f"><label>Message</label><textarea name="body" rows="9" dir="auto">${esc(fill(body, one))}</textarea></div>`
+    : `<div class="list">${apps.map(a => `<div class="row"><span class="att-i">✉</span><div class="main"><div class="t" dir="auto">${esc(a.role)} · ${esc(a.company || '')}</div><div class="m"><span>${esc(a.contactEmail)}</span><span>${Number(a.match) || 0}% match</span></div></div></div>`).join('')}</div><p class="small">Each email uses your “Email application” template, filled with the role and company.</p>`}
+    <div class="apattach"><span>📎</span><div><b>${esc(cv[0].name)}</b><div class="small">Your latest CV · uploaded ${esc(fmtDate(String(cv[0].at).slice(0, 10)))}</div></div></div>
+    <label class="row apok"><input type="checkbox" name="ok" style="width:22px;height:22px"><div class="main"><div class="t">I approve sending ${one ? 'this application' : `these ${apps.length} applications`}</div><div class="small">Sent from ${esc((JOBST && JOBST.mailFrom) || 'your domain')} with your email as reply address.</div></div></label>`,
+    `<button class="btn primary wide" data-act="form-save">Send ${apps.length === 1 ? 'now' : apps.length + ' now'}</button>`, { noFocus: true, onSave: async () => {
+      const el = sheetCtx.el; if (!el.querySelector('[name=ok]').checked) { toast('Tick the approval box first'); return; }
+      const btn = el.querySelector('.sheet-f .btn'); btn.disabled = true; let n = 0, err = '';
+      for (const a of apps) { btn.textContent = `Sending ${n + 1} of ${apps.length}…`;
+        try { await api('jobs-send', { body: one ? { id: a.id, to: el.querySelector('[name=to]').value.trim(), subject: el.querySelector('[name=subj]').value, body: el.querySelector('[name=body]').value, cv: cv[0].id, approved: true } : { id: a.id, to: a.contactEmail, subject: fill(subj, a), body: fill(body, a), cv: cv[0].id, approved: true } }); n++; }
+        catch (e) { err = e.message; if (/limit/i.test(err)) break; } }
+      closeSheet(); ui.apSel = []; saveUi(); await sync(); jobsState(true).then(render);
+      toast(n ? `Sent ${n} application${n === 1 ? '' : 's'} with your CV ✉${err ? ' · ' + err : ''}` : err || 'Nothing sent'); if (n) { celebrate(); emiReact('test', n > 1 ? `${n} applications out! Fingers crossed 🤞` : 'Application sent! Fingers crossed 🤞'); }
+    } });
+}
+function apApprove(id) { const a = get('applications', id); if (!a) return; save('applications', Object.assign({}, a, { stage: 'Saved', approvedOn: today() })); }
+function apKeysSheet() {
+  api('jobs-keys').then(r => {
+    form('Job sources', [{ html: `<p class="small" style="margin-top:0">Free developer keys. Adzuna: developer.adzuna.com · Reed: reed.co.uk/developers · Jooble: jooble.org/api/about. Keys stay on your server. Saved: ${['adzuna', 'reed', 'jooble'].filter(k => r.has[k]).join(', ') || 'none yet'}.</p>` }, [{ k: 'adzunaId', label: 'Adzuna app ID' }, { k: 'adzunaKey', label: 'Adzuna app key' }], { k: 'reedKey', label: 'Reed API key' }, { k: 'joobleKey', label: 'Jooble API key' }, { k: 'mailFrom', label: 'Send applications from', type: 'email', ph: 'jobs@miladebrahimi.me (create it in Hostinger email)' }], { mailFrom: r.mailFrom }, async v => { try { await api('jobs-keys', { body: v }); toast('Saved'); jobsState(true).then(render); } catch (e) { toast(e.message); } });
+  }).catch(e => toast(e.message));
+}
+function v9JobActs(a, id) {
+  return {
+    'ap-toggle': () => { const on = !apPrefs().on; apSave({ on }); toast(on ? 'Autopilot on: it searches every day' : 'Autopilot paused'); },
+    'ap-run': async () => { if (!apPrefs().titles.length) { toast('Add a job title first'); return; } a.disabled = true; a.textContent = 'Searching…'; await sync(); try { const r = await api('jobs-run', { body: {} }); await sync(); JOBST = null; await jobsState(true); render(); toast(r.ok ? `${r.added} new matching job${r.added === 1 ? '' : 's'} from ${r.searched} found · ${r.sources.join(', ')}` : r.error); } catch (e) { toast(e.message === 'offline' ? 'No connection' : e.message); render(); } },
+    'ap-title-add': () => apSave({ titles: [...new Set([...apPrefs().titles, a.dataset.v])] }), 'ap-title-del': () => apSave({ titles: apPrefs().titles.filter(t => t !== a.dataset.v) }),
+    'ap-cc': () => { const c = apPrefs().countries, v = a.dataset.v; apSave({ countries: c.includes(v) ? c.filter(x => x !== v) : [...c, v] }); },
+    'ap-min': () => apSave({ minScore: Number(a.dataset.v) }), 'ap-keys': () => apKeysSheet(),
+    'ap-send': () => apSendSheet([id]), 'ap-ok': () => { apApprove(id); toast('Approved · it is in your Sprint queue', 'Open Sprint', () => sprintOpen()); },
+    'ap-no': () => { const x = get('applications', id); if (x) save('applications', Object.assign({}, x, { stage: 'Withdrawn', skipped: today() })); },
+    'ap-selall': () => { ui.apSel = (ui.apSel || []).length ? [] : foundJobs().map(x => x.id); saveUi(); render(); },
+    'ap-bulk': () => { const ids = ui.apSel || [], withMail = ids.filter(i => (get('applications', i) || {}).contactEmail), rest = ids.filter(i => !withMail.includes(i)); rest.forEach(apApprove); if (rest.length) toast(`${rest.length} approved into your Sprint queue`); ui.apSel = withMail; saveUi(); if (withMail.length) apSendSheet(withMail); else { ui.apSel = []; saveUi(); render(); } },
+    'ap-bulk-no': () => { (ui.apSel || []).forEach(i => { const x = get('applications', i); if (x) save('applications', Object.assign({}, x, { stage: 'Withdrawn', skipped: today() })); }); ui.apSel = []; saveUi(); },
+    'cv-dl': () => { fetch(`${API}?action=cv-get&id=${encodeURIComponent(id)}`, { headers: { Authorization: 'Bearer ' + ls.get(K.tok), 'X-Auth-Token': ls.get(K.tok) } }).then(r => r.blob()).then(b => { const l = document.createElement('a'); l.href = URL.createObjectURL(b); l.download = ((JOBST.cv || []).find(c => c.id === id) || {}).name || 'CV.pdf'; document.body.appendChild(l); l.click(); l.remove(); }).catch(() => toast('Could not download')); }
+  };
+}
+document.addEventListener('change', e => {
+  const d = e.target.dataset || {};
+  if (d.change === 'ap-sel') { const s = new Set(ui.apSel || []); if (e.target.checked) s.add(d.id); else s.delete(d.id); ui.apSel = [...s]; saveUi(); render(); }
+  if (d.change === 'ap-skills' || d.change === 'ap-exclude') apSave({ [d.change === 'ap-skills' ? 'skills' : 'exclude']: e.target.value.split(',').map(x => x.trim()).filter(Boolean) });
+  if (d.change === 'cv-up') { const f = e.target.files[0]; if (!f) return; if (f.size > 5 * 1024 * 1024) { toast('Max 5 MB'); return; } const rd = new FileReader(); rd.onload = async () => { try { toast('Uploading…'); const r = await api('cv-upload', { body: { name: f.name, data: String(rd.result).split(',')[1] } }); JOBST = Object.assign(JOBST || {}, { cv: r.cv }); render(); toast('CV saved · this one will be sent'); } catch (err) { toast(err.message); } }; rd.readAsDataURL(f); e.target.value = ''; }
+});
+document.addEventListener('submit', e => { const f = e.target; if (f.dataset && f.dataset.form === 'ap-title') { e.preventDefault(); e.stopImmediatePropagation(); const v = (f.q.value || '').trim(); if (v) apSave({ titles: [...new Set([...apPrefs().titles, v])] }); } }, true);
 
 /* ---------------- boot ---------------- */
 if ('serviceWorker' in navigator && location.protocol === 'https:') { const had = !!navigator.serviceWorker.controller; navigator.serviceWorker.register('sw.js').catch(() => {}); navigator.serviceWorker.addEventListener('controllerchange', () => { if (had) toast('ME.Coach was updated', 'Reload', () => location.reload()); }); }

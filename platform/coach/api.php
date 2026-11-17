@@ -7,7 +7,7 @@
  */
 declare(strict_types=1);
 
-const APP_VERSION = '8.0.0';
+const APP_VERSION = '9.0.0';
 const TRIAL_DAYS = 7;
 const GLOBAL_FILES = ['users.json', 'tokens.json', 'attempts.json', 'keys.json', 'system.json', '.lock', 'webauthn-chal.json', 'requests.json'];
 /* Plans shown in the app. Keep the prices in sync with the public pages (platform/tools/build_coach_site.py). */
@@ -476,6 +476,81 @@ function set_paid(string $uid, int $until, string $plan, bool $exact): void {
     });
 }
 
+/* ---------- v9: job autopilot (search on a schedule, match, approve, send with the latest CV) ---------- */
+function jobs_keys(): array { $s = read_json('system.json', []); return is_array($s['jobs'] ?? null) ? $s['jobs'] : []; }
+function http_req(string $url, string $method = 'GET', ?string $body = null, array $hdr = [], string $userpwd = ''): ?string {
+    if (!function_exists('curl_init')) { $ctx = stream_context_create(['http' => ['method' => $method, 'timeout' => 15, 'header' => implode("\r\n", $hdr), 'content' => $body ?? '', 'ignore_errors' => true]]); $r = @file_get_contents($url, false, $ctx); return is_string($r) ? $r : null; }
+    $c = curl_init($url); $o = [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 15, CURLOPT_CONNECTTIMEOUT => 6, CURLOPT_HTTPHEADER => array_merge(['Accept: application/json', 'User-Agent: ME.Coach job finder'], $hdr), CURLOPT_CUSTOMREQUEST => $method];
+    if ($body !== null) { $o[CURLOPT_POSTFIELDS] = $body; } if ($userpwd !== '') { $o[CURLOPT_USERPWD] = $userpwd; }
+    curl_setopt_array($c, $o); $r = curl_exec($c); $code = (int)curl_getinfo($c, CURLINFO_HTTP_CODE); curl_close($c);
+    return ($code >= 200 && $code < 300 && is_string($r)) ? $r : null;
+}
+function jtxt($s, int $n = 4000): string { $s = html_entity_decode(strip_tags(str_replace(['<br>', '<br/>', '<br />', '</p>', '</li>'], "\n", (string)$s)), ENT_QUOTES | ENT_HTML5, 'UTF-8'); return mb_substr(trim(preg_replace("/[ \t]+/", ' ', preg_replace("/\n{3,}/", "\n\n", $s))), 0, $n); }
+function job_email(string $t): string { if (preg_match('/[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/', $t, $m)) { $e = strtolower($m[0]); if (!preg_match('/^(no-?reply|donotreply)@/', $e)) { return $e; } } return ''; }
+/** search every enabled source for one user's settings; returns normalised jobs */
+function jobs_search(array $ap): array {
+    $keys = jobs_keys(); $out = []; $titles = array_slice(array_values(array_filter(array_map('strval', $ap['titles'] ?? []))), 0, 5);
+    $countries = array_values(array_filter(array_map('strval', $ap['countries'] ?? ['gb'])));
+    $add = function (array $j) use (&$out) { if (($j['link'] ?? '') === '' || ($j['role'] ?? '') === '') { return; } $j['ext'] = $j['ext'] ?? md5($j['link']); $out[$j['ext']] = $j; };
+    $where = ['gb' => 'United Kingdom', 'ie' => 'Ireland', 'nz' => 'New Zealand'];
+    foreach ($titles as $q) {
+        foreach ($countries as $cc) {
+            if ($cc === 'remote') { continue; }
+            if (!empty($keys['adzunaId']) && !empty($keys['adzunaKey']) && in_array($cc, ['gb', 'nz', 'au', 'ca', 'us', 'de', 'nl', 'fr', 'sg'], true)) {
+                $r = http_req('https://api.adzuna.com/v1/api/jobs/' . $cc . '/search/1?' . http_build_query(['app_id' => $keys['adzunaId'], 'app_key' => $keys['adzunaKey'], 'results_per_page' => 30, 'what' => $q, 'max_days_old' => 7, 'content-type' => 'application/json']));
+                $j = $r ? json_decode($r, true) : null; foreach (($j['results'] ?? []) as $x) { $d = jtxt($x['description'] ?? ''); $add(['ext' => 'az:' . ($x['id'] ?? md5((string)($x['redirect_url'] ?? ''))), 'role' => jtxt($x['title'] ?? '', 200), 'company' => jtxt($x['company']['display_name'] ?? '', 120), 'location' => jtxt($x['location']['display_name'] ?? '', 120), 'link' => (string)($x['redirect_url'] ?? ''), 'desc' => $d, 'source' => 'Adzuna', 'country' => $cc, 'posted' => substr((string)($x['created'] ?? ''), 0, 10), 'salary' => isset($x['salary_min']) ? (string)round($x['salary_min']) . (isset($x['salary_max']) ? '–' . round($x['salary_max']) : '') : '', 'contactEmail' => job_email($d)]); }
+            }
+            if ($cc === 'gb' && !empty($keys['reedKey'])) {
+                $r = http_req('https://www.reed.co.uk/api/1.0/search?' . http_build_query(['keywords' => $q, 'resultsToTake' => 30]), 'GET', null, [], $keys['reedKey'] . ':');
+                $j = $r ? json_decode($r, true) : null; foreach (($j['results'] ?? []) as $x) { $d = jtxt($x['jobDescription'] ?? ''); $add(['ext' => 'reed:' . ($x['jobId'] ?? ''), 'role' => jtxt($x['jobTitle'] ?? '', 200), 'company' => jtxt($x['employerName'] ?? '', 120), 'location' => jtxt($x['locationName'] ?? '', 120), 'link' => (string)($x['jobUrl'] ?? ''), 'desc' => $d, 'source' => 'Reed', 'country' => 'gb', 'posted' => '', 'salary' => isset($x['minimumSalary']) ? (string)$x['minimumSalary'] . (isset($x['maximumSalary']) ? '–' . $x['maximumSalary'] : '') : '', 'contactEmail' => job_email($d)]); }
+            }
+            if (!empty($keys['joobleKey'])) {
+                $r = http_req('https://jooble.org/api/' . rawurlencode($keys['joobleKey']), 'POST', json_encode(['keywords' => $q, 'location' => $where[$cc] ?? $cc]), ['Content-Type: application/json']);
+                $j = $r ? json_decode($r, true) : null; foreach (array_slice($j['jobs'] ?? [], 0, 30) as $x) { $d = jtxt($x['snippet'] ?? ''); $add(['ext' => 'jb:' . ($x['id'] ?? md5((string)($x['link'] ?? ''))), 'role' => jtxt($x['title'] ?? '', 200), 'company' => jtxt($x['company'] ?? '', 120), 'location' => jtxt($x['location'] ?? '', 120), 'link' => (string)($x['link'] ?? ''), 'desc' => $d, 'source' => 'Jooble', 'country' => $cc, 'posted' => substr((string)($x['updated'] ?? ''), 0, 10), 'salary' => jtxt($x['salary'] ?? '', 60), 'contactEmail' => job_email($d)]); }
+            }
+        }
+        if (in_array('remote', $countries, true) || !empty($ap['remote'])) {
+            $r = http_req('https://remotive.com/api/remote-jobs?' . http_build_query(['search' => $q, 'limit' => 30]));
+            $j = $r ? json_decode($r, true) : null; foreach (($j['jobs'] ?? []) as $x) { $d = jtxt($x['description'] ?? ''); $add(['ext' => 'rm:' . ($x['id'] ?? ''), 'role' => jtxt($x['title'] ?? '', 200), 'company' => jtxt($x['company_name'] ?? '', 120), 'location' => 'Remote · ' . jtxt($x['candidate_required_location'] ?? '', 80), 'link' => (string)($x['url'] ?? ''), 'desc' => $d, 'source' => 'Remotive', 'country' => 'remote', 'posted' => substr((string)($x['publication_date'] ?? ''), 0, 10), 'salary' => jtxt($x['salary'] ?? '', 60), 'contactEmail' => job_email($d)]); }
+        }
+    }
+    if (!empty($ap['arbeitnow'])) {
+        $r = http_req('https://www.arbeitnow.com/api/job-board-api'); $j = $r ? json_decode($r, true) : null;
+        foreach (($j['data'] ?? []) as $x) { $t = (string)($x['title'] ?? ''); $hit = false; foreach ($titles as $q) { if (stripos($t, $q) !== false) { $hit = true; } } if (!$hit) { continue; } $d = jtxt($x['description'] ?? ''); $add(['ext' => 'an:' . ($x['slug'] ?? md5((string)($x['url'] ?? ''))), 'role' => jtxt($t, 200), 'company' => jtxt($x['company_name'] ?? '', 120), 'location' => jtxt($x['location'] ?? '', 120) . (!empty($x['remote']) ? ' · Remote' : ''), 'link' => (string)($x['url'] ?? ''), 'desc' => $d, 'source' => 'Arbeitnow', 'country' => 'eu', 'posted' => '', 'salary' => '', 'contactEmail' => job_email($d)]); }
+    }
+    return array_values($out);
+}
+function job_match(array $j, array $ap): int {
+    $t = mb_strtolower($j['role'] ?? ''); $d = mb_strtolower(($j['desc'] ?? '') . ' ' . $t); $s = 0;
+    foreach (($ap['titles'] ?? []) as $q) { $q = mb_strtolower(trim((string)$q)); if ($q === '') { continue; } if (str_contains($t, $q)) { $s = max($s, 55); } else { $w = array_filter(preg_split('/\s+/', $q)); $hit = count(array_filter($w, fn($x) => str_contains($t, $x))); if ($w) { $s = max($s, (int)round(40 * $hit / count($w))); } } }
+    $kw = array_filter(array_map(fn($x) => mb_strtolower(trim((string)$x)), $ap['skills'] ?? [])); if ($kw) { $hit = count(array_filter($kw, fn($x) => str_contains($d, $x))); $s += (int)round(35 * min(1, $hit / max(1, min(6, count($kw))))); }
+    if (in_array($j['country'] ?? '', $ap['countries'] ?? [], true)) { $s += 10; }
+    if (($j['contactEmail'] ?? '') !== '') { $s += 5; }
+    foreach (($ap['exclude'] ?? []) as $x) { $x = mb_strtolower(trim((string)$x)); if ($x !== '' && str_contains($t, $x)) { return 0; } }
+    if (preg_match('/\b(senior director|vp|vice president|chief)\b/', $t)) { $s -= 15; }
+    return max(0, min(100, $s));
+}
+/** run the search for the current user and add new matches to the review queue (stage "Found") */
+function jobs_run(): array {
+    $s = load_store(); $ap = prefs_of($s)['autopilot'] ?? []; if (!is_array($ap) || empty($ap['titles'])) { return ['ok' => false, 'error' => 'Add at least one job title in Autopilot settings.']; }
+    $have = []; foreach ($s['collections']['applications'] as $a) { if (is_array($a)) { if (!empty($a['ext'])) { $have[$a['ext']] = 1; } if (!empty($a['link'])) { $have[md5((string)$a['link'])] = 1; } } }
+    $jobs = jobs_search($ap); $min = (int)($ap['minScore'] ?? 40); $new = [];
+    foreach ($jobs as $j) { if (isset($have[$j['ext']]) || isset($have[md5($j['link'])])) { continue; } $m = job_match($j, $ap); if ($m < $min) { continue; } $j['match'] = $m; $new[] = $j; }
+    usort($new, fn($a, $b) => $b['match'] <=> $a['match']); $new = array_slice($new, 0, (int)($ap['maxPerRun'] ?? 30));
+    if ($new) { with_lock(function () use ($new) { $s = load_store(); backup_store(); $now = now_ms(); foreach ($new as $j) { $id = new_id('job'); $s['collections']['applications'][$id] = $j + ['id' => $id, 'stage' => 'Found', 'foundOn' => gmdate('Y-m-d'), 'createdAt' => $now, 'updatedAt' => $now, 'by' => 'Autopilot']; } $s['rev'] = (int)$s['rev'] + 1; $s['updatedAt'] = gmdate('c'); write_json('store.json', $s); }); }
+    write_json('autopilot.json', ['last' => gmdate('c'), 'found' => count($jobs), 'added' => count($new)]);
+    return ['ok' => true, 'searched' => count($jobs), 'added' => count($new), 'sources' => array_values(array_filter([!empty(jobs_keys()['adzunaKey']) ? 'Adzuna' : '', !empty(jobs_keys()['reedKey']) ? 'Reed' : '', !empty(jobs_keys()['joobleKey']) ? 'Jooble' : '', 'Remotive', !empty($ap['arbeitnow']) ? 'Arbeitnow' : '']))];
+}
+function cv_index(): array { $l = read_json('cv.json', []); return is_array($l) ? $l : []; }
+function mail_with_file(string $to, string $from, string $fromName, string $replyTo, string $subject, string $text, ?array $file): bool {
+    $b = 'mec' . bin2hex(random_bytes(8)); $enc = fn($s) => '=?UTF-8?B?' . base64_encode($s) . '?=';
+    $h = ['MIME-Version: 1.0', 'From: ' . $enc($fromName) . ' <' . $from . '>', 'Reply-To: ' . $replyTo, 'X-Mailer: ME.Coach', 'Content-Type: multipart/mixed; boundary="' . $b . '"'];
+    $body = "--$b\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n" . chunk_split(base64_encode($text)) . "\r\n";
+    if ($file) { $body .= "--$b\r\nContent-Type: " . $file['type'] . '; name="' . $file['name'] . "\"\r\nContent-Transfer-Encoding: base64\r\nContent-Disposition: attachment; filename=\"" . $file['name'] . "\"\r\n\r\n" . chunk_split(base64_encode($file['data'])) . "\r\n"; }
+    $body .= "--$b--";
+    return @mail($to, $enc($subject), $body, implode("\r\n", $h), '-f' . $from);
+}
+
 /* ---------- router ---------- */
 if (defined('M2031_LIB')) { return; }
 ensure_dir();
@@ -685,6 +760,8 @@ switch ($action) {
         if (PHP_SAPI !== 'cli') { $sys = system_state(); if (!hash_equals((string)$sys['cronKey'], (string)($_GET['k'] ?? ''))) { http_response_code(404); exit; } }
         $tot = ['sent' => 0, 'removed' => 0, 'devices' => 0];
         foreach (users() as $uid => $u) { if (!has_access($u) || !is_file(DATA_DIR . '/u/' . $uid . '/push.json')) { continue; } use_user($uid); $r = run_cron(); foreach ($tot as $k => $v) { $tot[$k] += $r[$k]; } }
+        $jobsRun = 0; foreach (users() as $uid => $u) { if (!has_access($u)) { continue; } use_user($uid); $st = load_store(); $ap = prefs_of($st)['autopilot'] ?? []; if (empty($ap['on']) || empty($ap['titles'])) { continue; } $last = (string)(read_json('autopilot.json', [])['last'] ?? ''); if ($last !== '' && time() - strtotime($last) < 20 * 3600) { continue; } jobs_run(); $jobsRun++; }
+        $tot['jobsRun'] = $jobsRun;
         $GLOBALS['UID'] = '';
         with_lock(function () { $s = read_json('system.json', []); $s['lastCron'] = gmdate('c'); write_json('system.json', $s); });
         out(200, ['ok' => true] + $tot);
@@ -812,6 +889,58 @@ switch ($action) {
         require_auth(); $b = body(); $id = (string)($b['id'] ?? '');
         with_lock(function () use ($id) { $w = wa_state(); unset($w['creds'][$id]); write_json('webauthn.json', $w); }); key_set('wa', '', '', $id);
         out(200, ['ok' => true]);
+
+    /* ----- v9: job autopilot ----- */
+    case 'jobs-run':
+        if ($method !== 'POST') { fail(405, 'POST only'); }
+        require_access(); out(200, jobs_run() + ['state' => read_json('autopilot.json', [])]);
+
+    case 'jobs-state':
+        require_auth(); $k = jobs_keys();
+        out(200, ['ok' => true, 'state' => read_json('autopilot.json', new stdClass()), 'cv' => array_map(fn($x) => array_diff_key($x, ['file' => 1]), cv_index()), 'sources' => ['adzuna' => !empty($k['adzunaKey']), 'reed' => !empty($k['reedKey']), 'jooble' => !empty($k['joobleKey']), 'remotive' => true, 'arbeitnow' => true], 'mailFrom' => (string)($k['mailFrom'] ?? ''), 'sentToday' => count(array_filter(read_json('sent.json', []), fn($x) => substr((string)($x['at'] ?? ''), 0, 10) === gmdate('Y-m-d')))]);
+
+    case 'jobs-keys':
+        require_owner();
+        if ($method === 'POST') { $b = body(); with_lock(function () use ($b) { $s = read_json('system.json', []); $k = is_array($s['jobs'] ?? null) ? $s['jobs'] : [];
+            foreach (['adzunaId', 'adzunaKey', 'reedKey', 'joobleKey'] as $f) { $v = trim((string)($b[$f] ?? '')); if ($v === '-') { $k[$f] = ''; } elseif ($v !== '') { $k[$f] = preg_replace('/[^A-Za-z0-9_\-]/', '', $v); } }
+            $mf = strtolower(trim((string)($b['mailFrom'] ?? ''))); if ($mf !== '' && filter_var($mf, FILTER_VALIDATE_EMAIL)) { $k['mailFrom'] = $mf; }
+            $s['jobs'] = $k; write_json('system.json', $s); }); }
+        $k = jobs_keys(); out(200, ['ok' => true, 'has' => ['adzuna' => !empty($k['adzunaKey']), 'reed' => !empty($k['reedKey']), 'jooble' => !empty($k['joobleKey'])], 'mailFrom' => (string)($k['mailFrom'] ?? '')]);
+
+    case 'cv-upload':
+        if ($method !== 'POST') { fail(405, 'POST only'); }
+        require_access(); $b = body(); $name = preg_replace('/[^A-Za-z0-9 ._\-]/', '', (string)($b['name'] ?? 'CV.pdf')); $data = base64_decode((string)($b['data'] ?? ''), true);
+        if ($data === false || strlen($data) < 200 || strlen($data) > 5 * 1024 * 1024) { fail(400, 'Upload a PDF or Word file up to 5 MB.'); }
+        $isPdf = substr($data, 0, 4) === '%PDF'; $isDocx = substr($data, 0, 2) === 'PK' && preg_match('/\.docx$/i', $name);
+        if (!$isPdf && !$isDocx) { fail(400, 'Only PDF or .docx files.'); }
+        if (!is_dir(udir() . '/cv')) { @mkdir(udir() . '/cv', 0700, true); }
+        $id = 'cv' . gmdate('YmdHis') . bin2hex(random_bytes(2)); $fn = $id . ($isPdf ? '.pdf' : '.docx'); file_put_contents(udir() . '/cv/' . $fn, $data);
+        with_lock(function () use ($id, $fn, $name, $data, $isPdf) { $l = cv_index(); array_unshift($l, ['id' => $id, 'file' => $fn, 'name' => $name ?: ('CV' . ($isPdf ? '.pdf' : '.docx')), 'type' => $isPdf ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'size' => strlen($data), 'at' => gmdate('c')]); write_json('cv.json', array_slice($l, 0, 10)); });
+        out(200, ['ok' => true, 'cv' => array_map(fn($x) => array_diff_key($x, ['file' => 1]), cv_index())]);
+
+    case 'cv-get':
+        require_auth(); $id = (string)($_GET['id'] ?? ''); foreach (cv_index() as $c) { if ($c['id'] === $id && is_file(udir() . '/cv/' . $c['file'])) { header('Content-Type: ' . $c['type']); header('Content-Disposition: attachment; filename="' . $c['name'] . '"'); header('Cache-Control: private, no-store'); readfile(udir() . '/cv/' . $c['file']); exit; } }
+        fail(404, 'Not found');
+
+    case 'jobs-send':
+        if ($method !== 'POST') { fail(405, 'POST only'); }
+        require_access(); $b = body(); $id = (string)($b['id'] ?? ''); $to = strtolower(trim((string)($b['to'] ?? '')));
+        if (!filter_var($to, FILTER_VALIDATE_EMAIL)) { fail(400, 'The recipient email is not valid.'); }
+        if (empty($b['approved'])) { fail(400, 'Approval is required before sending.'); }
+        $sent = read_json('sent.json', []); $day = gmdate('Y-m-d'); if (count(array_filter($sent, fn($x) => substr((string)($x['at'] ?? ''), 0, 10) === $day)) >= 25) { fail(429, 'Daily limit of 25 emails reached. This protects your email reputation.'); }
+        $s = load_store(); $a = $s['collections']['applications'][$id] ?? null; if (!is_array($a)) { fail(404, 'Job not found'); }
+        foreach ($sent as $x) { if (($x['id'] ?? '') === $id) { fail(409, 'Already sent for this job.'); } }
+        $k = jobs_keys(); $host = preg_replace('/:\d+$/', '', (string)($_SERVER['HTTP_HOST'] ?? 'localhost')); $from = (string)($k['mailFrom'] ?? '') ?: 'jobs@' . preg_replace('/^www\./', '', $host);
+        $u = cur_user(); $cvs = cv_index(); $cv = null; $want = (string)($b['cv'] ?? ''); foreach ($cvs as $c) { if ($want === '' || $c['id'] === $want) { $cv = $c; break; } }
+        $file = $cv && is_file(udir() . '/cv/' . $cv['file']) ? ['name' => $cv['name'], 'type' => $cv['type'], 'data' => file_get_contents(udir() . '/cv/' . $cv['file'])] : null;
+        if (!$file && empty($b['noCv'])) { fail(400, 'Upload your CV first.'); }
+        $subject = mb_substr(trim((string)($b['subject'] ?? 'Application')), 0, 180); $text = mb_substr((string)($b['body'] ?? ''), 0, 8000);
+        $ok = PHP_SAPI === 'cli-server' && defined('MAIL_TEST') ? true : mail_with_file($to, $from, (string)($u['name'] ?? 'Applicant'), (string)($u['email'] ?? $from), $subject, $text, $file);
+        if (defined('MAIL_TEST')) { $ok = true; @file_put_contents(DATA_DIR . '/mail-test.log', json_encode(['to' => $to, 'from' => $from, 'subject' => $subject, 'cv' => $file ? $file['name'] : '']) . "\n", FILE_APPEND); }
+        if (!$ok) { fail(502, 'The server could not send the email. Check that the sender address exists in Hostinger email.'); }
+        with_lock(function () use ($id, $to, $subject, $cv, $day) { $l = read_json('sent.json', []); $l[] = ['id' => $id, 'to' => $to, 'subject' => $subject, 'cv' => $cv['name'] ?? '', 'at' => gmdate('c')]; write_json('sent.json', array_slice($l, -2000));
+            $s = load_store(); $a = $s['collections']['applications'][$id] ?? null; if (is_array($a)) { $a['stage'] = 'Applied'; $a['appliedOn'] = $day; $a['sentTo'] = $to; $a['sentAt'] = gmdate('c'); $a['cvSent'] = $cv['name'] ?? ''; $a['followUp'] = gmdate('Y-m-d', time() + 7 * 86400); $a['updatedAt'] = now_ms(); $s['collections']['applications'][$id] = $a; $s['rev'] = (int)$s['rev'] + 1; $s['updatedAt'] = gmdate('c'); write_json('store.json', $s); } });
+        out(200, ['ok' => true, 'sentTo' => $to]);
 
     default:
         fail(404, 'Unknown action');

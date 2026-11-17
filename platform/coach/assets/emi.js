@@ -1,11 +1,11 @@
 /* Emi — the ME.Coach guide. A procedural 3D character built with three.js (assets/vendor/three.min.js).
  * Emi.mount(el, { orbit, fps, zoom, onTap }) -> { play(name), say(text, ms), look(x, y), view(name), mood(name), destroy() }
- * Actions: idle, wave, nod, think, celebrate, point-left, point-right, sleep, dance, shy, surprised, breathe, cheer, stretch, thumbs
+ * Actions: idle, laugh, wink, giggle, hop, yawn, facepalm, heart, lookaround, tap, wave, nod, think, celebrate, point-left, point-right, sleep, dance, shy, surprised, breathe, cheer, stretch, thumbs
  */
 (function () {
   'use strict';
   const T = () => window.THREE;
-  const C = { skin: 0xf3e2cc, skinDk: 0xe7cdb0, navy: 0x2b3357, navyDk: 0x1d2440, gold: 0xd4ae36, cream: 0xfaf6ee, white: 0xffffff, ink: 0x1a1d2b, blush: 0xf29a9a, shoe: 0xf4f4f2, sole: 0x9aa0b4 };
+  const C = { skin: 0xf6dcc2, skinDk: 0xe9c3a2, navy: 0x2b3357, navyDk: 0x1d2440, gold: 0xd4ae36, cream: 0xfaf6ee, white: 0xffffff, ink: 0x1a1d2b, blush: 0xf29a9a, shoe: 0xf4f4f2, sole: 0x9aa0b4 };
   const reduce = () => window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const ease = t => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
   const bell = t => Math.sin(Math.PI * Math.min(1, Math.max(0, t)));
@@ -73,11 +73,9 @@
     const cap = M(new THREE.SphereGeometry(.585, 40, 24, 0, Math.PI * 2, 0, Math.PI * .52), hairM); cap.scale.set(1.05, .98, .96); cap.position.set(0, .03, -.035); cap.rotation.x = -.32; head.add(cap);
     const swoop = M(new THREE.TorusGeometry(.32, .11, 12, 30, Math.PI * .9), hairM); swoop.position.set(.06, .34, .3); swoop.rotation.set(-.55, .2, .35); head.add(swoop);
     const curl = M(new THREE.TorusGeometry(.07, .03, 8, 18, Math.PI * 1.6), hairM); curl.position.set(-.16, .5, .36); curl.rotation.set(-.4, 0, .8); head.add(curl);
-    // antenna with the gold "ME." dot — it glows
-    const ant = G(); ant.position.set(.05, .52, -.05); head.add(ant); P.ant = ant;
-    const stalk = M(new THREE.CylinderGeometry(.018, .022, .26, 8), navyDk); stalk.position.y = .13; ant.add(stalk);
-    const dotM = mat(C.gold, { emissive: 0xd4ae36, emissiveIntensity: .55, roughness: .25, metalness: .2 }); P.dotM = dotM;
-    const dot = M(new THREE.SphereGeometry(.07, 20, 14), dotM); dot.position.y = .29; ant.add(dot); P.dot = dot;
+    // a soft, bouncy hair tuft (no antenna: Emi is a person, not a robot)
+    const tuft = G(); tuft.position.set(.04, .5, .1); head.add(tuft); P.tuft = tuft;
+    for (let i = 0; i < 3; i++) { const lock = M(new THREE.CapsuleGeometry(.055 - i * .008, .2 - i * .03, 6, 10), hairM); lock.position.set(-.07 + i * .08, .1 - i * .015, -.03 * i); lock.rotation.set(-.35, 0, .55 - i * .5); tuft.add(lock); }
     // face
     const face = G(); face.position.z = .47; head.add(face); P.face = face;
     P.eyes = []; P.lids = []; P.brows = [];
@@ -85,12 +83,13 @@
       const eye = G(); eye.position.set(.2 * s, .03, .02); face.add(eye);
       const scl = M(new THREE.SphereGeometry(.125, 24, 18), white); scl.scale.set(.9, 1.08, .55); eye.add(scl);
       const pup = G(); eye.add(pup);
-      const iris = M(new THREE.SphereGeometry(.085, 20, 16), mat(0x2e4a7a, { roughness: .2 })); iris.scale.set(.9, 1.05, .45); iris.position.z = .045; pup.add(iris);
+      const iris = M(new THREE.SphereGeometry(.085, 20, 16), mat(0x6b4226, { roughness: .2 })); iris.scale.set(.9, 1.05, .45); iris.position.z = .045; pup.add(iris);
       const pp = M(new THREE.SphereGeometry(.05, 16, 12), ink); pp.scale.set(.9, 1.05, .45); pp.position.z = .07; pup.add(pp);
       const hl = M(new THREE.SphereGeometry(.022, 10, 8), white); hl.position.set(.03, .035, .09); pup.add(hl);
       const hl2 = M(new THREE.SphereGeometry(.011, 8, 6), white); hl2.position.set(-.025, -.03, .09); pup.add(hl2);
       const lid = M(new THREE.SphereGeometry(.132, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), skin); lid.scale.set(.92, 1.1, .6); lid.rotation.x = -.05; lid.position.z = .005; eye.add(lid); lid.scale.y = .02;
-      const brow = M(new THREE.CapsuleGeometry(.022, .12, 4, 8), hairM); brow.rotation.z = Math.PI / 2 + .12 * s; brow.position.set(.2 * s, .2, .03); face.add(brow);
+      for (let l = 0; l < 2; l++) { const lash = M(new THREE.CapsuleGeometry(.008, .045, 3, 6), ink); lash.position.set((.1 + l * .025) * s, .1 - l * .02, .05); lash.rotation.z = (-.7 - l * .4) * s; eye.add(lash); }
+      const brow = M(new THREE.CapsuleGeometry(.022, .12, 4, 8), hairM); brow.rotation.z = Math.PI / 2 + .12 * s; brow.position.set(.2 * s, .175, .03); face.add(brow);
       const cheek = M(new THREE.SphereGeometry(.075, 16, 12), blush); cheek.scale.set(1.2, .7, .3); cheek.position.set(.32 * s, -.13, -.02); face.add(cheek);
       P.eyes.push({ eye, pup }); P.lids.push(lid); P.brows.push(brow); (P.cheeks = P.cheeks || []).push(cheek);
     }
@@ -113,7 +112,7 @@
   }
 
   /* ---------- animation ---------- */
-  const ACTIONS = { wave: 2.4, nod: 1.4, think: 3.2, celebrate: 2.2, 'point-left': 2, 'point-right': 2, sleep: 6, dance: 3.6, shy: 2.2, surprised: 1.4, breathe: 8, cheer: 2, stretch: 2.6, thumbs: 1.8, listen: 2.4 };
+  const ACTIONS = { laugh: 2.4, wink: 1.4, giggle: 1.8, hop: 1.1, yawn: 2.6, facepalm: 2.4, heart: 2.4, lookaround: 2.6, tap: 2, wave: 2.4, nod: 1.4, think: 3.2, celebrate: 2.2, 'point-left': 2, 'point-right': 2, sleep: 6, dance: 3.6, shy: 2.2, surprised: 1.4, breathe: 8, cheer: 2, stretch: 2.6, thumbs: 1.8, listen: 2.4 };
 
   function mount(el, opt = {}) {
     const THREE = T(); if (!THREE || !el) return null;
@@ -134,7 +133,7 @@
     function size() { const w = el.clientWidth || 160, h = el.clientHeight || 200; renderer.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); }
     size(); const ro = window.ResizeObserver ? new ResizeObserver(size) : null; if (ro) ro.observe(el);
     // bubble
-    const bub = document.createElement('div'); bub.className = 'emi-bubble'; bub.hidden = true; el.appendChild(bub);
+    const bub = document.createElement('div'); bub.className = 'emi-bubble'; bub.hidden = true; el.appendChild(bub); bub.addEventListener('click', () => { bub.hidden = true; });
     function say(text, ms) { if (!text) { bub.hidden = true; return; } bub.textContent = text; bub.hidden = false; bub.classList.remove('in'); void bub.offsetWidth; bub.classList.add('in'); const d = ms || Math.min(9000, 1800 + text.length * 55); st.talkUntil = st.clock + Math.min(4, text.length * .06); clearTimeout(say.t); say.t = setTimeout(() => { bub.hidden = true; }, d); }
     function play(name) { if (!ACTIONS[name] && name !== 'idle') name = 'idle'; if (reduce() && ['celebrate', 'dance', 'stretch'].includes(name)) name = 'nod'; st.act = name; st.t0 = st.clock; st.dur = ACTIONS[name] || 0; if (name === 'celebrate' || name === 'cheer') burst(); }
     function burst() { P.stars.forEach((s, i) => { const a = (i / P.stars.length) * Math.PI * 2; s.userData = { a, v: 1.4 + Math.random() * 1.2, up: 2.2 + Math.random() * 1.4, t0: st.clock }; s.visible = true; }); }
@@ -150,7 +149,7 @@
     cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', () => { drag = null; });
     if (opt.orbit) cv.addEventListener('wheel', e => { e.preventDefault(); st.dist = Math.max(3.4, Math.min(10, st.dist + e.deltaY * .004)); }, { passive: false });
     cv.addEventListener('dblclick', () => { st.yaw = 0; st.pitch = .08; st.dist = opt.zoom || 6.3; });
-    const reactions = ['wave', 'shy', 'surprised', 'dance', 'thumbs', 'cheer'];
+    const reactions = ['laugh', 'giggle', 'wink', 'hop', 'heart', 'wave', 'shy', 'surprised', 'dance', 'thumbs', 'facepalm'];
     function tap() { const r = reactions[Math.floor(Math.random() * reactions.length)]; play(r); if (opt.onTap) opt.onTap(r); }
     const onGlobalMove = e => { if (opt.orbit) return; const r = cv.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height * .35; st.lookX = Math.max(-1, Math.min(1, (e.clientX - cx) / 500)); st.lookY = Math.max(-1, Math.min(1, (e.clientY - cy) / 400)); };
     window.addEventListener('pointermove', onGlobalMove, { passive: true });
@@ -175,7 +174,8 @@
       const br = rm ? 0 : Math.sin(t * 2.1);
       let bodyY = br * .025, bodyRotY = 0, bodyRotZ = rm ? 0 : Math.sin(t * 1.05) * .02, torsoS = 1 + br * .012;
       let armL = { z: -.16 - br * .03, x: 0 }, armR = { z: .16 + br * .03, x: 0 }, elbL = -.15, elbR = -.15;
-      let headX = 0, headY = 0, headZ = rm ? 0 : Math.sin(t * .9) * .03, mouthOpen = 0, smile = 1, browUp = 0, lidClose = 0, legL = 0, legR = 0, blushK = .55;
+      let headX = 0, headY = 0, headZ = rm ? 0 : Math.sin(t * .9) * .03, mouthOpen = 0, smile = 1, browUp = 0, lidClose = 0, lidL = 0, lidR = 0, legL = 0, legR = 0, blushK = .55;
+      if (!rm) { bodyRotZ += Math.sin(t * .37) * .025; headY += Math.sin(t * .23) * .06; }
       P.bulb.visible = false; P.heart.visible = false; P.zz.forEach(z => z.visible = false);
       if (a === 'wave') { const q = bell(p); armR = { z: lerp(.16, 2.6, ease(Math.min(1, p * 3))) * (p < .85 ? 1 : (1 - p) / .15), x: 0 }; elbR = -.3 + Math.sin(t * 12) * .5 * q; headZ += .12 * q; smile = 1.2; mouthOpen = .25 * q; }
       else if (a === 'nod') { headX = Math.sin(p * Math.PI * 4) * .18 * bell(p); smile = 1.1; }
@@ -190,7 +190,17 @@
       else if (a === 'stretch') { const q = bell(p); armL = { z: -2.9 * q - .16, x: 0 }; armR = { z: 2.9 * q + .16, x: 0 }; bodyY += .06 * q; lidClose = .6 * q; mouthOpen = .9 * q; smile = 0; torsoS = 1 + .04 * q; }
       else if (a === 'thumbs') { const q = bell(p); armR = { z: .5 * q + .16, x: -1.1 * q }; elbR = -1.1 * q - .1; headZ = -.08 * q; smile = 1.4; browUp = .3 * q; }
       else if (a === 'listen') { const q = bell(p); headZ = .22 * q; headX = -.05 * q; browUp = .3 * q; }
-      else if (!rm && st.clock > st.idleNext) { st.idleNext = st.clock + 9 + Math.random() * 10; const idles = ['nod', 'listen', 'stretch', 'thumbs']; play(idles[Math.floor(Math.random() * idles.length)]); }
+      else if (a === 'laugh') { const q = bell(p); headX = -.2 * q; bodyY += Math.abs(Math.sin(t * 17)) * .04 * q; bodyRotZ += Math.sin(t * 8.5) * .05 * q; armL = { z: -.35 * q - .16, x: -.7 * q }; armR = { z: .35 * q + .16, x: -.7 * q }; elbL = elbR = -1.1 * q - .15; mouthOpen = .95 * q; smile = 1.5; lidClose = .6 * q; browUp = .45 * q; blushK = .55 + .35 * q; }
+      else if (a === 'wink') { const q = bell(p); lidR = q; headZ = -.16 * q; smile = 1.45; armR = { z: .7 * q + .16, x: -1.1 * q }; elbR = -.8 * q - .15; browUp = .2 * q; }
+      else if (a === 'giggle') { const q = bell(p); armR = { z: -.15 * q + .16, x: -1.35 * q }; elbR = -2.3 * q - .1; headX = .1 * q; headZ = .1 * q; bodyY += Math.abs(Math.sin(t * 14)) * .03 * q; lidClose = .45 * q; smile = 1.35; blushK = .95; }
+      else if (a === 'hop') { const j = Math.sin(Math.min(1, p) * Math.PI); bodyY += j * .38; legL = legR = j * .5; armL = { z: -.9 * j - .16, x: 0 }; armR = { z: .9 * j + .16, x: 0 }; smile = 1.35; mouthOpen = .35 * j; browUp = .4 * j; }
+      else if (a === 'yawn') { const q = bell(p); mouthOpen = q; lidClose = .75 * q; headX = -.18 * q; armR = { z: 2.4 * q + .16, x: 0 }; armL = { z: -.2 * q - .16, x: -1.2 * q }; elbL = -1.7 * q - .1; smile = 0; torsoS = 1 + .03 * q; }
+      else if (a === 'facepalm') { const q = bell(p); armR = { z: .05 + .1 * q, x: -1.55 * q }; elbR = -2.05 * q - .1; headX = .28 * q; headZ = .08 * q; lidClose = .85 * q; smile = .8; bodyY -= .03 * q; }
+      else if (a === 'heart') { const q = bell(p); armL = { z: -2.3 * q - .16, x: -.35 * q }; armR = { z: 2.3 * q + .16, x: -.35 * q }; elbL = elbR = -1.7 * q - .15; P.heart.visible = q > .3; P.heart.position.set(0, 3.05 + Math.sin(t * 6) * .04, .25); P.heart.scale.setScalar(1.4 + Math.sin(t * 10) * .15); smile = 1.45; lidClose = .3 * q; blushK = .9; }
+      else if (a === 'lookaround') { const q = bell(p); headY = Math.sin(p * Math.PI * 2) * .7 * q; st.lookX = Math.sin(p * Math.PI * 2) * q; browUp = .2 * q; }
+      else if (a === 'tap') { const q = bell(p); legR = Math.abs(Math.sin(t * 9)) * .3 * q; headZ = Math.sin(t * 4.5) * .07 * q; armL = { z: -.2, x: 0 }; smile = 1.2; }
+      else if (!rm && st.clock > st.idleNext) { st.idleNext = st.clock + 7 + Math.random() * 9; const idles = ['nod', 'listen', 'stretch', 'thumbs', 'wink', 'giggle', 'lookaround', 'tap', 'hop', 'yawn']; play(idles[Math.floor(Math.random() * idles.length)]); }
+      if (smile >= 1.3 && a !== 'wink') lidClose = Math.max(lidClose, .28);
       // blink
       if (st.blinkT < 0 && t > st.blinkAt) { st.blinkT = 0; }
       if (st.blinkT >= 0) { st.blinkT += dt; const b = st.blinkT / .16; lidClose = Math.max(lidClose, b < 1 ? Math.sin(b * Math.PI) : 0); if (b >= 1) { st.blinkT = -1; st.blinkAt = t + 2 + Math.random() * 3.5; } }
@@ -205,14 +215,14 @@
       st.lx = lerp(st.lx, st.lookX, k * .6); st.ly = lerp(st.ly, st.lookY, k * .6);
       P.head.rotation.y = lerp(P.head.rotation.y, headY + st.lx * .45, k); P.head.rotation.x = lerp(P.head.rotation.x, headX + st.ly * .22, k); P.head.rotation.z = lerp(P.head.rotation.z, headZ, k);
       P.eyes.forEach(({ pup }) => { pup.position.x = st.lx * .028; pup.position.y = -st.ly * .025; });
-      P.lids.forEach(l => { l.scale.y = lerp(l.scale.y, .02 + lidClose * 1.08, Math.min(1, dt * 30)); });
-      P.brows.forEach((b, i) => { b.position.y = .2 + browUp * .05; b.rotation.z = Math.PI / 2 + (i ? -1 : 1) * (.12 - browUp * .15); });
+      P.lids.forEach((l, i) => { l.scale.y = lerp(l.scale.y, .02 + Math.max(lidClose, i ? lidR : lidL) * 1.08, Math.min(1, dt * 30)); });
+      P.brows.forEach((b, i) => { b.position.y = .175 + browUp * .05; b.rotation.z = Math.PI / 2 + (i ? -1 : 1) * (.12 - browUp * .15); });
       P.cheeks.forEach(c => { c.material.opacity = blushK; });
       P.mouth.scale.y = lerp(P.mouth.scale.y, .08 + mouthOpen * .9, Math.min(1, dt * 20)); P.mouth.visible = P.mouth.scale.y > .12;
       P.smile.visible = !P.mouth.visible || mouthOpen < .5; P.smile.scale.set(1, Math.max(.15, smile), 1);
-      // antenna spring + glow pulse
-      P.ant.rotation.z = Math.sin(t * 3.1) * .1 + (P.body.rotation.z * -1.5); P.ant.rotation.x = Math.sin(t * 2.3) * .06;
-      P.dotM.emissiveIntensity = .45 + Math.sin(t * 3) * .2 + (a === 'celebrate' ? .6 : 0);
+      // hair tuft bounces like a spring
+      st.tv = (st.tv || 0) + ((P.body.position.y - (st.ty || 0)) * -14 - (P.tuft.rotation.x + .0) * 30) * dt - (st.tv || 0) * 4 * dt; st.ty = P.body.position.y;
+      P.tuft.rotation.x = Math.max(-.6, Math.min(.6, P.tuft.rotation.x + st.tv * dt * 8)); P.tuft.rotation.z = Math.sin(t * 2.7) * .07 - P.body.rotation.z * 1.4;
       P.scarfTail.rotation.z = .5 + Math.sin(t * 2.6) * .08;
       P.shadow.scale.setScalar(1 - Math.min(.4, P.body.position.y * .8));
       // stars

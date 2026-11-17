@@ -12,7 +12,7 @@ import json
 import pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent / 'coach'
-VERSION = '8.0.0'
+VERSION = '9.0.0'
 BASE = 'https://miladebrahimi.me/coach/'
 
 PLANS = [
@@ -80,7 +80,7 @@ def head(title, desc, path, extra=''):
 <html lang="en" dir="ltr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <title>{e(title)}</title>
 <meta name="description" content="{e(desc)}">
 <link rel="canonical" href="{url}">
@@ -172,7 +172,7 @@ def landing_html():
 
 <section class="s-sec" id="how"><div class="s-wrap"><span class="kicker">How it works</span><h2>Test first. Then a plan. Then one minute a day.</h2>
 <div class="s-steps">
-<div class="s-step"><b>1</b>{shot('o1-wheel-step', 'A step of the Wheel of Life test')}<h3>Take the test</h3><p>Nine short questions and the Wheel of Life: score eight areas of your life from 1 to 10. About two minutes.</p></div>
+<div class="s-step"><b>1</b>{shot('o1-wheel-step', 'A step of the Wheel of Life test')}<h3>Take the test</h3><p>Type your name, then just tap: your focus, your first goal and a quick Wheel of Life. About one minute. Later, take the full 80-question Balance Wheel Test from the book.</p></div>
 <div class="s-step"><b>2</b>{shot('o3-plan', 'Personal plan created after the test')}<h3>Get your plan</h3><p>Your goal, your weakest area, your first 40-day cycle, habits and today's Top 3, ready before you sign up.</p></div>
 <div class="s-step"><b>3</b>{shot('s1b-today-plan', 'Daily plan with timeline in ME.Coach')}<h3>One minute, morning and night</h3><p>Plan the day, close the day, tick your habits. Your coach message and rings update through the day.</p></div>
 </div><div class="s-ctas center"><a class="s-btn primary big" href="./?start=1" data-act="l-start">Start my free test</a></div></div></section>
