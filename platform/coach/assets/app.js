@@ -5,7 +5,7 @@
 (() => {
 'use strict';
 
-const VERSION = '9.0.0';
+const VERSION = '9.1.0';
 const API = 'api.php';
 const K = { db: 'mec.db', out: 'mec.outbox', tok: 'mec.token', rev: 'mec.rev', ui: 'mec.ui', last: 'mec.lastSync', user: 'mec.user' };
 const COLS = ['tasks','events','projects','goals','skills','logs','evidence','decisions','notes','ielts','sessions','settings','milestones','applications','immigration','habits','money','templates','courses','areas','wheel','cycles','focus','products','tests','careers'];
@@ -795,9 +795,10 @@ const WHEEL_PRESETS = [['classic', 'Classic Wheel of Life', ['Career', 'Money', 
 const areas = () => list('areas').sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0) || String(a.title).localeCompare(String(b.title)));
 const areaColor = a => (document.documentElement.classList.contains('dark') ? AREA_COL_D : AREA_COL)[((Number(a && a.color) || 0) % 8 + 8) % 8];
 const wheels = () => list('wheel').filter(w => w.date && w.scores).sort((a, b) => String(b.date).localeCompare(String(a.date)) || String(b.updatedAt).localeCompare(String(a.updatedAt)));
-const areaScore = (id, w = wheels()[0]) => w && w.scores && w.scores[id] != null ? Number(w.scores[id]) : null;
+const r2 = n => Math.round(Number(n) * 100) / 100;
+const areaScore = (id, w = wheels()[0]) => w && w.scores && w.scores[id] != null ? r2(w.scores[id]) : null;
 const areaTarget = a => Number(a.target) || 8;
-const areaGap = a => { const s = areaScore(a.id); return s == null ? 0 : Math.max(0, areaTarget(a) - s); };
+const areaGap = a => { const s = areaScore(a.id); return s == null ? 0 : r2(Math.max(0, areaTarget(a) - s)); };
 const goalArea = g => g ? (g.areaId && get('areas', g.areaId)) || areas().find(a => a.title === g.area) || null : null;
 const daysBetween = (a, b) => Math.round((parseD(b) - parseD(a)) / 86400000);
 const activeCycle = () => list('cycles').filter(c => c.status === 'active').sort((a, b) => String(b.start).localeCompare(String(a.start)))[0] || null;
@@ -833,7 +834,7 @@ function wheelSvg(w, prev, opts = {}) {
   return `<svg viewBox="${-padX} 0 ${S + 2 * padX} ${S}" class="wheel" role="img" aria-label="Wheel of Life">${g}</svg>`;
 }
 function wheelTable(w, prev) {
-  return `<div class="list">${areas().map(a => { const s = areaScore(a.id, w), p = prev ? areaScore(a.id, prev) : null; return `<div class="row" data-act="area-open" data-id="${esc(a.id)}"><span class="sw" style="background:${areaColor(a)}"></span><div class="main"><div class="t" dir="auto">${esc(a.title)}</div><div class="bar thin"><i style="width:${(s || 0) * 10}%;background:${areaColor(a)}"></i></div></div><div class="sc"><b>${s ?? '–'}</b><span>/${areaTarget(a)}</span>${s != null && p != null && s !== p ? `<em class="${s > p ? 'up' : 'down'}">${s > p ? '▲' : '▼'}${Math.abs(s - p)}</em>` : ''}</div></div>`; }).join('')}</div>`;
+  return `<div class="list">${areas().map(a => { const s = areaScore(a.id, w), p = prev ? areaScore(a.id, prev) : null; return `<div class="row" data-act="area-open" data-id="${esc(a.id)}"><span class="sw" style="background:${areaColor(a)}"></span><div class="main"><div class="t" dir="auto">${esc(a.title)}</div><div class="bar thin"><i style="width:${(s || 0) * 10}%;background:${areaColor(a)}"></i></div></div><div class="sc"><b>${s ?? '–'}</b><span>/${areaTarget(a)}</span>${s != null && p != null && s !== p ? `<em class="${s > p ? 'up' : 'down'}">${s > p ? '▲' : '▼'}${r2(Math.abs(s - p))}</em>` : ''}</div></div>`; }).join('')}</div>`;
 }
 function vWheel() {
   const as = areas(), ws = wheels(), w = ws[0], prev = ws[1];
@@ -1419,7 +1420,7 @@ function vSettings() {
 function header(title, sub) {
   if (ui.lang === 'fa') { title = trStr(title) || title; sub = sub && (trStr(sub) || sub); }
   const pg = route().page; const back = !NAV_MAIN.some(([k]) => k === pg) && pg !== 'plan' && pg !== 'learn';
-  return `<div class="top"><div class="top-row">${back ? `<button class="icon-btn hback" data-act="back" aria-label="Back">${I.left}</button>` : ''}<h1 dir="auto">${esc(title)}</h1>${syncHtml()}<button class="icon-btn hsearch" data-act="search" aria-label="Search">${I.search}</button><a class="icon-btn hmore" href="#/hub" aria-label="More">${I.more}${badge('more')}</a></div>${sub ? `<div class="sub" dir="auto">${esc(sub)}</div>` : ''}</div><div class="spacer" style="height:14px"></div>`;
+  return `<div class="top"><div class="top-row">${back ? `<button class="icon-btn hback" data-act="back" aria-label="Back">${I.left}</button>` : ''}<h1 dir="auto">${esc(title)}</h1>${syncHtml()}<button class="icon-btn hsearch" data-act="search" aria-label="Search">${I.search}</button><button class="icon-btn hmore" data-act="page-menu" aria-label="Options">${I.more}${badge('more')}</button></div>${sub ? `<div class="sub" dir="auto">${esc(sub)}</div>` : ''}</div><div class="spacer" style="height:14px"></div>`;
 }
 
 /* ================= v7: owner mode, boards, job sprint, motivation, calm ================= */
@@ -1956,7 +1957,7 @@ function vLife() {
   const as = areas(), w = wheels()[0], prev = wheels()[1], sc = as.map(a => areaScore(a.id)).filter(x => x != null), avg = sc.length ? Math.round(10 * sc.reduce((s, x) => s + x, 0) / sc.length) / 10 : null;
   if (!as.length) return header('Life', 'Your 8 areas of life') + `<div class="card empty">Set up your Wheel of Life to see your areas.<div class="btns" style="justify-content:center;margin-top:10px"><button class="btn primary" data-act="wheel-start">Set up</button></div></div>`;
   const ms = microToday(), habs = list('habits');
-  const card = a => { const s = areaScore(a.id), ps = prev ? areaScore(a.id, prev) : null, gs = list('goals').filter(g => goalArea(g) && goalArea(g).id === a.id && !['Done', 'Achieved', 'Dropped'].includes(g.status)), hs = habs.filter(h => h.areaId === a.id || gs.some(g => g.id === h.goalId)), m = ms.find(x => goalArea(x.g) && goalArea(x.g).id === a.id), tr = s != null && ps != null ? s - ps : 0;
+  const card = a => { const s = areaScore(a.id), ps = prev ? areaScore(a.id, prev) : null, gs = list('goals').filter(g => goalArea(g) && goalArea(g).id === a.id && !['Done', 'Achieved', 'Dropped'].includes(g.status)), hs = habs.filter(h => h.areaId === a.id || gs.some(g => g.id === h.goalId)), m = ms.find(x => goalArea(x.g) && goalArea(x.g).id === a.id), tr = s != null && ps != null ? r2(s - ps) : 0;
     return `<a class="acard" href="#/area/${encodeURIComponent(a.id)}" style="--ac:${areaColor(a)}"><div class="ac-top"><span class="ac-e">${areaEmoji(a)}</span><b dir="auto">${esc(a.title)}</b><span class="ac-s">${s ?? '–'}<small>/10</small>${tr ? `<i class="${tr > 0 ? 'up' : 'dn'}">${tr > 0 ? '▲' : '▼'}${Math.abs(tr)}</i>` : ''}</span></div>
     <div class="ac-bar"><i style="width:${(s || 0) * 10}%"></i><em style="left:${areaTarget(a) * 10}%"></em></div>
     <div class="ac-m"><span>${gs.length} goal${gs.length === 1 ? '' : 's'}</span><span>${hs.length} habit${hs.length === 1 ? '' : 's'}</span></div>
@@ -2839,7 +2840,7 @@ document.addEventListener('click', async e => {
     password: () => form('Change password', [{ k: 'current', label: 'Current password', type: 'password', req: true }, { k: 'next', label: 'New password (10+ characters)', type: 'password', req: true }], {}, v => { api('password', { body: v }).then(j => { ls.set(K.tok, j.token); toast('Password changed. Other devices must sign in again.'); }).catch(err => toast(err.message)); }),
     logout: async () => { if (!confirm('Sign out on this device? Data stays on the server.')) return; if (Object.keys(outbox).length) await sync(); try { await api('logout', { method: 'POST' }); } catch {} ls.del(K.tok); ls.del(K.db); ls.del(K.out); ls.del(K.rev); ls.del(K.user); me = null; db = blankDb(); outbox = {}; showLanding(); }
   };
-  Object.assign(map, v7Acts(a, id, e), v71Acts(a, id), v8Acts(a, id), v9Acts(a, id), v9JobActs(a, id), { 'board-open': () => { closeSheet(true); location.hash = '#/board/' + encodeURIComponent(id); }, 'habit-open-s': () => {} });
+  Object.assign(map, v7Acts(a, id, e), v71Acts(a, id), v8Acts(a, id), v9Acts(a, id), v9JobActs(a, id), pmActs(a, id), { 'board-open': () => { closeSheet(true); location.hash = '#/board/' + encodeURIComponent(id); }, 'habit-open-s': () => {} });
   if (map[act]) { if (act !== 'sheet-close' && act !== 'form-save' && act !== 'form-del' && sheetCtx && ['new-task', 'new-event', 'new-note', 'new-decision', 'new-evidence', 'new-session', 'closeout', 'log-time', 'new-application', 'new-milestone', 'new-immig', 'weekly', 'money-add', 'from-tpl', 'new-course', 'morning', 'new-goal', 'wheel-test', 'cycle-new', 'focus-free', 'new-habit'].includes(act)) closeSheet(true); map[act](); }
 });
 document.addEventListener('input', e => { const k = e.target.dataset && e.target.dataset.input; if (k) { ui[k] = e.target.value; saveUi(); if (e.target.dataset.norender) return; clearTimeout(render.t); render.t = setTimeout(render, 180); } });
@@ -3209,7 +3210,7 @@ goalMicroCard = function (id) {
   const tot = g.plan.reduce((s, p) => s + p.count, 0), dn = g.plan.reduce((s, p) => s + Math.min(p.count, pDone(p)), 0), t = today();
   return `<div class="card gmcard"><h2>${I.bolt} Action plan <span class="count">${dn}/${tot}</span><span style="flex:1"></span><button class="btn small ghost" data-act="plan-add" data-id="${esc(id)}">${I.plus} Action</button></h2>
   ${g.keyword ? `<div class="small" style="margin:-4px 0 8px">📘 ${esc(g.keyword)}${g.pain ? ` · instead of “${esc(g.pain)}”` : ''}</div>` : ''}
-  <div class="list">${g.plan.map(p => { const n = pDone(p); return `<div class="row gmrow"><button class="check ${(p.done || {})[t] ? 'done' : ''}" data-act="plan-done" data-id="${esc(id)}" data-p="${esc(p.id)}" aria-label="Done today">${I.tick}</button><span class="psym">${esc(p.sym)}</span><div class="main"><div class="t" dir="auto">${esc(p.t)}</div><div class="bar" style="margin:6px 0 2px"><i style="width:${Math.min(100, Math.round(100 * n / p.count))}%"></i></div><div class="m"><span>${n} of ${p.count}</span>${n >= p.count ? '<span class="chip s-done">done</span>' : ''}</div></div><button class="icon-btn" data-act="plan-del" data-id="${esc(id)}" data-p="${esc(p.id)}" aria-label="Remove">${I.close}</button></div>`; }).join('')}</div>
+  <div class="list">${g.plan.map(p => { const n = pDone(p); return `<div class="row gmrow"><button class="check ${(p.done || {})[t] ? 'done' : ''}" data-act="plan-done" data-id="${esc(id)}" data-p="${esc(p.id)}" aria-label="Done today">${I.tick}</button><span class="psym">${esc(p.sym)}</span><div class="main" data-act="plan-edit" data-id="${esc(id)}" data-p="${esc(p.id)}" role="button"><div class="t" dir="auto">${esc(p.t)} <span class="small">✎</span></div><div class="bar" style="margin:6px 0 2px"><i style="width:${Math.min(100, Math.round(100 * n / p.count))}%"></i></div><div class="m"><span>${n} of ${p.count}</span>${n >= p.count ? '<span class="chip s-done">done</span>' : ''}</div></div><button class="icon-btn" data-act="plan-del" data-id="${esc(id)}" data-p="${esc(p.id)}" aria-label="Remove">${I.close}</button></div>`; }).join('')}</div>
   <div class="pdots">${(() => { const days = []; for (let i = 13; i >= 0; i--) days.push(addDays(t, -i)); return days.map(d => { const k = g.plan.filter(p => (p.done || {})[d]).length; return `<i title="${esc(fmtDate(d))}" style="opacity:${k ? .35 + .65 * k / g.plan.length : 1}" class="${k ? 'on' : ''}"></i>`; }).join(''); })()}</div><div class="small">Last 14 days</div></div>`;
 };
 
@@ -3523,6 +3524,36 @@ document.addEventListener('change', e => {
 });
 document.addEventListener('submit', e => { const f = e.target; if (f.dataset && f.dataset.form === 'ap-title') { e.preventDefault(); e.stopImmediatePropagation(); const v = (f.q.value || '').trim(); if (v) apSave({ titles: [...new Set([...apPrefs().titles, v])] }); } }, true);
 
+
+/* ---------- ⋯ menu: actions for the page you are on (edit, delete, add), then the rest of the app ---------- */
+function pageMenu() {
+  const { page, arg } = route(), it = [], add = (act, l, ic, x = '') => it.push(`<button class="pm-i ${/del/.test(act) ? 'danger' : ''}" data-act="${act}" ${x}><span>${ic}</span>${esc(l)}</button>`), idA = v => `data-id="${esc(v)}"`;
+  if (page === 'goal' && get('goals', arg)) { const g = get('goals', arg); add('goal-edit', 'Edit goal', '✎', idA(arg)); add('goal-status', 'Change status', '●', idA(arg)); add(g.plan && g.plan.length ? 'plan-add' : 'plan-from-goal', g.plan && g.plan.length ? 'Add micro-action' : 'Make my action plan', '⚡', idA(arg)); add('pm-ms', 'Add milestone', '⚑', idA(arg)); add('pm-del-goal', 'Delete goal', '🗑', idA(arg)); }
+  else if (page === 'area' && get('areas', arg)) { add('area-form', 'Edit or remove area', '✎', idA(arg)); add('goal-wizard', 'New goal in this area', '⚑', idA(arg)); add('new-habit-area', 'New habit in this area', '🔁', idA(arg)); add('new-course', 'New course', '📘', `data-area="${esc(arg)}"`); }
+  else if (page === 'course' && get('courses', arg)) { add('c-edit', 'Edit or delete course', '✎', idA(arg)); }
+  else if (page === 'board' && get('projects', arg)) { add('project', 'Edit or delete board', '✎', idA(arg)); add('k-add', 'New task', '+', `${idA(arg)} data-col="To do"`); }
+  else if (page === 'test' && arg) { add('test-start', 'Retake this test', '↻', idA(arg)); add('pm-del-test', 'Delete my result', '🗑', idA(arg)); }
+  else if (page === 'jobs') { add('job-bulk', 'Add jobs', '+'); add('new-application', 'New application', '✎'); if (isOwner()) add('ap-keys', 'Job sources and sender email', '⚙'); }
+  else if (page === 'habits') add('new-habit', 'New habit', '🔁');
+  else if (page === 'life' || page === 'progress') { add('goal-wizard', 'New goal (5 steps)', '⚑'); add('wheel-test', 'Wheel of Life test', '◎'); add('areas-edit', 'Edit areas', '✎'); add('cycle-new', 'New 40-day cycle', '↻'); }
+  const common = [['new-task', 'Task', '✓'], ['goal-wizard', 'Goal', '⚑'], ['new-habit', 'Habit', '🔁'], ['new-event', 'Event', '📅']];
+  openSheet('Options', `${it.length ? `<div class="pm-g">${it.join('')}</div>` : ''}<div class="small pm-h">Add</div><div class="pm-q">${common.map(([a, l, ic]) => `<button data-act="${a}"><span>${ic}</span>${l}</button>`).join('')}</div>
+    <div class="pm-g" style="margin-top:12px"><button class="pm-i" data-act="go" data-to="hub"><span>▦</span>All sections</button><button class="pm-i" data-act="go" data-to="trash"><span>♻</span>Trash (restore deleted)</button><button class="pm-i" data-act="go" data-to="settings"><span>⚙</span>Settings</button></div>`, '', { noFocus: true });
+}
+function planEdit(gid, pid) {
+  const g = get('goals', gid), q = g && (g.plan || []).find(x => x.id === pid); if (!q) return;
+  form('Edit micro-action', [{ k: 't', label: 'Micro-action', req: true }, [{ k: 'count', label: 'How many times', type: 'number' }, { k: 'sym', label: 'Symbol' }], { html: `<div class="small">Done ${pDone(q)} times so far.</div>` }], { t: q.t, count: q.count, sym: q.sym },
+    v => { save('goals', Object.assign({}, g, { plan: g.plan.map(x => x.id === pid ? Object.assign({}, x, { t: v.t.trim(), count: Math.max(1, Number(v.count) || x.count), sym: (v.sym || x.sym).slice(0, 2) }) : x) })); toast('Saved'); },
+    { onDelete: () => { if (confirm('Delete this micro-action?')) { save('goals', Object.assign({}, g, { plan: g.plan.filter(x => x.id !== pid) })); closeSheet(); } } });
+}
+function pmActs(a, id) {
+  return {
+    'page-menu': () => pageMenu(), 'plan-edit': () => planEdit(id, a.dataset.p),
+    'pm-ms': () => { closeSheet(true); FORMS.milestone({ goalId: id, status: 'Planned' }); },
+    'pm-del-goal': () => { const g = get('goals', id); if (!g || !confirm(`Delete “${g.title}”? Its milestones go to Trash too.`)) return; list('milestones').filter(m => m.goalId === id).forEach(m => remove('milestones', m.id)); remove('goals', id); closeSheet(true); toast('Goal moved to Trash'); location.hash = '#/life'; },
+    'pm-del-test': () => { const rs = list('tests').filter(r => r.test === id); if (!rs.length || !confirm('Delete your result for this test?')) return; rs.forEach(r => remove('tests', r.id)); closeSheet(true); toast('Result deleted'); location.hash = '#/discover'; }
+  };
+}
 /* ---------------- boot ---------------- */
 if ('serviceWorker' in navigator && location.protocol === 'https:') { const had = !!navigator.serviceWorker.controller; navigator.serviceWorker.register('sw.js').catch(() => {}); navigator.serviceWorker.addEventListener('controllerchange', () => { if (had) toast('ME.Coach was updated', 'Reload', () => location.reload()); }); }
 try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch {}

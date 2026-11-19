@@ -840,3 +840,5 @@ body:has(.toast) #emi-dock .emi-bubble{display:none}
 main,.shell{overflow-x:clip}
 #emi-big .emi-bubble{bottom:auto;top:12px;left:50%;transform:translateX(-50%)}#emi-big .emi-bubble.in{animation:none}
 .apsprint{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.apsprint .main{flex:1;min-width:200px}.apsprint b{color:var(--ink)}
+.pm-g{display:grid;gap:2px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--card)}.pm-i{display:flex;gap:12px;align-items:center;padding:13px 14px;border:0;background:var(--card);text-align:left;font-size:15px;color:var(--ink);cursor:pointer}.pm-i+.pm-i{border-top:1px solid var(--line)}.pm-i span{width:22px;text-align:center}.pm-i.danger{color:#c0392b}
+.pm-h{margin:14px 2px 6px}.pm-q{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.pm-q button{display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 4px;border:1px solid var(--line);border-radius:14px;background:var(--card);font-size:13px;cursor:pointer}.pm-q span{font-size:20px}

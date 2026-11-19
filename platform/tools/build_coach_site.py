@@ -12,7 +12,7 @@ import json
 import pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent / 'coach'
-VERSION = '9.0.0'
+VERSION = '9.1.0'
 BASE = 'https://miladebrahimi.me/coach/'
 
 PLANS = [
