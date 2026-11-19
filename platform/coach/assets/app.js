@@ -5,7 +5,7 @@
 (() => {
 'use strict';
 
-const VERSION = '9.1.0';
+const VERSION = '9.2.0';
 const API = 'api.php';
 const K = { db: 'mec.db', out: 'mec.outbox', tok: 'mec.token', rev: 'mec.rev', ui: 'mec.ui', last: 'mec.lastSync', user: 'mec.user' };
 const COLS = ['tasks','events','projects','goals','skills','logs','evidence','decisions','notes','ielts','sessions','settings','milestones','applications','immigration','habits','money','templates','courses','areas','wheel','cycles','focus','products','tests','careers'];
@@ -1455,7 +1455,7 @@ function vBoard(id) {
   const ts = projTasks(p.id), v = (ui.bvMode || {})[p.id] || 'board', g = p.goalId && get('goals', p.goalId);
   const cardH = t => `<div class="kcard ${DONE.has(t.state) ? 'done' : ''}" data-act="task" data-id="${esc(t.id)}" data-drag="task" data-o="${bOrder(t)}"><div class="kc-t" dir="auto">${esc(t.title)}</div><div class="m">${t.priority === 'P1' && isOpen(t) ? priChip('P1') : ''}${isOpen(t) ? dueChip(t) : ''}${isOpen(t) && t.focusDate === today() ? '<span class="chip s-rev">★ Today</span>' : ''}</div>${t.nextAction && isOpen(t) ? `<div class="na" dir="auto">→ ${esc(t.nextAction)}</div>` : ''}</div>`;
   const board = `<div class="kb">${BCOLS.map(c => { const cs = ts.filter(t => colOf(t) === c).sort((a, b) => bOrder(a) - bOrder(b)); return `<section class="kcol" data-drop="${c}" data-kind="task"><header><span class="chip ${BCOL_TONE[c]}">${c}</span><span class="count">${cs.length}</span></header><div class="kcards">${(c === 'Done' ? cs.slice(-25) : cs).map(cardH).join('')}</div><button class="kadd" data-act="k-add" data-col="${c}" data-id="${esc(p.id)}">${I.plus} Add a card</button></section>`; }).join('')}</div>`;
-  const table = `<div class="card tight ntable-wrap"><table class="ntable"><thead><tr><th>Task</th><th>Status</th><th>Due</th><th>Priority</th><th>Next action</th></tr></thead><tbody>${ts.sort((a, b) => BCOLS.indexOf(colOf(a)) - BCOLS.indexOf(colOf(b)) || String(a.due || '9').localeCompare(String(b.due || '9'))).map(t => `<tr><td data-act="task" data-id="${esc(t.id)}"><b dir="auto">${esc(t.title)}</b></td><td><select data-change="k-state" data-id="${esc(t.id)}">${BCOLS.map(c => `<option ${colOf(t) === c ? 'selected' : ''}>${c}</option>`).join('')}</select></td><td>${t.due ? esc(fmtDate(t.due)) : ''}</td><td>${esc(t.priority || '')}</td><td class="small" dir="auto">${esc(t.nextAction || '')}</td></tr>`).join('') || '<tr><td colspan="5" class="empty">No tasks yet.</td></tr>'}</tbody></table></div><button class="btn" data-act="k-add" data-col="To do" data-id="${esc(p.id)}" style="margin-top:10px">${I.plus} Task</button>`;
+  const table = `<div class="card tight ntable-wrap"><table class="ntable"><thead><tr><th>Task</th><th>Status</th><th>Due</th><th>Priority</th><th>Next action</th><th></th></tr></thead><tbody>${ts.sort((a, b) => BCOLS.indexOf(colOf(a)) - BCOLS.indexOf(colOf(b)) || String(a.due || '9').localeCompare(String(b.due || '9'))).map(t => `<tr><td><input class="nt-in" data-change="k-title" data-id="${esc(t.id)}" value="${esc(t.title)}" dir="auto"><button class="nt-open" data-act="task" data-id="${esc(t.id)}" aria-label="Open">↗</button></td><td><select data-change="k-state" data-id="${esc(t.id)}">${BCOLS.map(c => `<option ${colOf(t) === c ? 'selected' : ''}>${c}</option>`).join('')}</select></td><td><input type="date" class="nt-in" data-change="k-due" data-id="${esc(t.id)}" value="${esc(t.due || '')}"></td><td><select data-change="k-pri" data-id="${esc(t.id)}">${['', 'P1', 'P2', 'P3'].map(x => `<option ${String(t.priority || '') === x ? 'selected' : ''} value="${x}">${x || '—'}</option>`).join('')}</select></td><td><input class="nt-in" data-change="k-next" data-id="${esc(t.id)}" value="${esc(t.nextAction || '')}" placeholder="Next action…" dir="auto"></td><td><button class="icon-btn" data-act="k-del" data-id="${esc(t.id)}" aria-label="Delete">${I.trash}</button></td></tr>`).join('') || '<tr><td colspan="6" class="empty">No tasks yet.</td></tr>'}</tbody></table></div><button class="btn" data-act="k-add" data-col="To do" data-id="${esc(p.id)}" style="margin-top:10px">${I.plus} Task</button>`;
   const today_ = ts.filter(t => isOpen(t) && (t.due === today() || t.focusDate === today()));
   return header(`${pjIcon(p)} ${p.title}`, [g ? '🎯 ' + g.title : '', p.target ? 'Target ' + fmtDate(p.target, true) : '', `${projPct(p.id)}% done`].filter(Boolean).join(' · ')) + `
   <div class="toolbar"><div class="seg"><button class="${v === 'board' ? 'on' : ''}" data-act="bv-mode" data-id="${esc(p.id)}" data-v="board">Board</button><button class="${v === 'table' ? 'on' : ''}" data-act="bv-mode" data-id="${esc(p.id)}" data-v="table">Table</button></div><span style="flex:1"></span>${p.id !== 'inbox' ? `<button class="btn ghost small" data-act="project" data-id="${esc(p.id)}">Edit board</button>` : ''}</div>
@@ -2840,7 +2840,7 @@ document.addEventListener('click', async e => {
     password: () => form('Change password', [{ k: 'current', label: 'Current password', type: 'password', req: true }, { k: 'next', label: 'New password (10+ characters)', type: 'password', req: true }], {}, v => { api('password', { body: v }).then(j => { ls.set(K.tok, j.token); toast('Password changed. Other devices must sign in again.'); }).catch(err => toast(err.message)); }),
     logout: async () => { if (!confirm('Sign out on this device? Data stays on the server.')) return; if (Object.keys(outbox).length) await sync(); try { await api('logout', { method: 'POST' }); } catch {} ls.del(K.tok); ls.del(K.db); ls.del(K.out); ls.del(K.rev); ls.del(K.user); me = null; db = blankDb(); outbox = {}; showLanding(); }
   };
-  Object.assign(map, v7Acts(a, id, e), v71Acts(a, id), v8Acts(a, id), v9Acts(a, id), v9JobActs(a, id), pmActs(a, id), { 'board-open': () => { closeSheet(true); location.hash = '#/board/' + encodeURIComponent(id); }, 'habit-open-s': () => {} });
+  Object.assign(map, v7Acts(a, id, e), v71Acts(a, id), v8Acts(a, id), v9Acts(a, id), v9JobActs(a, id), pmActs(a, id), v91Acts(a, id), { 'board-open': () => { closeSheet(true); location.hash = '#/board/' + encodeURIComponent(id); }, 'habit-open-s': () => {} });
   if (map[act]) { if (act !== 'sheet-close' && act !== 'form-save' && act !== 'form-del' && sheetCtx && ['new-task', 'new-event', 'new-note', 'new-decision', 'new-evidence', 'new-session', 'closeout', 'log-time', 'new-application', 'new-milestone', 'new-immig', 'weekly', 'money-add', 'from-tpl', 'new-course', 'morning', 'new-goal', 'wheel-test', 'cycle-new', 'focus-free', 'new-habit'].includes(act)) closeSheet(true); map[act](); }
 });
 document.addEventListener('input', e => { const k = e.target.dataset && e.target.dataset.input; if (k) { ui[k] = e.target.value; saveUi(); if (e.target.dataset.norender) return; clearTimeout(render.t); render.t = setTimeout(render, 180); } });
@@ -3554,6 +3554,162 @@ function pmActs(a, id) {
     'pm-del-test': () => { const rs = list('tests').filter(r => r.test === id); if (!rs.length || !confirm('Delete your result for this test?')) return; rs.forEach(r => remove('tests', r.id)); closeSheet(true); toast('Result deleted'); location.hash = '#/discover'; }
   };
 }
+/* ================= v9.2: Google-style calendar drag, tasks ↔ calendar, Today hero, roadmap by area, editable board table, sounds ================= */
+/* ---------- sounds: soft, short, synthesised (no files) ---------- */
+const SND = (() => { let ctx = null; const SEQ = { done: [[880, 0, .12], [1320, .08, .2]], habit: [[660, 0, .1], [990, .07, .18]], micro: [[784, 0, .1], [1175, .06, .22]], celebrate: [[523, 0, .12], [659, .1, .12], [784, .2, .12], [1047, .3, .35]], pick: [[520, 0, .05, 'triangle', .035]], drop: [[390, 0, .08, 'triangle', .04]], del: [[300, 0, .09, 'sine', .04], [210, .06, .14, 'sine', .03]], soft: [[1100, 0, .05, 'sine', .02]] };
+  return { play(k) { if (ui.soundOff || !SEQ[k]) return; try { ctx = ctx || new (window.AudioContext || window.webkitAudioContext)(); if (ctx.state === 'suspended') ctx.resume(); const n = ctx.currentTime;
+    SEQ[k].forEach(([f, t0, d, type = 'sine', g = .06]) => { const o = ctx.createOscillator(), v = ctx.createGain(); o.type = type; o.frequency.value = f; v.gain.setValueAtTime(0, n + t0); v.gain.linearRampToValueAtTime(g, n + t0 + .012); v.gain.exponentialRampToValueAtTime(.0001, n + t0 + d); o.connect(v).connect(ctx.destination); o.start(n + t0); o.stop(n + t0 + d + .02); }); } catch (e) { } } }; })();
+const _saveV9 = save;
+save = function (c, rec) {
+  const prev = rec && rec.id && db[c] && db[c][rec.id] ? db[c][rec.id] : null, r = _saveV9(c, rec), t = today();
+  try {
+    if (c === 'tasks' && prev && isOpen(prev) && !isOpen(r)) SND.play('done');
+    else if (c === 'habits' && prev && !(prev.done || {})[t] && (r.done || {})[t]) SND.play('habit');
+    else if (c === 'goals' && prev && Array.isArray(r.plan)) { const n = g => (g.plan || []).reduce((s, p) => s + ((p.done || {})[t] ? 1 : 0), 0); if (n(r) > n(prev)) SND.play('micro'); }
+    else if (c === 'events' && prev && !(prev.doneOn || {})[t] && (r.doneOn || {})[t]) SND.play('done');
+  } catch (e) { }
+  return r;
+};
+const _removeV9 = remove; remove = function (c, id) { SND.play('del'); return _removeV9(c, id); };
+const _celebrateV9 = celebrate; celebrate = function () { SND.play('celebrate'); return _celebrateV9(); };
+const _vSettingsV9 = vSettings; vSettings = function () { return _vSettingsV9().replace('<div class="spacer" style="height:14px"></div>', `<div class="spacer" style="height:14px"></div><div class="card setrow"><div class="main"><b>🔔 Sounds</b><div class="small">A soft chime when you finish a task, habit or micro-action.</div></div><button class="btn small ${ui.soundOff ? '' : 'primary'}" data-act="snd-toggle">${ui.soundOff ? 'Off' : 'On'}</button></div>`); };
+
+/* ---------- calendar: hold an event to move it (any day/time), drag its bottom edge to change the length ---------- */
+let gdrag = null, gSuppress = 0;
+const SNAP = 15, pxMin = HOUR_PX / 60;
+function gbInfo(b) { const col = b.closest('.gcol'); return { col, day: col && col.dataset.day, top: parseFloat(b.style.top) || 0, h: parseFloat(b.style.height) || 24 }; }
+document.addEventListener('pointerdown', e => {
+  const b = e.target.closest('.gcal .gb'); if (!b || !['event', 'task'].includes(b.dataset.act) || e.button > 0) return;
+  const i = gbInfo(b), r = b.getBoundingClientRect(), resize = e.clientY > r.bottom - 14;
+  gdrag = Object.assign(i, { b, id: b.dataset.id, act: b.dataset.act, x0: e.clientX, y0: e.clientY, day0: i.day, top0: i.top, h0: i.h, resize, on: false, pid: e.pointerId });
+  gdrag.timer = setTimeout(() => { if (!gdrag) return; gdrag.on = true; b.classList.add('lift'); SND.play('pick'); try { navigator.vibrate && navigator.vibrate(12); } catch (x) { } }, e.pointerType === 'mouse' ? 140 : 380);
+}, true);
+document.addEventListener('touchmove', e => { if (gdrag && gdrag.on) e.preventDefault(); }, { passive: false });
+document.addEventListener('pointermove', e => {
+  if (!gdrag) return; const dx = e.clientX - gdrag.x0, dy = e.clientY - gdrag.y0;
+  if (!gdrag.on) { if (gdrag.scrolling || Math.abs(dx) + Math.abs(dy) > 8) { if (e.pointerType === 'mouse') { gdrag.on = true; gdrag.b.classList.add('lift'); SND.play('pick'); } else { clearTimeout(gdrag.timer); gdrag.scrolling = true; const gb = $('#gbody'), d = e.clientY - (gdrag.ly ?? gdrag.y0); gdrag.ly = e.clientY; if (gb) gb.scrollTop -= d; window.scrollBy(0, gb && (gb.scrollTop <= 0 || gb.scrollTop + gb.clientHeight >= gb.scrollHeight) ? -d : 0); return; } } else return; }
+  e.preventDefault(); const step = SNAP * pxMin, b = gdrag.b;
+  if (gdrag.resize) { gdrag.h = Math.max(step, Math.round((gdrag.h0 + dy) / step) * step); b.style.height = gdrag.h + 'px'; }
+  else { gdrag.top = Math.max(0, Math.round((gdrag.top0 + dy) / step) * step); b.style.top = gdrag.top + 'px';
+    const el = document.elementsFromPoint(e.clientX, e.clientY).find(x => x.classList && x.classList.contains('gcol')); if (el && el !== gdrag.col) { el.appendChild(b); gdrag.col = el; gdrag.day = el.dataset.day; b.style.left = '0%'; b.style.width = '100%'; } }
+  const s = H0 * 60 + Math.round(gdrag.top / pxMin), en = s + Math.round(gdrag.h / pxMin), sp = b.querySelector('span'); if (sp) sp.textContent = `${fromMin(s)}–${fromMin(en)}`;
+  const gb = $('#gbody'); if (gb) { const r = gb.getBoundingClientRect(); if (e.clientY > r.bottom - 30) gb.scrollTop += 8; else if (e.clientY < r.top + 30) gb.scrollTop -= 8; }
+}, { passive: false });
+function gDrop() {
+  const g = gdrag; gdrag = null; if (!g) return; clearTimeout(g.timer); if (g.scrolling) { gSuppress = Date.now(); return; } if (!g.on) return; gSuppress = Date.now(); g.b.classList.remove('lift');
+  const s = H0 * 60 + Math.round(g.top / pxMin), dur = Math.max(SNAP, Math.round(g.h / pxMin)), delta = daysBetween(g.day0, g.day);
+  if (s === H0 * 60 + Math.round(g.top0 / pxMin) && dur === Math.round(g.h0 / pxMin) && !delta) { render(); return; }
+  const at = (dateStr, m) => fromInput(`${dateStr}T${fromMin(Math.min(m, 24 * 60 - 1))}`);
+  if (g.act === 'event') { const ev = get('events', g.id); if (!ev) return render(); const sd = addDays(dayOf(ev.start), delta), prev = Object.assign({}, ev);
+    save('events', Object.assign({}, ev, { start: at(sd, s), end: at(sd, s + dur) })); toast(`${ev.title} · ${fmtDate(g.day)} ${fromMin(s)}–${fromMin(s + dur)}${ev.rrule ? ' · all repeats' : ''}`, 'Undo', () => save('events', prev)); }
+  else { const t = get('tasks', g.id); if (!t) return render(); const prev = Object.assign({}, t); save('tasks', Object.assign({}, t, { scheduled: at(g.day, s), scheduledEnd: at(g.day, s + dur), due: t.due && t.due < g.day ? g.day : t.due })); toast(`${t.title} · ${fmtDate(g.day)} ${fromMin(s)}`, 'Undo', () => save('tasks', prev)); }
+  SND.play('drop');
+}
+document.addEventListener('pointerup', gDrop, true); document.addEventListener('pointercancel', () => { if (gdrag && !gdrag.on) { clearTimeout(gdrag.timer); gdrag = null; } else gDrop(); }, true);
+document.addEventListener('click', e => { if (Date.now() - gSuppress < 400 && e.target.closest('.gcal')) { e.stopPropagation(); e.preventDefault(); } }, true);
+/* place a task: pick it in the tray, then tap a time */
+document.addEventListener('click', e => {
+  if (!ui.place) return; const col = e.target.closest('.gcol'); if (!col || e.target.closest('.gb')) return; e.stopPropagation(); e.preventDefault();
+  const t = get('tasks', ui.place); delete ui.place; saveUi(); if (!t) return render();
+  const r = col.getBoundingClientRect(), m = H0 * 60 + Math.floor((e.clientY - r.top) / pxMin / SNAP) * SNAP, d = col.dataset.day;
+  save('tasks', Object.assign({}, t, { scheduled: fromInput(`${d}T${fromMin(m)}`), scheduledEnd: fromInput(`${d}T${fromMin(m + 30)}`), due: t.due || d })); SND.play('drop'); toast(`Scheduled ${fromMin(m)} · hold it to move or stretch`);
+}, true);
+const trayTasks = () => sortTasks(list('tasks').filter(x => isOpen(x) && !x.scheduled)).slice(0, 14);
+const _calHeadV9 = calHead;
+calHead = function (title, view) {
+  const tt = trayTasks();
+  return _calHeadV9(title, view) + `<div class="caltray"><a class="btn small" href="#/tasks">☑ Tasks</a>${view === 'month' ? '' : tt.length ? `<span class="small">${ui.place ? 'Now tap a time ↓' : 'Tap a task, then a time · hold an event to move it'}</span><div class="ctray">${tt.map(x => `<button class="${ui.place === x.id ? 'on' : ''}" data-act="cal-place" data-id="${esc(x.id)}" dir="auto">${x.priority === 'P1' ? '🔴 ' : ''}${esc(x.title)}</button>`).join('')}</div>` : '<span class="small">All tasks are scheduled.</span>'}</div>`;
+};
+/* tasks page: calendar access + schedule from the task */
+const _vTasksV9 = vTasks;
+vTasks = function () {
+  const t = today(), ag = agenda(t, addDays(t, 2)).filter(a => a.time && a.kind !== 'due').slice(0, 6);
+  return _vTasksV9().replace('<div class="spacer" style="height:14px"></div>', `<div class="spacer" style="height:14px"></div><div class="card tcal"><div class="tcal-h"><b>📅 Coming up</b><a class="btn small" href="#/calendar">Open calendar</a></div>${ag.length ? `<div class="tcal-l">${ag.map(a => `<div class="tcal-i" data-act="${a.kind === 'event' ? 'event' : 'task'}" data-id="${esc(a.id)}" role="button"><b>${a.day === t ? 'Today' : esc(fmtDate(a.day))} ${esc(a.time)}</b><span dir="auto">${esc(a.title)}</span></div>`).join('')}</div>` : '<div class="small">Nothing scheduled in the next 3 days. Open a task and tap “Schedule time”.</div>'}</div>`);
+};
+function schedSheet(id) {
+  const t = get('tasks', id); if (!t) return; const cur = t.scheduled ? toInput(t.scheduled) : `${t.due || today()}T09:00`, d0 = t.scheduled && t.scheduledEnd ? Math.max(15, Math.round((parseD(t.scheduledEnd) - parseD(t.scheduled)) / 60000)) : 30;
+  form('Schedule on calendar', [[{ k: 'day', label: 'Day', type: 'date' }, { k: 'time', label: 'Start', type: 'time' }], { k: 'dur', label: 'Length', type: 'select', options: [[15, '15 min'], [30, '30 min'], [45, '45 min'], [60, '1 hour'], [90, '1.5 hours'], [120, '2 hours'], [180, '3 hours']], blank: false }], { day: cur.slice(0, 10), time: cur.slice(11, 16), dur: d0 }, v => {
+    if (!v.day || !v.time) return 'Pick a day and a time.'; const [h, m] = v.time.split(':').map(Number), s = h * 60 + m, e2 = s + Number(v.dur || 30);
+    save('tasks', Object.assign({}, t, { scheduled: fromInput(`${v.day}T${v.time}`), scheduledEnd: fromInput(`${v.day}T${fromMin(Math.min(e2, 1439))}`), due: t.due || v.day })); toast('On your calendar', 'Open', () => { ui.calSel = v.day; saveUi(); location.hash = '#/calendar'; });
+  }, { onDelete: t.scheduled ? () => { save('tasks', Object.assign({}, t, { scheduled: '', scheduledEnd: '' })); closeSheet(); toast('Removed from calendar'); } : null });
+}
+const _taskSheetV9 = taskSheet;
+taskSheet = function (id) { const r = _taskSheetV9.apply(this, arguments); try { const box = sheetCtx && sheetCtx.el.querySelector('.acts'); if (box && get('tasks', id) && isOpen(get('tasks', id))) box.insertAdjacentHTML('afterbegin', `<button class="act" data-act="t-sched" data-id="${esc(id)}"><span>🕒</span>${get('tasks', id).scheduled ? 'Reschedule' : 'Schedule time'}</button>`); } catch (e) { } return r; };
+
+/* ---------- Today: a clear hero instead of a stack of boxes ---------- */
+coachCard = () => '';
+function todayHero() {
+  const t = today(), a = assess(), top = list('tasks').filter(x => x.focusDate === t), topD = top.filter(x => !isOpen(x)).length, hs = list('habits').filter(h => habDue(h, t)), hD = hs.filter(h => (h.done || {})[t]).length, ms = microToday(), mD = ms.filter(m => m.done).length;
+  const nowM = new Date().getHours() * 60 + new Date().getMinutes(), nx = agenda(t, t).filter(x => x.time && toMin(x.time) >= nowM - 5 && !(x.kind === 'event' && ((x.rec.doneOn || {})[t])))[0];
+  const msg = (coachMsgs()[slotOf(new Date().getHours())] || '').replace(/^(Good (morning|afternoon|evening)|Hi),?[^.]*\.\s*/, '');
+  const pc = Math.round(a.s * 10), st = (l, n, d, ic) => `<div class="th-s"><span>${ic}</span><b>${n}<small>/${d}</small></b><em>${l}</em></div>`;
+  return `<div class="card thero"><div class="th-top"><div class="th-ring" style="--p:${pc}" data-act="assess-info" role="button"><b>${a.s}</b><small>/10</small></div><div class="main"><div class="th-lv">${a.level} level</div><div class="th-msg" dir="auto">${esc(msg || 'One step at a time.')}</div>${nx ? `<div class="th-next" data-act="${nx.kind === 'event' ? 'event' : 'task'}" data-id="${esc(nx.id)}" role="button">Next · <b>${esc(nx.time)}</b> <span dir="auto">${esc(nx.title)}</span></div>` : ''}</div></div>
+    <div class="th-stats">${st('Top 3', topD, Math.max(3, top.length), '★')}${st('Habits', hD, hs.length || 0, '🔁')}${st('Actions', mD, ms.length || 0, '⚡')}</div></div>`;
+}
+const _vTodayV91 = vToday;
+vToday = function () { const h = _vTodayV91(); if (ui.tday && ui.tday !== today()) return h; return h.replace(/<div class="asrow">[\s\S]*?<\/button><\/div>/, '').replace(/(<div class="wstrip">[\s\S]*?<\/div>)/, '$1' + todayHero()); };
+
+/* ---------- Life: visual tools ---------- */
+const _vLifeV91 = vLife;
+vLife = function () {
+  const h = _vLifeV91(), i = h.indexOf('<h2 class="sec-h">Tools for your areas</h2>'); if (i < 0) return h;
+  const t = today(), gs = list('goals').filter(g => !['Done', 'Achieved', 'Dropped', 'Cancelled'].includes(g.status)), gp = gs.length ? Math.round(gs.reduce((s, g) => s + pct(goalProgress(g)), 0) / gs.length) : 0;
+  const hs = list('habits').filter(h2 => habDue(h2, t)), c = activeCycle(), nm = list('milestones').filter(m => m.target && m.target >= t && m.status !== 'Done').sort((a, b) => a.target.localeCompare(b.target))[0];
+  const ls7 = list('logs').filter(l => l.type === 'closeout' && l.date >= addDays(t, -6) && Number(l.score)), avg = ls7.length ? r2(ls7.reduce((s, l) => s + Number(l.score), 0) / ls7.length) : null, cs = list('courses').filter(x => x.status === 'Active');
+  const T = (act, x, col, ic, l, big, sub, bar) => `<button class="vtool" data-act="${act}" ${x} style="--tc:${col}"><span class="vt-i">${ic}</span><b>${l}</b><div class="vt-big">${big}</div><div class="small">${sub}</div>${bar != null ? `<i class="vt-bar"><i style="width:${Math.max(3, Math.min(100, bar))}%"></i></i>` : ''}</button>`;
+  return h.slice(0, i) + `<h2 class="sec-h">Tools for your areas</h2><div class="vtools">
+    ${T('p-tab', 'data-t="goals"', '#2a78d6', '⚑', 'Goals', gs.length, `${gp}% average progress`, gp)}
+    ${T('go', 'data-to="habits"', '#1baf7a', '🔁', 'Habits', `${hs.filter(x => (x.done || {})[t]).length}/${hs.length}`, 'done today', hs.length ? 100 * hs.filter(x => (x.done || {})[t]).length / hs.length : 0)}
+    ${T('p-tab', 'data-t="overview"', '#c9a227', '◷', '40-day cycle', c ? `${cycleDay(c)}/40` : '–', c ? 'days into your cycle' : 'start one', c ? 100 * cycleDay(c) / 40 : 0)}
+    ${T('p-tab', 'data-t="roadmap"', '#6250d6', '🛣', 'Roadmap', nm ? esc(rel(nm.target)) : '–', nm ? esc(nm.title).slice(0, 40) : 'add milestones', null)}
+    ${T('p-tab', 'data-t="insights"', '#e87ba4', '📈', 'Insights', avg ?? '–', 'average day score, 7 days', avg ? avg * 10 : 0)}
+    ${T('p-tab', 'data-t="learning"', '#eb6834', '📘', 'Learning', cs.length, 'active courses', null)}
+    ${T('p-tab', 'data-t="money"', '#008300', '💰', 'Money', esc(String(prefs().currency || 'OMR')), 'savings and income', null)}</div>`;
+};
+
+/* ---------- Roadmap: filter by area (one, several or all), three views ---------- */
+vRoadmap = function () {
+  const t = today(), vd = visionDate(), as = areas(), sel = (ui.rmAreas || []).filter(id => get('areas', id)), on = a => !sel.length || sel.includes(a.id), view = ui.rmView || 'lanes';
+  const gArea = g => goalArea(g), gs = list('goals').filter(g => !['Dropped', 'Cancelled'].includes(g.status) && (!sel.length || (gArea(g) && sel.includes(gArea(g).id)))).sort((a, b) => String(a.target || '9').localeCompare(String(b.target || '9')));
+  const gids = new Set(gs.map(g => g.id)), ms = list('milestones').filter(m => m.status !== 'Dropped' && (gids.has(m.goalId) || (!sel.length && !m.goalId)));
+  const end = [vd, ...gs.map(g => g.target).filter(Boolean)].sort().pop(), span = Math.max(30, daysBetween(t, end)), pos = d => Math.max(0, Math.min(100, 100 * daysBetween(t, d) / span));
+  const gpc = g => Array.isArray(g.plan) && g.plan.length ? Math.round(100 * g.plan.reduce((x, q) => x + Math.min(q.count, pDone(q)), 0) / g.plan.reduce((x, q) => x + q.count, 0)) : pct(goalProgress(g));
+  const months = []; { const d = parseD(t); d.setDate(1); d.setMonth(d.getMonth() + 1); for (let i = 0; i < 80 && dstr(d) <= end; i++) { months.push(dstr(d)); d.setMonth(d.getMonth() + (span > 900 ? 6 : span > 400 ? 3 : 1)); } }
+  const axis = `<div class="ln-axis">${months.map(m => `<span style="left:${pos(m)}%">${esc(parseD(m).toLocaleDateString('en-GB', { month: 'short', year: span > 400 ? '2-digit' : undefined }))}</span>`).join('')}</div>`;
+  const chips = `<div class="rmchips"><button class="${sel.length ? '' : 'on'}" data-act="rm-all">All areas</button>${as.map(a => `<button class="${sel.includes(a.id) ? 'on' : ''}" data-act="rm-area" data-id="${esc(a.id)}" style="--ac:${areaColor(a)}">${areaEmoji(a)} ${esc(a.title)}</button>`).join('')}</div>`;
+  const views = `<div class="seg rmview">${[['lanes', '▤ Lanes'], ['road', '🛣 Road'], ['list', '☰ List']].map(([k, l]) => `<button class="${view === k ? 'on' : ''}" data-act="rm-view" data-v="${k}">${l}</button>`).join('')}</div>`;
+  const one = sel.length === 1 ? get('areas', sel[0]) : null;
+  const hero = one ? `<div class="card rm-hero" style="background:linear-gradient(135deg,${areaColor(one)},color-mix(in srgb,${areaColor(one)} 55%,#1d2440))"><div class="rm-v"><div class="small">${areaEmoji(one)} ${esc(one.title)} roadmap</div><b dir="auto">${esc(one.vision || 'Where I want ' + one.title + ' to be')}</b><button class="btn small ghost" data-act="area-form" data-id="${esc(one.id)}">Edit vision</button></div><div class="rm-n">${areaScore(one.id) ?? '–'}<small>now → ${areaTarget(one)} target</small></div></div>`
+    : `<div class="card rm-hero"><div class="rm-v"><div class="small">${sel.length ? sel.length + ' areas' : 'Your vision'}</div><b dir="auto">${esc(prefs().visionName || 'My vision')}</b>${prefs().visionText ? `<div class="small" dir="auto">${esc(prefs().visionText)}</div>` : ''}<button class="btn small ghost" data-act="vision">Change</button></div><div class="rm-n">${daysTo(vd).toLocaleString('en-GB')}<small>days to go</small></div></div>`;
+  const stats = (() => { const d = ms.filter(m => m.status === 'Done').length, late = ms.filter(m => m.target && m.target < t && m.status !== 'Done').length, av = gs.length ? Math.round(gs.reduce((s, g) => s + gpc(g), 0) / gs.length) : 0; return `<div class="rmstats"><div><b>${gs.length}</b><span>goals</span></div><div><b>${av}%</b><span>avg progress</span></div><div><b>${d}/${ms.length}</b><span>milestones</span></div><div class="${late ? 'bad' : ''}"><b>${late}</b><span>late</span></div></div>`; })();
+  const goalBar = g => { const a = gArea(g), s0 = g.createdAt ? String(g.createdAt).slice(0, 10) : t, s = s0 < t ? t : s0, p = gpc(g), gm = ms.filter(m => m.goalId === g.id && m.target);
+    return `<div class="ln-g" data-act="go" data-to="goal/${encodeURIComponent(g.id)}" role="button" style="--ac:${a ? areaColor(a) : 'var(--brass)'}"><div class="ln-gl"><b dir="auto">${esc(g.title)}</b><em>${p}%</em></div><div class="ln-tr"><i class="ln-today"></i>${g.target ? `<i class="ln-bar" style="left:${pos(s)}%;width:${Math.max(2, pos(g.target) - pos(s))}%"><b style="width:${p}%"></b></i>` : '<span class="small">no date</span>'}${gm.map(m => `<i class="ln-ms ${m.status === 'Done' ? 'done' : m.target < t ? 'late' : ''}" style="left:${pos(m.target)}%" title="${esc(m.title)} · ${esc(fmtDate(m.target))}"></i>`).join('')}</div></div>`; };
+  let body = '';
+  if (view === 'lanes') body = `<div class="card lanes">${axis}${as.filter(on).map(a => { const ag = gs.filter(g => gArea(g) && gArea(g).id === a.id); return `<div class="lane" style="--ac:${areaColor(a)}"><div class="lane-h" data-act="go" data-to="area/${encodeURIComponent(a.id)}" role="button"><span>${areaEmoji(a)}</span><b>${esc(a.title)}</b><em>${areaScore(a.id) ?? '–'} → ${areaTarget(a)}</em><span class="small">${ag.length} goal${ag.length === 1 ? '' : 's'}</span><button class="icon-btn" data-act="goal-wizard" data-id="${esc(a.id)}" aria-label="New goal">${I.plus}</button></div>${ag.map(goalBar).join('') || '<div class="small lane-e">No goal yet</div>'}</div>`; }).join('')}<div class="small" style="margin-top:8px">Bars run from today to each goal’s date · fill = progress · ◆ milestones (red = late)</div></div>`;
+  else if (view === 'road') { const nx = ms.filter(m => m.target && m.status !== 'Done').sort((a, b) => a.target.localeCompare(b.target)).slice(0, 12), c = activeCycle();
+    body = `<div class="card"><div class="road">${[`<div class="rd-n now"><i></i><div><b>Today</b><span>${esc(fmtDate(t, true))}${c ? ` · day ${cycleDay(c)} of 40` : ''}</span></div></div>`].concat(nx.map((m, i) => { const g = m.goalId && get('goals', m.goalId), a = g ? gArea(g) : null; return `<div class="rd-n ${i % 2 ? 'r' : 'l'} ${m.target < t ? 'late' : ''}" data-act="milestone" data-id="${esc(m.id)}" role="button" style="--ac:${a ? areaColor(a) : 'var(--brass)'}"><i>${areaEmoji(a)}</i><div><b dir="auto">${esc(m.title)}</b><span>${esc(fmtDate(m.target, true))} · ${esc(rel(m.target))}${g ? ' · ' + esc(g.title).slice(0, 30) : ''}</span></div></div>`; })).concat([`<div class="rd-n goal"><i>🏁</i><div><b dir="auto">${esc(one ? one.vision || one.title : prefs().visionName || 'My vision')}</b><span>${esc(fmtDate(one ? end : vd, true))}</span></div></div>`]).join('')}</div></div>`; }
+  else body = `<div class="card"><div class="list">${gs.map(g => { const a = gArea(g), gm = ms.filter(m => m.goalId === g.id).sort((x, y) => String(x.target || '9').localeCompare(String(y.target || '9'))); return `<div class="rml" style="--ac:${a ? areaColor(a) : 'var(--brass)'}"><div class="rml-h" data-act="go" data-to="goal/${encodeURIComponent(g.id)}" role="button"><span>${areaEmoji(a)}</span><b dir="auto">${esc(g.title)}</b><em>${gpc(g)}%</em></div><div class="rml-m">${gm.map(m => `<button class="${m.status === 'Done' ? 'done' : ''}" data-act="milestone" data-id="${esc(m.id)}">${m.status === 'Done' ? '✓' : '◆'} ${esc(m.title)} <small>${m.target ? esc(fmtDate(m.target)) : ''}</small></button>`).join('') || '<span class="small">No milestones</span>'}</div></div>`; }).join('') || '<div class="empty">No goals in this filter.</div>'}</div></div>`;
+  return header('Plan', 'Where you are going and by when') + planTabs() + chips + hero + stats + views + body + `<div class="btns" style="margin-top:12px"><button class="btn primary small" data-act="goal-wizard" ${one ? `data-id="${esc(one.id)}"` : ''}>${I.plus} Goal in 5 steps</button><button class="btn small" data-act="new-milestone">${I.plus} Milestone</button></div>`;
+};
+
+/* ---------- boards: the Notion-style table is editable in place ---------- */
+function v91Acts(a, id) {
+  return {
+    'snd-toggle': () => { ui.soundOff = !ui.soundOff; saveUi(); if (!ui.soundOff) SND.play('done'); render(); },
+    'cal-place': () => { ui.place = ui.place === id ? null : id; saveUi(); render(); if (ui.place) toast('Now tap a time in the calendar'); },
+    't-sched': () => { closeSheet(true); schedSheet(id); },
+    'rm-all': () => { ui.rmAreas = []; saveUi(); render(); }, 'rm-area': () => { const s = new Set(ui.rmAreas || []); s.has(id) ? s.delete(id) : s.add(id); ui.rmAreas = [...s]; saveUi(); render(); }, 'rm-view': () => { ui.rmView = a.dataset.v; saveUi(); render(); },
+    'k-del': () => { const t = get('tasks', id); if (t && confirm(`Delete “${t.title}”?`)) { remove('tasks', id); toast('Moved to Trash'); } }
+  };
+}
+document.addEventListener('change', e => {
+  const d = e.target.dataset || {}; const t = d.id && get('tasks', d.id); if (!t) return;
+  if (d.change === 'k-title' && e.target.value.trim()) save('tasks', Object.assign({}, t, { title: e.target.value.trim() }));
+  else if (d.change === 'k-due') save('tasks', Object.assign({}, t, { due: e.target.value }));
+  else if (d.change === 'k-pri') save('tasks', Object.assign({}, t, { priority: e.target.value }));
+  else if (d.change === 'k-next') save('tasks', Object.assign({}, t, { nextAction: e.target.value }));
+});
+
 /* ---------------- boot ---------------- */
 if ('serviceWorker' in navigator && location.protocol === 'https:') { const had = !!navigator.serviceWorker.controller; navigator.serviceWorker.register('sw.js').catch(() => {}); navigator.serviceWorker.addEventListener('controllerchange', () => { if (had) toast('ME.Coach was updated', 'Reload', () => location.reload()); }); }
 try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch {}
