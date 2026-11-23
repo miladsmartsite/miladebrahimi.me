@@ -5,7 +5,7 @@
 (() => {
 'use strict';
 
-const VERSION = '12.0.0';
+const VERSION = '12.1.0';
 const API = 'api.php';
 const K = { db: 'mec.db', out: 'mec.outbox', tok: 'mec.token', rev: 'mec.rev', ui: 'mec.ui', last: 'mec.lastSync', user: 'mec.user' };
 const COLS = ['tasks','events','projects','goals','skills','logs','evidence','decisions','notes','ielts','sessions','settings','milestones','applications','immigration','habits','money','templates','courses','areas','wheel','cycles','focus','products','tests','careers'];
@@ -2844,7 +2844,7 @@ document.addEventListener('click', async e => {
     password: () => form('Change password', [{ k: 'current', label: 'Current password', type: 'password', req: true }, { k: 'next', label: 'New password (10+ characters)', type: 'password', req: true }], {}, v => { api('password', { body: v }).then(j => { ls.set(K.tok, j.token); toast('Password changed. Other devices must sign in again.'); }).catch(err => toast(err.message)); }),
     logout: async () => { if (!confirm('Sign out on this device? Data stays on the server.')) return; if (Object.keys(outbox).length) await sync(); try { await api('logout', { method: 'POST' }); } catch {} ls.del(K.tok); ls.del(K.db); ls.del(K.out); ls.del(K.rev); ls.del(K.user); me = null; db = blankDb(); outbox = {}; showLanding(); }
   };
-  Object.assign(map, v7Acts(a, id, e), v71Acts(a, id), v8Acts(a, id), v9Acts(a, id), v9JobActs(a, id), pmActs(a, id), v91Acts(a, id), v10Acts(a, id), v12Acts(a, id), { 'board-open': () => { closeSheet(true); location.hash = '#/board/' + encodeURIComponent(id); }, 'habit-open-s': () => {} });
+  Object.assign(map, v7Acts(a, id, e), v71Acts(a, id), v8Acts(a, id), v9Acts(a, id), v9JobActs(a, id), pmActs(a, id), v91Acts(a, id), v10Acts(a, id), v12Acts(a, id), v121Acts(a, id), { 'board-open': () => { closeSheet(true); location.hash = '#/board/' + encodeURIComponent(id); }, 'habit-open-s': () => {} });
   if (map[act]) { if (act !== 'sheet-close' && act !== 'form-save' && act !== 'form-del' && sheetCtx && ['new-task', 'new-event', 'new-note', 'new-decision', 'new-evidence', 'new-session', 'closeout', 'log-time', 'new-application', 'new-milestone', 'new-immig', 'weekly', 'money-add', 'from-tpl', 'new-course', 'morning', 'new-goal', 'wheel-test', 'cycle-new', 'focus-free', 'new-habit'].includes(act)) closeSheet(true); map[act](); }
 });
 document.addEventListener('input', e => { const k = e.target.dataset && e.target.dataset.input; if (k) { ui[k] = e.target.value; saveUi(); if (e.target.dataset.norender) return; clearTimeout(render.t); render.t = setTimeout(render, 180); } });
@@ -3862,6 +3862,26 @@ function v12Acts(a, id) {
   };
 }
 document.addEventListener('change', e => { const d = e.target.dataset || {}; if (d.change === 'cp-client') api('coach-panel', { body: { client: d.id, on: e.target.checked } }).then(r => { CPN = r; render(); }).catch(err => toast(err.message)); });
+
+/* ================= v12.1: restore my data from a daily server backup ================= */
+const BK_LBL = { tasks: 'tasks', goals: 'goals', milestones: 'milestones', habits: 'habits', logs: 'balance logs', events: 'events', courses: 'courses', applications: 'jobs' };
+async function backupSheet() {
+  let r; try { r = await api('backups'); } catch (e) { toast(e.message); return; }
+  const cnt = c => Object.entries(c).filter(([, v]) => v).map(([k, v]) => `${v} ${BK_LBL[k]}`).join(' · ');
+  const when = b => b.kind === 'safety' ? `Safety copy made before a restore · ${b.name.slice(15, 19)}-${b.name.slice(19, 21)}-${b.name.slice(21, 23)} ${b.name.slice(24, 26)}:${b.name.slice(26, 28)} UTC` : `Start of ${fmtDate(`${b.name.slice(6, 10)}-${b.name.slice(10, 12)}-${b.name.slice(12, 14)}`, true)} (= your data at the end of the day before)`;
+  openSheet('Restore my data', `<p class="small" style="margin-top:0">The server saves a copy of your data once a day, before the first change of the day. Restoring brings back only your data (tasks, habits, goals, courses, logs…). All app features stay. Your current data is saved as a safety copy first, so you can undo.</p>
+    <div class="card" style="margin-bottom:10px"><b>Now</b><div class="small">${esc(cnt(r.current.counts))}</div></div>
+    <div class="list">${r.backups.map(b => `<div class="row"><div class="main"><div class="t">${esc(when(b))}</div><div class="m"><span>${esc(cnt(b.counts))}</span>${b.updatedAt ? `<span>last change ${esc(String(b.updatedAt).slice(0, 16).replace('T', ' '))} UTC</span>` : ''}</div></div><button class="btn small ${b.kind === 'safety' ? 'ghost' : 'primary'}" data-act="bk-restore" data-v="${esc(b.name)}">Restore</button></div>`).join('') || '<div class="empty">No backups yet.</div>'}</div>`, '', { noFocus: true });
+}
+function v121Acts(a) {
+  return {
+    'bk-open': () => backupSheet(),
+    'bk-restore': async () => { if (!confirm('Restore this copy? Your current data is kept as a safety copy, so you can undo.')) return; a.disabled = true; a.textContent = 'Restoring…';
+      try { await api('backup-restore', { body: { name: a.dataset.v } }); ls.del(K.db); ls.del(K.out); ls.del(K.rev); toast('Restored. Reloading…'); setTimeout(() => location.reload(), 700); } catch (e) { toast(e.message); a.disabled = false; a.textContent = 'Restore'; } }
+  };
+}
+const _vSettingsV121 = vSettings;
+vSettings = function () { return _vSettingsV121().replace('<div class="spacer" style="height:14px"></div>', `<div class="spacer" style="height:14px"></div><div class="card setrow"><div class="main"><b>♻ Restore my data</b><div class="small">Go back to a daily server copy of your tasks, habits, goals and courses. Features are not affected.</div></div><button class="btn small primary" data-act="bk-open">Open</button></div>`); };
 
 /* ---------------- boot ---------------- */
 if ('serviceWorker' in navigator && location.protocol === 'https:') { const had = !!navigator.serviceWorker.controller; navigator.serviceWorker.register('sw.js').catch(() => {}); navigator.serviceWorker.addEventListener('controllerchange', () => { if (had) toast('ME.Coach was updated', 'Reload', () => location.reload()); }); }

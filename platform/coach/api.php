@@ -7,7 +7,7 @@
  */
 declare(strict_types=1);
 
-const APP_VERSION = '12.0.0';
+const APP_VERSION = '12.1.0';
 const TRIAL_DAYS = 7;
 const GLOBAL_FILES = ['users.json', 'tokens.json', 'attempts.json', 'keys.json', 'system.json', '.lock', 'webauthn-chal.json', 'requests.json', 'bookings.json', 'coach-notes.json'];
 /* Plans shown in the app. Keep the prices in sync with the public pages (platform/tools/build_coach_site.py). */
@@ -1079,6 +1079,34 @@ switch ($action) {
         $up = array_values(array_filter(coach_bookings(), fn($x) => ($x['status'] ?? '') === 'booked' && strtotime((string)$x['at']) > time() - 3600)); usort($up, fn($a, $b) => strcmp($a['at'], $b['at']));
         $all = []; foreach (users() as $id => $u) { if (($u['role'] ?? '') !== 'owner') { $all[] = ['id' => $id, 'name' => $u['name'] ?? '', 'email' => $u['email'] ?? '', 'coachClient' => !empty($u['coachClient'])]; } }
         out(200, ['ok' => true, 'config' => coach_cfg(), 'clients' => $rows, 'upcoming' => $up, 'members' => $all]);
+
+    /* ----- v12.1: restore a daily server backup (the current data is kept as a safety copy first) ----- */
+    case 'backups':
+        require_auth(); $rows = [];
+        foreach (array_merge(glob(path('backups/store-*.json')) ?: [], glob(path('backups/before-restore-*.json')) ?: []) as $f) {
+            $j = json_decode((string)file_get_contents($f), true); if (!is_array($j)) { continue; } $cnt = [];
+            foreach (['tasks', 'goals', 'milestones', 'habits', 'logs', 'events', 'courses', 'applications'] as $k) { $cnt[$k] = count(array_filter((array)($j['collections'][$k] ?? []), fn($r) => is_array($r) && empty($r['deleted']))); }
+            $rows[] = ['name' => basename($f), 'kind' => str_starts_with(basename($f), 'before-') ? 'safety' : 'daily', 'updatedAt' => $j['updatedAt'] ?? '', 'rev' => $j['rev'] ?? 0, 'kb' => round(filesize($f) / 1024), 'counts' => $cnt];
+        }
+        usort($rows, fn($a, $b) => strcmp((string)$b['updatedAt'], (string)$a['updatedAt']));
+        $cur = load_store(); $cc = []; foreach (['tasks', 'goals', 'milestones', 'habits', 'logs', 'events', 'courses', 'applications'] as $k) { $cc[$k] = count(array_filter((array)($cur['collections'][$k] ?? []), fn($r) => is_array($r) && empty($r['deleted']))); }
+        out(200, ['ok' => true, 'backups' => $rows, 'current' => ['updatedAt' => $cur['updatedAt'], 'rev' => $cur['rev'], 'counts' => $cc]]);
+
+    case 'backup-restore':
+        if ($method !== 'POST') { fail(405, 'POST only'); }
+        require_auth(); $name = (string)(body()['name'] ?? '');
+        if (!preg_match('/^(store-\d{8}|before-restore-\d{8}-\d{6})\.json$/', $name) || !is_file(path('backups/' . $name))) { fail(404, 'Backup not found'); }
+        $res = with_lock(function () use ($name) {
+            $b = json_decode((string)file_get_contents(path('backups/' . $name)), true); if (!is_array($b) || !isset($b['collections'])) { return 'That backup file is damaged.'; }
+            @copy(path('store.json'), path('backups/before-restore-' . gmdate('Ymd-His') . '.json'));
+            $cur = load_store(); $now = now_ms();
+            foreach ($b['collections'] as $c => &$recs) { if (!is_array($recs)) { continue; } foreach ($recs as &$r) { if (is_array($r)) { $r['updatedAt'] = $now; } } unset($r); }
+            unset($recs);
+            foreach (COLLECTIONS as $c) { foreach ((array)($cur['collections'][$c] ?? []) as $id => $r) { if (!isset($b['collections'][$c][$id]) && is_array($r)) { $r['deleted'] = true; $r['updatedAt'] = $now; $b['collections'][$c][$id] = $r; } } }
+            $b['rev'] = (int)$cur['rev'] + 1; $b['updatedAt'] = gmdate('c'); write_json('store.json', $b); return '';
+        });
+        if ($res !== '') { fail(400, $res); }
+        out(200, ['ok' => true]);
 
     default:
         fail(404, 'Unknown action');
