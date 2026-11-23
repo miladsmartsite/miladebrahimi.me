@@ -118,3 +118,11 @@ html:not(.in-app) #app .boot{display:none}
 .s-emi img{max-width:100%;height:auto}.s-emi .emi-cv{width:100%;height:100%}
 @media (max-width:860px){.s-emi{height:400px}}
 #site main,.s-page main{max-width:none;padding:0;margin:0}
+/* v11 regional pages + language links */
+.s-lang{font-size:14px;color:inherit;text-decoration:none;padding:6px 8px;opacity:.8}.s-lang:hover{opacity:1}
+.rg{font-family:-apple-system,"SF Arabic","Geeza Pro","Segoe UI",Tahoma,system-ui,sans-serif}.rg-hero{padding:56px 0 36px;text-align:center;background:linear-gradient(180deg,#f4f1e8,transparent)}.rg-hero h1{font-size:clamp(30px,6vw,52px);margin:10px 0}.rg-lead{max-width:640px;margin:0 auto 22px;font-size:18px;line-height:1.8}
+.rg-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}.rg-f{background:#fff;border:1px solid #e7e3d8;border-radius:16px;padding:18px}.rg-f span{font-size:26px}.rg-f b{display:block;margin:8px 0 4px;font-size:17px}.rg-f p{margin:0;line-height:1.7;color:#555}
+.rg-steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;padding:0;list-style:none;counter-reset:s}.rg-steps li{background:#fff;border-radius:16px;padding:18px;border:1px solid #e7e3d8;counter-increment:s}.rg-steps li::before{content:counter(s);display:inline-grid;place-items:center;width:30px;height:30px;border-radius:50%;background:#232a45;color:#fff;margin-bottom:8px}.rg-steps b{display:block}.rg-steps span{color:#555;line-height:1.7}
+.rg-prices{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}.rg-p{position:relative;background:#fff;border:1.5px solid #e7e3d8;border-radius:18px;padding:22px;text-align:center}.rg-p.best{border-color:#c9a227;box-shadow:0 10px 30px rgba(201,162,39,.18)}.rg-p em{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:#c9a227;color:#fff;font-style:normal;font-size:12px;border-radius:99px;padding:3px 10px}.rg-p b{font-size:18px}.rg-n{font-size:30px;font-weight:800;margin:10px 0 2px}.rg-n small{font-size:14px;font-weight:500;color:#666}.rg-u{color:#888;font-size:13px}.rg-p p{color:#555;line-height:1.7}
+.rg-book{display:flex;gap:24px;align-items:center;flex-wrap:wrap}.rg-book img{width:160px}
+@media (max-width:640px){.s-lang{display:none}}

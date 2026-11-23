@@ -5,7 +5,7 @@
 (() => {
 'use strict';
 
-const VERSION = '10.0.0';
+const VERSION = '11.0.0';
 const API = 'api.php';
 const K = { db: 'mec.db', out: 'mec.outbox', tok: 'mec.token', rev: 'mec.rev', ui: 'mec.ui', last: 'mec.lastSync', user: 'mec.user' };
 const COLS = ['tasks','events','projects','goals','skills','logs','evidence','decisions','notes','ielts','sessions','settings','milestones','applications','immigration','habits','money','templates','courses','areas','wheel','cycles','focus','products','tests','careers'];
@@ -59,7 +59,7 @@ function dayOf(s) { if (!s) return ''; if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return
 function tzOffset() { const m = -new Date().getTimezoneOffset(); const s = m >= 0 ? '+' : '-'; const a = Math.abs(m); return `${s}${pad(Math.floor(a / 60))}:${pad(a % 60)}`; }
 function toInput(s) { if (!s) return ''; if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s + 'T09:00'; const d = parseD(s); return d ? `${dstr(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}` : ''; }
 function fromInput(v) { return v ? v.slice(0, 16) + tzOffset() : ''; }
-function fmtDate(s, withYear) { const d = parseD(s); if (!d) return ''; return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', ...(withYear ? { year: 'numeric' } : {}) }); }
+function fmtDate(s, withYear) { const d = parseD(s); if (!d) return ''; return d.toLocaleDateString(LOC(), { weekday: 'short', day: 'numeric', month: 'short', ...(withYear ? { year: 'numeric' } : {}) }); }
 function fmtTime(s) { if (!s || s.length <= 10) return ''; const d = parseD(s); return d ? `${pad(d.getHours())}:${pad(d.getMinutes())}` : ''; }
 function rel(s) { const t = today(); if (!s) return ''; const n = Math.round((parseD(s) - parseD(t)) / 86400000); if (n === 0) return 'today'; if (n === 1) return 'tomorrow'; if (n === -1) return 'yesterday'; return n < 0 ? `${-n}d late` : `in ${n}d`; }
 function toast(msg, label, fn) {
@@ -293,14 +293,18 @@ if (darkMq && darkMq.addEventListener) darkMq.addEventListener('change', applyTh
 applyTheme();
 
 /* ---------------- language (English / Persian) ---------------- */
-const FA = (window.M2031_FA || { dict: {}, rx: [] });
+const RTL = () => ui.lang === 'fa' || ui.lang === 'ar';
+const LOC = () => ui.lang === 'fa' ? 'fa-IR' : ui.lang === 'ar' ? 'ar-OM' : 'en-GB';
+const dowS = (d, n) => RTL() ? parseD(d).toLocaleDateString(LOC(), { weekday: n === 2 ? 'narrow' : 'short' }) : DOWS[parseD(d).getDay()].slice(0, n);
+const LD = () => (ui.lang === 'ar' ? window.M2031_AR : window.M2031_FA) || { dict: {}, rx: [] };
 function trStr(s) {
   const t = s.trim(); if (!t || /^[\d\s.,:/+\-–%★✓↻→←·()]+$/.test(t)) return null;
-  let r = FA.dict[t]; if (r === undefined) for (const [rx, rep] of FA.rx) if (rx.test(t)) { r = t.replace(rx, rep); break; }
+  const D = LD(); let r = D.dict[t]; if (r === undefined) for (const [rx, rep] of D.rx) if (rx.test(t)) { r = t.replace(rx, rep); break; }
+  if (r === undefined) { const m = t.match(/^([^A-Za-z(]+?)\s*([A-Za-z(].*?)\s*([↗→]?)$/); if (m && m[2] !== t) { const c = D.dict[m[2]]; if (c !== undefined) r = (m[1] ? m[1] + ' ' : '') + c + (m[3] ? ' ' + m[3] : ''); } else { const n = t.match(/^(.*?[A-Za-z.!?)])\s*([↗→])$/); if (n && D.dict[n[1]] !== undefined) r = D.dict[n[1]] + ' ' + n[2]; } }
   return r === undefined ? null : s.replace(t, r);
 }
 function trNode(root) {
-  if (ui.lang !== 'fa' || !root) return;
+  if (!RTL() || !root) return;
   if (root.nodeType === 3) { const p = root.parentElement; if (p && !p.closest('[dir=auto],.mono,textarea,script,style,.ft')) { const r = trStr(root.nodeValue); if (r !== null) root.nodeValue = r; } return; }
   if (root.nodeType !== 1 || root.closest('[dir=auto],.mono,script,style')) return;
   const w = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, { acceptNode: n => n.nodeType === 1 && n.matches('[dir=auto],.mono,textarea,script,style,svg') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT });
@@ -310,8 +314,8 @@ function trNode(root) {
   if (root.querySelectorAll) root.querySelectorAll('[placeholder]').forEach(el => { if (!els.includes(el)) els.push(el); });
   for (const el of els) for (const at of ['placeholder', 'aria-label', 'title']) { const v = el.getAttribute && el.getAttribute(at); if (v) { const r = trStr(v); if (r !== null) el.setAttribute(at, r); } }
 }
-new MutationObserver(ms => { if (ui.lang !== 'fa') return; for (const m of ms) m.addedNodes.forEach(trNode); }).observe(document.documentElement, { childList: true, subtree: true });
-function applyLang() { const fa = ui.lang === 'fa'; const h = document.documentElement; h.lang = fa ? 'fa' : 'en'; h.dir = fa ? 'rtl' : 'ltr'; if (fa) trNode(document.body); }
+new MutationObserver(ms => { if (!RTL()) return; for (const m of ms) m.addedNodes.forEach(trNode); }).observe(document.documentElement, { childList: true, subtree: true });
+function applyLang() { const q = new URLSearchParams(location.search).get('lang'); if (q && ['en', 'fa', 'ar'].includes(q) && q !== ui.lang) { ui.lang = q; saveUi(); } const rtl = RTL(); const h = document.documentElement; h.lang = rtl ? ui.lang : 'en'; h.dir = rtl ? 'rtl' : 'ltr'; if (rtl) trNode(document.body); }
 applyLang();
 
 /* ---------------- notifications (Web Push) ---------------- */
@@ -563,7 +567,7 @@ function vToday() {
   const tm = addDays(t, 1), tomTop = sortTasks(open.filter(x => x.focusDate === tm));
   const doneToday = list('tasks').filter(x => !isOpen(x) && x.completedOn === t).length;
   const cyc = activeCycle(), mlog = logOf('morning'), nlog = logOf('closeout');
-  const head = header(new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }), greet + (me && me.name ? ', ' + me.name.split(' ')[0] : '') + (cyc ? ` · day ${cycleDay(cyc)} of ${cyc.days || 40}` : '')) + weekStrip(t) + `
+  const head = header(new Date().toLocaleDateString(LOC(), { weekday: 'long', day: 'numeric', month: 'long' }), greet + (me && me.name ? ', ' + me.name.split(' ')[0] : '') + (cyc ? ` · day ${cycleDay(cyc)} of ${cyc.days || 40}` : '')) + weekStrip(t) + `
   ${me && me.plan === 'trial' ? `<a class="trialpill" href="#" data-act="plans">Free trial · ${Math.max(0, Math.ceil((Date.parse(me.trialEnds) - Date.now()) / 86400000))} days left</a>` : ''}
   ${setupCard()}
   ${coachCard()}
@@ -617,7 +621,7 @@ function vTasks() {
 function vCalendar() {
   const view = ui.calView || (window.innerWidth >= 900 ? 'week' : '3day'), sel = ui.calSel || today();
   if (view !== 'month') {
-    const days = gridDays(view, sel), title = parseD(days[0]).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+    const days = gridDays(view, sel), title = parseD(days[0]).toLocaleDateString(LOC(), { month: 'long', year: 'numeric' });
     setTimeout(() => { const gb = $('#gbody'); if (gb && !render.calScrolled) { gb.scrollTop = Math.max(0, (Math.min(new Date().getHours(), 20) - H0 - 1) * HOUR_PX); render.calScrolled = true; } }, 0);
     return header('Calendar', '') + calHead(title, view) + `<div class="card gcard">${timeGrid(days)}</div><div class="btns" style="margin-top:12px"><button class="btn small" data-act="new-event" data-day="${sel}">${I.plus} Event</button><button class="btn small" data-act="new-task" data-day="${sel}">${I.plus} Task</button></div>`;
   }
@@ -633,8 +637,8 @@ function vMonth() {
   const days = []; for (let i = 0; i < 42; i++) { const d = new Date(gridStart); d.setDate(gridStart.getDate() + i); days.push(dstr(d)); }
   const items = agenda(days[0], days[41]); const byDay = {}; items.forEach(a => (byDay[a.day] = byDay[a.day] || []).push(a));
   const sel = byDay[ui.calSel] || [];
-  const monthName = first.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
-  return header('Calendar', '') + calHead(first.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }), 'month') + `
+  const monthName = first.toLocaleDateString(LOC(), { month: 'long', year: 'numeric' });
+  return header('Calendar', '') + calHead(first.toLocaleDateString(LOC(), { month: 'long', year: 'numeric' }), 'month') + `
   <div class="card"><div class="cal-h" style="display:none"><button class="icon-btn" data-act="cal-move" data-d="-1" aria-label="Previous month">${I.left}</button><b>${esc(monthName)}</b><button class="btn small" data-act="cal-today">Today</button><button class="icon-btn" data-act="cal-move" data-d="1" aria-label="Next month">${I.right}</button></div>
   <div class="month">${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => `<div class="dow">${d}</div>`).join('')}
   ${days.map(d => { const it = byDay[d] || []; return `<div class="day ${d.slice(0, 7) !== ui.calMonth ? 'out' : ''} ${d === t ? 'today' : ''} ${d === ui.calSel ? 'sel' : ''}" data-act="cal-sel" data-day="${d}"><span class="n">${Number(d.slice(8))}</span><div class="dots">${it.slice(0, 6).map(a => `<i class="${a.kind === 'task' || a.kind === 'ms' ? 't' : a.kind === 'due' || a.kind === 'follow' ? 'd' : ''}"></i>`).join('')}</div>${it.slice(0, 3).map(a => `<div class="lbl" dir="auto">${esc(a.time ? a.time + ' ' : '')}${esc(a.title)}</div>`).join('')}${it.length > 3 ? `<div class="lbl">+${it.length - 3}</div>` : ''}</div>`; }).join('')}</div></div>
@@ -671,7 +675,7 @@ function vHabits() {
   return header('Habits', '') + `
   <div class="card hsum">${ring(due.length ? Math.round(100 * done.length / due.length) : 0, 86, `${done.length}/${due.length}`)}<div class="main"><b>${due.length ? (done.length === due.length ? 'All done today' : `${due.length - done.length} to go today`) : 'Nothing scheduled today'}</b><div class="hs-st"><div><span>${best}</span><small>best streak</small></div><div><span>${rate}%</span><small>last 7 days</small></div><div><span>${hs.length}</span><small>habits</small></div></div></div></div>
   ${hs.map(h => { const st = habitStreak(h); return `<div class="card hcard" style="--ac:${habColor(h)}"><div class="hc-top" data-act="habit-open" data-id="${esc(h.id)}" role="button"><span class="hc-av">${esc(String(h.title).slice(0, 1).toUpperCase())}</span><div class="main"><b dir="auto">${esc(h.title)}</b><div class="small">${esc(habSched(h))}${h.time ? ' · ' + esc(h.time) : ''}</div></div>${st ? `<span class="hc-st">${I.flame}${st}</span>` : ''}</div>
-    <div class="hc-week">${week.map(d => { const due = habDue(h, d), on = !!(h.done || {})[d]; return `<button class="hd ${on ? 'on' : ''} ${due ? '' : 'off'} ${d === t ? 'td' : ''}" data-act="hab-day" data-id="${esc(h.id)}" data-d="${d}" aria-label="${esc(fmtDate(d))}"><small>${DOWS[parseD(d).getDay()].slice(0, 1)}</small><i>${on ? I.tick : parseD(d).getDate()}</i></button>`; }).join('')}</div></div>`; }).join('') || '<div class="card empty">No habits yet. Small and specific works best: “10 minute walk after lunch”.</div>'}
+    <div class="hc-week">${week.map(d => { const due = habDue(h, d), on = !!(h.done || {})[d]; return `<button class="hd ${on ? 'on' : ''} ${due ? '' : 'off'} ${d === t ? 'td' : ''}" data-act="hab-day" data-id="${esc(h.id)}" data-d="${d}" aria-label="${esc(fmtDate(d))}"><small>${dowS(d, 3).slice(0, 1)}</small><i>${on ? I.tick : parseD(d).getDate()}</i></button>`; }).join('')}</div></div>`; }).join('') || '<div class="card empty">No habits yet. Small and specific works best: “10 minute walk after lunch”.</div>'}
   <button class="btn primary wide" data-act="new-habit">${I.plus} New habit</button>`;
 }
 function habitSheet(id) {
@@ -760,7 +764,7 @@ function timeline(d) {
 }
 function weekStrip(sel) {
   const t = today(), ws = mideast() ? addDays(t, -parseD(t).getDay()) : weekStart(t), days = []; for (let i = 0; i < 7; i++) days.push(addDays(ws, i));
-  return `<div class="wstrip"><button class="icon-btn" data-act="tday-move" data-d="-7" aria-label="Previous week">${I.left}</button>${days.map(d => { const n = agenda(d, d).length; return `<button class="ws-d ${d === sel ? 'on' : ''} ${d === t ? 'td' : ''}" data-act="tday" data-day="${d}"><small>${DOWS[parseD(d).getDay()].slice(0, 2)}</small><b>${parseD(d).getDate()}</b>${n ? '<i></i>' : ''}</button>`; }).join('')}<button class="icon-btn" data-act="tday-move" data-d="7" aria-label="Next week">${I.right}</button></div>`;
+  return `<div class="wstrip"><button class="icon-btn" data-act="tday-move" data-d="-7" aria-label="Previous week">${I.left}</button>${days.map(d => { const n = agenda(d, d).length; return `<button class="ws-d ${d === sel ? 'on' : ''} ${d === t ? 'td' : ''}" data-act="tday" data-day="${d}"><small>${dowS(d, 2)}</small><b>${parseD(d).getDate()}</b>${n ? '<i></i>' : ''}</button>`; }).join('')}<button class="icon-btn" data-act="tday-move" data-d="7" aria-label="Next week">${I.right}</button></div>`;
 }
 function vDay(d) {
   const open = list('tasks').filter(isOpen), due = sortTasks(open.filter(x => x.due === d && !x.scheduled));
@@ -784,7 +788,7 @@ function timeGrid(days) {
       return `<div class="gb ${x.a.kind !== 'event' && !isOpen(x.a.rec) ? 'done' : ''}" data-act="${{ event: 'event', follow: 'application', ms: 'milestone' }[x.a.kind] || 'task'}" data-id="${esc(x.a.id)}" style="top:${top.toFixed(1)}px;height:${h.toFixed(1)}px;left:${(100 * x.l / L).toFixed(2)}%;width:${(100 / L).toFixed(2)}%;--c:${col}"><b dir="auto">${esc(x.a.title)}</b><span>${esc(x.a.time)}${x.a.end ? '–' + esc(x.a.end) : ''}</span></div>`; }).join('');
     return { d, allDay, html: `<div class="gcol ${d === t ? 'td' : ''}" data-act="cal-slot" data-day="${d}">${hours.map(() => '<i></i>').join('')}${blocks}${d === t && nowM >= H0 * 60 ? `<div class="gnow" style="top:${((nowM - H0 * 60) / 60 * HOUR_PX).toFixed(1)}px"></div>` : ''}</div>` };
   });
-  return `<div class="gcal" style="--n:${days.length}"><div class="gh"><div></div>${days.map(d => `<div class="ghd ${d === t ? 'td' : ''}" data-act="cal-pick" data-day="${d}"><small>${DOWS[parseD(d).getDay()]}</small><b>${parseD(d).getDate()}</b></div>`).join('')}</div>
+  return `<div class="gcal" style="--n:${days.length}"><div class="gh"><div></div>${days.map(d => `<div class="ghd ${d === t ? 'td' : ''}" data-act="cal-pick" data-day="${d}"><small>${dowS(d, 3)}</small><b>${parseD(d).getDate()}</b></div>`).join('')}</div>
   <div class="gall"><div class="small">all-day</div>${cols.map(c => `<div>${c.allDay.slice(0, 3).map(a => `<span class="gad" data-act="${{ event: 'event', follow: 'application', ms: 'milestone' }[a.kind] || 'task'}" data-id="${esc(a.id)}" dir="auto">${esc(a.title)}</span>`).join('')}${c.allDay.length > 3 ? `<span class="small">+${c.allDay.length - 3}</span>` : ''}</div>`).join('')}</div>
   <div class="gbody" id="gbody"><div class="gtimes">${hours.map(h => `<span>${pad(h)}:00</span>`).join('')}</div>${cols.map(c => c.html).join('')}</div></div>`;
 }
@@ -1412,13 +1416,13 @@ function vSettings() {
   <div class="card"><h2>Morning &amp; Night Balance</h2><div class="small" style="margin-bottom:8px">Choose the questions you answer. Fewer questions = faster.</div>${balanceSettings()}</div>
   <div class="card"><h2>Areas of life</h2><div class="small" style="margin-bottom:8px">${areas().length} areas in your Wheel of Life.</div><div class="btns"><button class="btn small" data-act="areas-edit">Edit areas</button><button class="btn small" data-act="wheel-test">Retake the wheel</button></div></div>
   <div class="card"><h2>Sections</h2><div class="small" style="margin-bottom:8px">Hide what you do not use. Nothing is deleted.</div><div class="pick">${OPTIONAL.filter(([k]) => can(k)).map(([k, l]) => `<button class="${hidden().has(k) ? '' : 'on'}" data-act="toggle-sec" data-v="${k}">${hidden().has(k) ? '' : '✓ '}${l}</button>`).join('')}</div></div>
-  <div class="card"><h2>Language</h2><div class="seg">${[['en', 'English'], ['fa', 'فارسی']].map(([k, l]) => `<button class="${(ui.lang || 'en') === k ? 'on' : ''}" data-act="set-lang" data-v="${k}">${l}</button>`).join('')}</div></div>
+  <div class="card"><h2>Language</h2><div class="seg">${[['en', 'English'], ['fa', 'فارسی'], ['ar', 'العربية']].map(([k, l]) => `<button class="${(ui.lang || 'en') === k ? 'on' : ''}" data-act="set-lang" data-v="${k}">${l}</button>`).join('')}</div></div>
   <div class="card"><h2>Security</h2><div class="btns"><button class="btn small" data-act="password">Change password</button><button class="btn small danger" data-act="logout">Sign out on this device</button></div>
     <div class="small" style="margin-top:8px">Do not store passport numbers, ID numbers, salaries or confidential employer files here. Keep those in your private evidence vault.</div></div>
   </div>`;
 }
 function header(title, sub) {
-  if (ui.lang === 'fa') { title = trStr(title) || title; sub = sub && (trStr(sub) || sub); }
+  if (RTL()) { title = trStr(title) || title; sub = sub && (trStr(sub) || sub); }
   const pg = route().page; const back = !NAV_MAIN.some(([k]) => k === pg) && pg !== 'plan' && pg !== 'learn';
   return `<div class="top"><div class="top-row">${back ? `<button class="icon-btn hback" data-act="back" aria-label="Back">${I.left}</button>` : ''}<h1 dir="auto">${esc(title)}</h1>${syncHtml()}<button class="icon-btn hsearch" data-act="search" aria-label="Search">${I.search}</button><button class="icon-btn hmore" data-act="page-menu" aria-label="Options">${I.more}${badge('more')}</button></div>${sub ? `<div class="sub" dir="auto">${esc(sub)}</div>` : ''}</div><div class="spacer" style="height:14px"></div>`;
 }
@@ -2250,7 +2254,7 @@ function openSheet(title, bodyHtml, footHtml, ctx = {}) {
   closeSheet(true);
   const scrim = document.createElement('div'); scrim.className = 'scrim'; scrim.dataset.act = 'sheet-close';
   const sh = document.createElement('div'); sh.className = 'sheet'; sh.setAttribute('role', 'dialog'); sh.setAttribute('aria-modal', 'true');
-  if (ui.lang === 'fa') title = trStr(title) || title;
+  if (RTL()) title = trStr(title) || title;
   sh.innerHTML = `<div class="sheet-h"><h3 dir="auto">${esc(title)}</h3><button class="icon-btn" data-act="sheet-close" aria-label="Close">${I.close}</button></div><div class="sheet-b">${icoize(bodyHtml)}</div>${footHtml ? `<div class="sheet-f">${footHtml}</div>` : ''}`;
   document.body.append(scrim, sh); sheetCtx = Object.assign({ el: sh, scrim }, ctx);
   requestAnimationFrame(() => { scrim.classList.add('on'); sh.classList.add('on'); });
@@ -3304,7 +3308,7 @@ onboard = function () {
   needGrowth().catch(() => {});
   const goalIdeas = a => { const f = (FOCUS_OPTS.find(x => x[0] === a.focus) || [])[2] || 'Lifestyle', k = f.toLowerCase(); const P = window.MEC_GROWTH ? MEC_GROWTH.PAIN[k] || [] : []; return [...new Set(P.map(x => x[1]).concat([GOAL_TPL[f]]))].filter(Boolean); };
   const steps = [
-    { html: a => `<div class="ob"><div class="ob-k">${brandMark} Coach</div><h2>Hi! I’m Emi. What should I call you?</h2><input class="big" data-k="name" value="${esc(a.name || '')}" placeholder="Your first name" autocomplete="given-name" dir="auto"><p class="small">The rest is just taps. About one minute.</p><button class="btn ghost small" data-act="ob-skip">Skip — I will import my own data</button></div>`, check: a => a.name && a.name.trim() ? '' : 'Tell me your name' },
+    { html: a => `<div class="ob"><div class="ob-k">${brandMark} Coach</div><h2>Hi! I’m Emi. What should I call you?</h2><input class="big" data-k="name" value="${esc(a.name || '')}" placeholder="Your first name" autocomplete="given-name" dir="auto"><p class="small">The rest is just taps. About one minute.</p><div class="ochips" style="margin:6px 0 10px">${[['en', 'English'], ['fa', 'فارسی'], ['ar', 'العربية']].map(([k, l]) => `<button type="button" class="ochip ${(ui.lang || 'en') === k ? 'on' : ''}" data-act="ob-lang" data-v="${k}">${l}</button>`).join('')}</div><button class="btn ghost small" data-act="ob-skip">Skip — I will import my own data</button></div>`, check: a => a.name && a.name.trim() ? '' : 'Tell me your name' },
     { html: a => `<div class="ob"><h2>${esc(a.name)}, what matters most right now?</h2><div class="ochips">${FOCUS_OPTS.map(([v, l]) => chip('focus', v, l, a.focus === v)).join('')}</div></div>`, check: a => a.focus ? '' : 'Pick one' },
     { html: a => `<div class="ob"><h2>Pick your first goal</h2><p class="small">You can change the words later.</p><div class="ochips col">${goalIdeas(a).map(g => chip('goal', g, g, a.goal === g)).join('')}</div><div class="small" style="margin:16px 0 6px">By when?</div><div class="ochips">${[['40', '40 days'], ['90', '3 months'], ['180', '6 months'], ['365', '1 year']].map(([v, l]) => chip('horizon', v, l, (a.horizon || '40') === v)).join('')}</div></div>`, check: a => a.goal ? '' : 'Pick a goal' },
     { html: () => `<div class="ob"><h2>Your Wheel of Life</h2><p>Eight quick taps, one per area of life, from 1 to 10. Later you can take the full 80-question test from the book.</p><div class="ob-wheel">${miniWheel(CLASSIC, {}, -1)}</div></div>`, nextLabel: 'Start' },
@@ -3400,7 +3404,7 @@ vRoadmap = function () {
   <div class="card rm-hero"><div class="rm-v"><div class="small">Your vision</div><b dir="auto">${esc(prefs().visionName || 'My vision')}</b>${prefs().visionText ? `<div class="small" dir="auto">${esc(prefs().visionText)}</div>` : ''}<button class="btn small ghost" data-act="vision">Change</button></div><div class="rm-n">${dl.toLocaleString('en-GB')}<small>days to go</small></div></div>
   <div class="card"><h2>🛣 The road ahead</h2><div class="road">${[`<div class="rd-n now"><i></i><div><b>Today</b><span>${esc(fmtDate(t, true))}${c ? ` · day ${cycleDay(c)} of 40` : ''}</span></div></div>`].concat(next.map((m, i) => { const g = m.goalId && get('goals', m.goalId), a = g ? goalArea(g) : null; return `<div class="rd-n ${i % 2 ? 'r' : 'l'}" data-act="milestone" data-id="${esc(m.id)}" role="button" style="--ac:${a ? areaColor(a) : 'var(--brass)'}"><i>${areaEmoji(a)}</i><div><b dir="auto">${esc(m.title)}</b><span>${esc(fmtDate(m.target, true))} · ${esc(rel(m.target))}</span></div></div>`; })).concat([`<div class="rd-n goal"><i>🏁</i><div><b dir="auto">${esc(prefs().visionName || 'My vision')}</b><span>${esc(fmtDate(vd, true))}</span></div></div>`]).join('')}</div>
     <div class="small" style="margin-top:8px">${done} of ${ms.length} milestones done</div><div class="btns" style="margin-top:8px"><button class="btn primary small" data-act="new-milestone">${I.plus} Milestone</button><button class="btn small" data-act="goal-wizard">${I.plus} Goal in 5 steps</button></div></div>
-  <div class="card"><h2>📅 Goals on a timeline</h2><div class="gantt"><div class="gt-axis">${months.map(m => `<span style="left:${pos(m)}%">${esc(parseD(m).toLocaleDateString('en-GB', { month: 'short', year: span > 400 ? '2-digit' : undefined }))}</span>`).join('')}</div>${c ? `<div class="gt-cycle" style="left:${pos(c.start < t ? t : c.start)}%;width:${Math.max(1, pos(addDays(c.start, 39)) - pos(c.start < t ? t : c.start))}%"><span>40 days</span></div>` : ''}${gs.map(row).join('') || '<div class="empty">Goals with a target date appear here.</div>'}</div><div class="small" style="margin-top:6px">Bars run from today to each goal’s date. Fill = progress. Dots = milestones.</div></div>
+  <div class="card"><h2>📅 Goals on a timeline</h2><div class="gantt"><div class="gt-axis">${months.map(m => `<span style="left:${pos(m)}%">${esc(parseD(m).toLocaleDateString(LOC(), { month: 'short', year: span > 400 ? '2-digit' : undefined }))}</span>`).join('')}</div>${c ? `<div class="gt-cycle" style="left:${pos(c.start < t ? t : c.start)}%;width:${Math.max(1, pos(addDays(c.start, 39)) - pos(c.start < t ? t : c.start))}%"><span>40 days</span></div>` : ''}${gs.map(row).join('') || '<div class="empty">Goals with a target date appear here.</div>'}</div><div class="small" style="margin-top:6px">Bars run from today to each goal’s date. Fill = progress. Dots = milestones.</div></div>
   ${ms.some(m => !m.target) ? `<div class="card"><h2>No date yet</h2><div class="list">${ms.filter(m => !m.target).map(m => `<div class="row" data-act="milestone" data-id="${esc(m.id)}"><div class="main"><div class="t" dir="auto">${esc(m.title)}</div></div></div>`).join('')}</div></div>` : ''}`;
 };
 
@@ -3675,7 +3679,7 @@ vRoadmap = function () {
   const end = [vd, ...gs.map(g => g.target).filter(Boolean)].sort().pop(), span = Math.max(30, daysBetween(t, end)), pos = d => Math.max(0, Math.min(100, 100 * daysBetween(t, d) / span));
   const gpc = g => Array.isArray(g.plan) && g.plan.length ? Math.round(100 * g.plan.reduce((x, q) => x + Math.min(q.count, pDone(q)), 0) / g.plan.reduce((x, q) => x + q.count, 0)) : pct(goalProgress(g));
   const months = []; { const d = parseD(t); d.setDate(1); d.setMonth(d.getMonth() + 1); for (let i = 0; i < 80 && dstr(d) <= end; i++) { months.push(dstr(d)); d.setMonth(d.getMonth() + (span > 900 ? 6 : span > 400 ? 3 : 1)); } }
-  const axis = `<div class="ln-axis">${months.map(m => `<span style="left:${pos(m)}%">${esc(parseD(m).toLocaleDateString('en-GB', { month: 'short', year: span > 400 ? '2-digit' : undefined }))}</span>`).join('')}</div>`;
+  const axis = `<div class="ln-axis">${months.map(m => `<span style="left:${pos(m)}%">${esc(parseD(m).toLocaleDateString(LOC(), { month: 'short', year: span > 400 ? '2-digit' : undefined }))}</span>`).join('')}</div>`;
   const chips = `<div class="rmchips"><button class="${sel.length ? '' : 'on'}" data-act="rm-all">All areas</button>${as.map(a => `<button class="${sel.includes(a.id) ? 'on' : ''}" data-act="rm-area" data-id="${esc(a.id)}" style="--ac:${areaColor(a)}">${areaEmoji(a)} ${esc(a.title)}</button>`).join('')}</div>`;
   const views = `<div class="seg rmview">${[['lanes', '▤ Lanes'], ['road', '🛣 Road'], ['list', '☰ List']].map(([k, l]) => `<button class="${view === k ? 'on' : ''}" data-act="rm-view" data-v="${k}">${l}</button>`).join('')}</div>`;
   const one = sel.length === 1 ? get('areas', sel[0]) : null;
@@ -3695,6 +3699,7 @@ vRoadmap = function () {
 /* ---------- boards: the Notion-style table is editable in place ---------- */
 function v91Acts(a, id) {
   return {
+    'ob-lang': () => { flowRead(); ui.lang = a.dataset.v; saveUi(); applyLang(); flowDraw(); },
     'snd-toggle': () => { ui.soundOff = !ui.soundOff; saveUi(); if (!ui.soundOff) SND.play('done'); render(); },
     'cal-place': () => { ui.place = ui.place === id ? null : id; saveUi(); render(); if (ui.place) toast('Now tap a time in the calendar'); },
     't-sched': () => { closeSheet(true); schedSheet(id); },

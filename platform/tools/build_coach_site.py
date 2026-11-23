@@ -12,7 +12,7 @@ import json
 import pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent / 'coach'
-VERSION = '10.0.0'
+VERSION = '11.0.0'
 BASE = 'https://miladebrahimi.me/coach/'
 
 PLANS = [
@@ -97,7 +97,7 @@ def head(title, desc, path, extra=''):
 def nav(active=''):
     links = [('features.html', 'Features'), ('pricing.html', 'Pricing'), ('book.html', 'Free book'), ('faq.html', 'FAQ')]
     items = ''.join(f'<a href="{h}"{" class=on" if active == h else ""}>{l}</a>' for h, l in links)
-    return f'''<header class="s-nav"><div class="s-wrap s-nav-in"><a class="s-brand" href="./">ME<b>.</b>Coach</a><nav class="s-links">{items}</nav><span class="s-sp"></span><a class="s-btn ghost" href="./?signin=1" data-act="l-signin">Sign in</a><a class="s-btn primary" href="./?start=1" data-act="l-start">Start free</a></div></header>'''
+    return f'''<header class="s-nav"><div class="s-wrap s-nav-in"><a class="s-brand" href="./">ME<b>.</b>Coach</a><nav class="s-links">{items}</nav><span class="s-sp"></span><a class="s-lang" href="ar.html" lang="ar">العربية</a><a class="s-lang" href="fa.html" lang="fa">فارسی</a><a class="s-btn ghost" href="./?signin=1" data-act="l-signin">Sign in</a><a class="s-btn primary" href="./?start=1" data-act="l-start">Start free</a></div></header>'''
 
 
 def footer():
@@ -233,6 +233,7 @@ def build_index():
 <noscript><style>#app{{display:none}}</style></noscript>
 {CUR_JS}
 <script src="assets/fa.js?v={VERSION}" defer></script>
+<script src="assets/ar.js?v={VERSION}" defer></script>
 <script src="assets/app.js?v={VERSION}" defer></script>
 </body>
 </html>
@@ -311,11 +312,51 @@ def build_legal():
         ('Changes and contact', ['We may update these terms; the date above shows the latest version. Questions: <a href="mailto:info@miladebrahimi.me">info@miladebrahimi.me</a>.'])], 'Terms of use, subscriptions and refund policy for ME.Coach.')
 
 
+REGIONAL = {
+    'ar': dict(file='ar.html', title='ME.Coach · مدربك الشخصي، دقيقة واحدة يوميًا', desc='تطبيق تدريب ذاتي مبني على كتاب Self-Coaching Blueprint: عجلة الحياة، أهداف 40 يومًا، خطوات صغيرة يومية، وتوازن الصباح والمساء. بالريال العماني.',
+        kicker='مبني على كتاب «Self-Coaching Blueprint» لميلاد إبراهيمي', h1='مدربك الشخصي، دقيقة واحدة يوميًا', lead='قيّم عجلة حياتك، اختر ما يهمك في الأربعين يومًا القادمة، وحوّل كل هدف إلى خطوات صغيرة تنجزها كل يوم. توازن صباحي ومسائي في دقيقة، وتقرير واضح لتقدمك.',
+        cta='ابدأ مجانًا لمدة 7 أيام', note='بدون بطاقة · بياناتك ملكك · يعمل على iPhone وAndroid والكمبيوتر', signin='تسجيل الدخول',
+        feat_h='كل ما يسألك عنه المدرب، كل يوم', feats=[('🎯', 'عجلة الحياة', '80 سؤالًا من الكتاب في 8 مجالات، ونتيجة لكل كلمة مفتاحية.'), ('🗓', 'أهداف 40 يومًا', 'خمس خطوات: المجال، الكلمة المفتاحية، الألم واللذة، الخطوات الصغيرة، العدد والرمز.'), ('☀', 'توازن الصباح والمساء', 'دقيقة صباحًا لتحديد أهم 3، ودقيقة مساءً لتقييم يومك من 10.'), ('🤖', 'مساعد ذكي', 'رسائل تقديم للوظائف من سيرتك، أفكار لخطوات صغيرة، ودردشة مع إيمي.'), ('🧭', 'اختبارات ومسار مهني', '9 اختبارات لمعرفة الذات وخريطة للمسارات المهنية المناسبة لك.'), ('📅', 'تقويم ومهام', 'اسحب الأحداث والمهام كما في Google Calendar، وعادات بسلاسل يومية.')],
+        steps_h='كيف يعمل', steps=[('أجب بلمسات بسيطة', 'اسمك فقط يُكتب. الباقي اختيارات. دقيقة واحدة.'), ('احصل على خطتك', 'عجلتك، أول دورة 40 يومًا، أهدافك وخطواتك الصغيرة جاهزة.'), ('دقيقة صباحًا ومساءً', 'خطط ليومك، أغلقه، وشاهد عجلتك تنمو.')],
+        price_h='الأسعار', per={'month': 'شهريًا', 'year': 'سنويًا'}, plans={'monthly': ('برو شهري', 'التطبيق كاملًا شهرًا بشهر.'), 'yearly': ('برو سنوي', 'سنة كاملة من الدورات، أوفر بنحو 30٪.'), 'coach': ('مع مدرب', 'التطبيق + جلسة شهرية مباشرة مع ميلاد.')}, omr='ر.ع.', best='الأفضل قيمة',
+        book_h='الكتاب مجانًا', book_p='نزّل كتاب «Self-Coaching Blueprint» بصيغة PDF مجانًا (بالإنجليزية).', book_btn='نزّل الكتاب', other=('fa.html', 'فارسی'), foot='© 2026 ميلاد إبراهيمي · مسقط، عُمان'),
+    'fa': dict(file='fa.html', title='ME.Coach · کوچ شخصی تو، روزی یک دقیقه', desc='اپ خودکوچینگ بر پایه کتاب Self-Coaching Blueprint: چرخ زندگی، هدف‌های ۴۰ روزه، میکرواکشن‌های روزانه و تعادل صبح و شب.',
+        kicker='بر پایه کتاب «Self-Coaching Blueprint» نوشته میلاد ابراهیمی', h1='کوچ شخصی تو، روزی یک دقیقه', lead='چرخ زندگی‌ات را بسنج، مهم‌ترین چیز ۴۰ روز آینده را انتخاب کن و هر هدف را به قدم‌های کوچک روزانه تبدیل کن. تعادل صبح و شب در یک دقیقه و گزارش روشن از پیشرفتت.',
+        cta='۷ روز رایگان شروع کن', note='بدون کارت · داده‌ها مال خودت · روی آیفون، اندروید و کامپیوتر', signin='ورود',
+        feat_h='هرچه یک کوچ هر روز از تو می‌پرسد', feats=[('🎯', 'چرخ زندگی', '۸۰ سؤال کتاب در ۸ حوزه، با نمره برای هر کلمه کلیدی.'), ('🗓', 'هدف‌های ۴۰ روزه', 'پنج قدم: حوزه، کلمه کلیدی، رنج و لذت، میکرواکشن، تعداد و نماد.'), ('☀', 'تعادل صبح و شب', 'یک دقیقه صبح برای سه کار مهم و یک دقیقه شب برای نمره روز از ۱۰.'), ('🤖', 'دستیار هوشمند', 'نامه درخواست کار از رزومه‌ات، ایده میکرواکشن و گفت‌وگو با امی.'), ('🧭', 'تست‌ها و مسیر شغلی', '۹ تست خودشناسی و نقشه شغل‌های مناسب تو.'), ('📅', 'تقویم و کارها', 'جابه‌جایی رویدادها مثل گوگل کلندر و عادت‌ها با زنجیره روزانه.')],
+        steps_h='چطور کار می‌کند', steps=[('با چند ضربه جواب بده', 'فقط اسمت را تایپ می‌کنی. بقیه انتخابی است. یک دقیقه.'), ('برنامه‌ات آماده است', 'چرخ، اولین دوره ۴۰ روزه، هدف‌ها و میکرواکشن‌ها.'), ('یک دقیقه صبح و شب', 'روزت را برنامه‌ریزی کن، ببند و رشد چرخت را ببین.')],
+        price_h='قیمت‌ها', per={'month': 'ماهانه', 'year': 'سالانه'}, plans={'monthly': ('پرو ماهانه', 'اپ کامل، ماه به ماه.'), 'yearly': ('پرو سالانه', 'یک سال کامل دوره‌ها، حدود ۳۰٪ ارزان‌تر.'), 'coach': ('با کوچ', 'اپ + یک جلسه ماهانه با میلاد.')}, omr='ریال عمان', best='بهترین ارزش',
+        book_h='کتاب رایگان', book_p='کتاب «Self-Coaching Blueprint» را رایگان و PDF دانلود کن (انگلیسی).', book_btn='دانلود کتاب', other=('ar.html', 'العربية'), foot='© ۲۰۲۶ میلاد ابراهیمی · مسقط، عمان'),
+}
+
+
+def build_regional():
+    for lang, t in REGIONAL.items():
+        go = './?start=1&amp;lang=' + lang
+        cards = ''.join('<div class="rg-f"><span>%s</span><b>%s</b><p>%s</p></div>' % (i, e(h), e(d)) for i, h, d in t['feats'])
+        steps = ''.join('<li><b>%s</b><span>%s</span></li>' % (e(h), e(d)) for h, d in t['steps'])
+        prices = ''
+        for k, _n, omr, usd, per, _b, _pts, feat in PLANS:
+            name, blurb = t['plans'][k]
+            prices += '<div class="rg-p%s">%s<b>%s</b><div class="rg-n">%s <small>%s / %s</small></div><div class="rg-u">≈ $%s</div><p>%s</p><a class="s-btn %s" href="%s">%s</a></div>' % (
+                ' best' if feat else '', '<em>%s</em>' % e(t['best']) if feat else '', e(name), omr, e(t['omr']), e(t['per'][per]), usd, e(blurb), 'primary' if feat else 'ghost', go, e(t['cta']))
+        h = head(t['title'], t['desc'], t['file']).replace('<html lang="en" dir="ltr">', '<html lang="%s" dir="rtl">' % lang)
+        body = ('<body class="s-page rg">\n<header class="s-nav"><div class="s-wrap s-nav-in"><a class="s-brand" href="./">ME<b>.</b>Coach</a><span class="s-sp"></span>'
+                '<a class="s-lang" href="./" lang="en">English</a><a class="s-lang" href="%s">%s</a><a class="s-btn ghost" href="./?signin=1&amp;lang=%s">%s</a></div></header>\n' % (t['other'][0], t['other'][1], lang, e(t['signin']))
+                + '<main><section class="rg-hero"><div class="s-wrap"><span class="kicker">%s</span><h1>%s</h1><p class="rg-lead">%s</p><a class="s-btn primary big" href="%s">%s</a><p class="small">%s</p></div></section>\n' % (e(t['kicker']), e(t['h1']), e(t['lead']), go, e(t['cta']), e(t['note']))
+                + '<section class="s-sec"><div class="s-wrap"><h2>%s</h2><div class="rg-grid">%s</div></div></section>\n' % (e(t['feat_h']), cards)
+                + '<section class="s-sec alt"><div class="s-wrap"><h2>%s</h2><ol class="rg-steps">%s</ol></div></section>\n' % (e(t['steps_h']), steps)
+                + '<section class="s-sec"><div class="s-wrap"><h2>%s</h2><div class="rg-prices">%s</div></div></section>\n' % (e(t['price_h']), prices)
+                + '<section class="s-sec alt"><div class="s-wrap rg-book"><img src="assets/img/book-3d.png" alt="Self-Coaching Blueprint" loading="lazy"><div><h2>%s</h2><p>%s</p><a class="s-btn primary" href="api.php?action=book">%s</a></div></div></section></main>\n' % (e(t['book_h']), e(t['book_p']), e(t['book_btn']))
+                + '<footer class="s-foot"><div class="s-wrap s-copy">%s · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a></div></footer>\n</body>\n</html>\n' % e(t['foot']))
+        (ROOT / t['file']).write_text(h + body, encoding='utf-8')
+
+
 def build_sitemap():
-    pages = ['', 'features.html', 'pricing.html', 'book.html', 'faq.html', 'privacy.html', 'terms.html']
+    pages = ['', 'features.html', 'pricing.html', 'book.html', 'faq.html', 'privacy.html', 'terms.html', 'ar.html', 'fa.html']
     (ROOT / 'sitemap.xml').write_text('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' + ''.join(f'<url><loc>{BASE}{p}</loc></url>' for p in pages) + '</urlset>\n', encoding='utf-8')
 
 
 if __name__ == '__main__':
-    build_index(); build_features(); build_pricing(); build_book(); build_faq(); build_legal(); build_sitemap()
+    build_index(); build_features(); build_pricing(); build_book(); build_faq(); build_legal(); build_regional(); build_sitemap()
     print('built', ROOT)
