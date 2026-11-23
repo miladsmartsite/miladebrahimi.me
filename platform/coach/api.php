@@ -7,9 +7,9 @@
  */
 declare(strict_types=1);
 
-const APP_VERSION = '11.0.0';
+const APP_VERSION = '12.0.0';
 const TRIAL_DAYS = 7;
-const GLOBAL_FILES = ['users.json', 'tokens.json', 'attempts.json', 'keys.json', 'system.json', '.lock', 'webauthn-chal.json', 'requests.json'];
+const GLOBAL_FILES = ['users.json', 'tokens.json', 'attempts.json', 'keys.json', 'system.json', '.lock', 'webauthn-chal.json', 'requests.json', 'bookings.json', 'coach-notes.json'];
 /* Plans shown in the app. Keep the prices in sync with the public pages (platform/tools/build_coach_site.py). */
 const PLANS = [
     'monthly' => ['name' => 'Pro Monthly', 'omr' => '2.900', 'usd' => '7.99', 'per' => 'month', 'days' => 31],
@@ -581,6 +581,35 @@ function ics_parse(string $ics, string $from, string $to): array {
     return $out;
 }
 
+/* ---------- v12: coach panel and session booking ---------- */
+function coach_cfg(): array { $s = read_json('system.json', []); return ($s['coach'] ?? []) + ['days' => [0, 1, 2, 3, 4], 'from' => '18:00', 'to' => '21:00', 'len' => 45, 'link' => '', 'tz' => 'Asia/Muscat', 'open' => false]; }
+function coach_eligible(array $u): bool { return ($u['role'] ?? '') === 'owner' || !empty($u['coachClient']) || (($u['planName'] ?? '') === 'coach' && (int)($u['paidUntil'] ?? 0) > time()) || (!empty(coach_cfg()['open']) && has_access($u)); }
+function coach_bookings(): array { $b = read_json('bookings.json', []); return is_array($b) ? $b : []; }
+function coach_slots(): array {
+    $c = coach_cfg(); try { $tz = new DateTimeZone($c['tz']); } catch (Throwable $e) { $tz = new DateTimeZone('Asia/Muscat'); }
+    $taken = []; foreach (coach_bookings() as $b) { if (($b['status'] ?? '') === 'booked') { $taken[(string)$b['at']] = 1; } }
+    $out = []; $now = new DateTime('now', $tz); $len = max(15, (int)$c['len']);
+    for ($i = 0; $i < 14; $i++) { $d = (clone $now)->setTime(0, 0)->modify("+$i day"); if (!in_array((int)$d->format('w'), array_map('intval', $c['days']), true)) { continue; }
+        [$fh, $fm] = array_map('intval', explode(':', $c['from'])); [$th, $tm] = array_map('intval', explode(':', $c['to']));
+        for ($t = (clone $d)->setTime($fh, $fm); $t->getTimestamp() + $len * 60 <= (clone $d)->setTime($th, $tm)->getTimestamp(); $t->modify("+$len minutes")) {
+            if ($t->getTimestamp() < time() + 12 * 3600) { continue; } $iso = $t->format('c'); if (!isset($taken[$iso])) { $out[] = $iso; } } }
+    return $out;
+}
+function client_summary(string $uid, array $u): array {
+    $s = json_decode((string)@file_get_contents(DATA_DIR . '/u/' . $uid . '/store.json'), true); $c = is_array($s) ? ($s['collections'] ?? []) : [];
+    $live = fn($k) => array_values(array_filter((array)($c[$k] ?? []), fn($r) => is_array($r) && empty($r['deleted'])));
+    $areas = []; foreach ($live('areas') as $a) { $areas[$a['id']] = $a['title'] ?? ''; }
+    $wh = $live('wheel'); usort($wh, fn($a, $b) => strcmp((string)($b['date'] ?? ''), (string)($a['date'] ?? ''))); $w = $wh[0] ?? null; $wheel = [];
+    if ($w) { foreach (($w['scores'] ?? []) as $id => $v) { if (isset($areas[$id])) { $wheel[] = [$areas[$id], round((float)$v, 2)]; } } }
+    $goals = []; foreach ($live('goals') as $g) { if (in_array($g['status'] ?? '', ['Done', 'Achieved', 'Dropped', 'Cancelled'], true)) { continue; } $tot = 0; $dn = 0; foreach (($g['plan'] ?? []) as $p) { $tot += (int)($p['count'] ?? 0); $dn += min((int)($p['count'] ?? 0), count((array)($p['done'] ?? []))); } $goals[] = ['title' => $g['title'] ?? '', 'area' => $areas[$g['areaId'] ?? ''] ?? '', 'target' => $g['target'] ?? '', 'pct' => $tot ? (int)round(100 * $dn / $tot) : null]; }
+    $logs = $live('logs'); $days = []; foreach ($logs as $l) { if (($l['type'] ?? '') === 'closeout' && ($l['date'] ?? '') >= gmdate('Y-m-d', time() - 7 * 86400)) { $days[] = (float)($l['assess'] ?? $l['score'] ?? 0); } }
+    $cy = null; foreach ($live('cycles') as $x) { if (($x['status'] ?? '') === 'active') { $cy = ['start' => $x['start'] ?? '', 'intention' => $x['intention'] ?? '']; } }
+    $notes = (read_json('coach-notes.json', [])[$uid] ?? []);
+    return ['id' => $uid, 'name' => $u['name'] ?? '', 'email' => $u['email'] ?? '', 'plan' => user_public($u, $uid)['plan'], 'coachClient' => !empty($u['coachClient']) || ($u['planName'] ?? '') === 'coach', 'shared' => !empty($u['coachShare']),
+        'wheel' => !empty($u['coachShare']) ? $wheel : [], 'wheelDate' => !empty($u['coachShare']) && $w ? ($w['date'] ?? '') : '', 'goals' => !empty($u['coachShare']) ? array_slice($goals, 0, 8) : [], 'avg7' => !empty($u['coachShare']) && $days ? round(array_sum($days) / count($days), 2) : null, 'nights7' => !empty($u['coachShare']) ? count($days) : null, 'cycle' => !empty($u['coachShare']) ? $cy : null,
+        'lastActive' => is_array($s) ? ($s['updatedAt'] ?? '') : '', 'notes' => array_slice($notes, -20)];
+}
+
 /* ---------- router ---------- */
 if (defined('M2031_LIB')) { return; }
 ensure_dir();
@@ -1009,6 +1038,47 @@ switch ($action) {
         $raw = http_req($url); if (!$raw || strpos($raw, 'BEGIN:VCALENDAR') === false) { fail(502, 'Could not read that calendar. Check the address.'); }
         $from = gmdate('Y-m-d', time() - 7 * 86400); $to = gmdate('Y-m-d', time() + 120 * 86400);
         out(200, ['ok' => true, 'events' => ics_parse($raw, $from, $to)]);
+
+    /* ----- v12: coaching ----- */
+    case 'coach-me':
+        require_auth(); $uid = $GLOBALS['UID']; $u = cur_user();
+        if ($method === 'POST') { $b = body(); if (isset($b['share'])) { with_lock(function () use ($uid, $b) { $us = users(); $us[$uid]['coachShare'] = !empty($b['share']); write_json('users.json', $us); }); $u = users()[$uid]; } }
+        $el = coach_eligible($u); $c = coach_cfg(); $mine = array_values(array_filter(coach_bookings(), fn($x) => ($x['uid'] ?? '') === $uid && ($x['status'] ?? '') === 'booked' && strtotime((string)$x['at']) > time() - 3600));
+        foreach ($mine as &$m) { $m['link'] = $c['link']; } unset($m);
+        out(200, ['ok' => true, 'share' => !empty($u['coachShare']), 'eligible' => $el, 'slots' => $el ? coach_slots() : [], 'len' => (int)$c['len'], 'tz' => $c['tz'], 'mine' => $mine]);
+
+    case 'coach-book':
+        if ($method !== 'POST') { fail(405, 'POST only'); }
+        require_auth(); $uid = $GLOBALS['UID']; $u = cur_user(); if (!coach_eligible($u)) { fail(403, 'Booking is part of the Coaching plan.'); }
+        $b = body(); $at = (string)($b['at'] ?? ''); if (!in_array($at, coach_slots(), true)) { fail(409, 'That time is no longer free. Pick another.'); }
+        $mineN = count(array_filter(coach_bookings(), fn($x) => ($x['uid'] ?? '') === $uid && ($x['status'] ?? '') === 'booked' && strtotime((string)$x['at']) > time()));
+        if ($mineN >= 2 && ($u['role'] ?? '') !== 'owner') { fail(429, 'You already have two upcoming sessions.'); }
+        $rec = ['id' => new_id('bk'), 'uid' => $uid, 'name' => $u['name'] ?? '', 'email' => $u['email'] ?? '', 'at' => $at, 'len' => (int)coach_cfg()['len'], 'topic' => mb_substr(trim((string)($b['topic'] ?? '')), 0, 300), 'status' => 'booked', 'created' => gmdate('c')];
+        with_lock(function () use ($rec) { $l = coach_bookings(); $l[] = $rec; write_json('bookings.json', array_slice($l, -2000)); });
+        out(200, ['ok' => true, 'booking' => $rec + ['link' => coach_cfg()['link']]]);
+
+    case 'coach-cancel':
+        if ($method !== 'POST') { fail(405, 'POST only'); }
+        require_auth(); $uid = $GLOBALS['UID']; $own = (cur_user()['role'] ?? '') === 'owner'; $id = (string)(body()['id'] ?? '');
+        $r = with_lock(function () use ($id, $uid, $own) { $l = coach_bookings(); foreach ($l as &$x) { if (($x['id'] ?? '') === $id && (($x['uid'] ?? '') === $uid || $own)) { if (!$own && strtotime((string)$x['at']) - time() < 24 * 3600) { return 'Sessions can be cancelled up to 24 hours before.'; } $x['status'] = 'cancelled'; $x['cancelled'] = gmdate('c'); write_json('bookings.json', $l); return ''; } } return 'Not found'; });
+        if ($r !== '') { fail(400, $r); } out(200, ['ok' => true]);
+
+    case 'coach-panel':
+        require_owner();
+        if ($method === 'POST') { $b = body();
+            if (isset($b['config'])) { $cf = (array)$b['config']; with_lock(function () use ($cf) { $s = read_json('system.json', []); $c = coach_cfg();
+                $c['days'] = array_values(array_unique(array_filter(array_map('intval', (array)($cf['days'] ?? $c['days'])), fn($d) => $d >= 0 && $d <= 6)));
+                foreach (['from', 'to'] as $k) { if (preg_match('/^\d\d:\d\d$/', (string)($cf[$k] ?? ''))) { $c[$k] = $cf[$k]; } }
+                $c['len'] = max(15, min(180, (int)($cf['len'] ?? $c['len']))); $lk = trim((string)($cf['link'] ?? '')); $c['link'] = preg_match('#^https://#', $lk) ? $lk : ''; $c['open'] = !empty($cf['open']);
+                try { new DateTimeZone((string)($cf['tz'] ?? '')); $c['tz'] = (string)$cf['tz']; } catch (Throwable $e) { }
+                $s['coach'] = $c; write_json('system.json', $s); }); }
+            if (isset($b['client'])) { $id = (string)$b['client']; with_lock(function () use ($id, $b) { $us = users(); if (isset($us[$id])) { $us[$id]['coachClient'] = !empty($b['on']); write_json('users.json', $us); } }); }
+            if (isset($b['note'])) { $id = (string)($b['uid'] ?? ''); $t = mb_substr(trim((string)$b['note']), 0, 2000); if ($t !== '' && isset(users()[$id])) { with_lock(function () use ($id, $t) { $n = read_json('coach-notes.json', []); $n[$id][] = ['at' => gmdate('c'), 'text' => $t]; write_json('coach-notes.json', $n); }); } }
+        }
+        $rows = []; foreach (users() as $id => $u) { if (($u['role'] ?? '') === 'owner') { continue; } if (empty($u['coachShare']) && empty($u['coachClient']) && ($u['planName'] ?? '') !== 'coach') { continue; } $rows[] = client_summary((string)$id, $u); }
+        $up = array_values(array_filter(coach_bookings(), fn($x) => ($x['status'] ?? '') === 'booked' && strtotime((string)$x['at']) > time() - 3600)); usort($up, fn($a, $b) => strcmp($a['at'], $b['at']));
+        $all = []; foreach (users() as $id => $u) { if (($u['role'] ?? '') !== 'owner') { $all[] = ['id' => $id, 'name' => $u['name'] ?? '', 'email' => $u['email'] ?? '', 'coachClient' => !empty($u['coachClient'])]; } }
+        out(200, ['ok' => true, 'config' => coach_cfg(), 'clients' => $rows, 'upcoming' => $up, 'members' => $all]);
 
     default:
         fail(404, 'Unknown action');

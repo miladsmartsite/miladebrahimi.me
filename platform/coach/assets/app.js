@@ -5,7 +5,7 @@
 (() => {
 'use strict';
 
-const VERSION = '11.0.0';
+const VERSION = '12.0.0';
 const API = 'api.php';
 const K = { db: 'mec.db', out: 'mec.outbox', tok: 'mec.token', rev: 'mec.rev', ui: 'mec.ui', last: 'mec.lastSync', user: 'mec.user' };
 const COLS = ['tasks','events','projects','goals','skills','logs','evidence','decisions','notes','ielts','sessions','settings','milestones','applications','immigration','habits','money','templates','courses','areas','wheel','cycles','focus','products','tests','careers'];
@@ -2178,8 +2178,8 @@ const NAV_GROUPS = () => [
   ['Plan', [['today', 'Today', I.today], ['calendar', 'Calendar', I.cal], ['tasks', 'Tasks', I.tasks], ['projects', 'Boards', I.board]]],
   ['Grow', [['life', 'Life areas', I.wheel], ['habits', 'Habits', I.repeat], ['progress', 'Coach', I.prog]]],
   ['Discover', [['discover', 'Tests', I.spark], ['me', 'My pack', I.user], ['career', 'Career explorer', I.compass]]],
-  ['Wellbeing', [['calm', 'Calm', I.calm], ['emi', 'Emi guide', I.star]]],
-  ...(isOwner() ? [['Business', [['products', 'Products', I.money], ['jobs', 'Job search', I.jobs], ['admin', 'Members', I.users]]]] : []),
+  ['Wellbeing', [['calm', 'Calm', I.calm], ['emi', 'Emi guide', I.star], ['coachme', 'My coach', I.user]]],
+  ...(isOwner() ? [['Business', [['coachpanel', 'Coach panel', I.users], ['products', 'Products', I.money], ['jobs', 'Job search', I.jobs], ['admin', 'Members', I.users]]]] : []),
   ['', [['settings', 'Settings', I.set]]]
 ];
 const navActive = page => ({ today: 'today', calendar: 'calendar', life: 'life', area: 'life', goal: 'life', habits: 'life', progress: 'life', plan: 'life', learn: 'life', discover: 'discover', test: 'discover', me: 'discover', career: 'discover' })[page] || 'hub';
@@ -2187,7 +2187,7 @@ function sideHtml(page) {
   return `<aside class="side"><div class="brand">ME<b>.</b>Coach<span>self-coaching</span></div>${NAV_GROUPS().map(([g, items]) => `${g ? `<div class="grp">${g}</div>` : '<div class="grp sp"></div>'}${items.filter(([k]) => can(k) && !hidden().has(k)).map(([k, l, ic]) => `<a href="#/${k}" class="${page === k || (navActive(page) === k && page !== 'today') || (k === 'projects' && page === 'board') ? 'on' : ''}">${ic}${l}${badge(k)}</a>`).join('')}`).join('')}</aside>`;
 }
 function vHub() {
-  const desc = { today: 'Plan and close your day', calendar: 'Day, week and month', tasks: 'Everything to do', projects: 'Boards for every project', life: 'Your 8 areas and goals', habits: 'Daily habits and streaks', progress: '40-day cycle, insights, roadmap', discover: '9 tests to know yourself', me: 'Your self-knowledge pack', career: 'Find careers that fit you', calm: 'Breathe and reflect', emi: 'Meet your 3D guide', products: 'Your products and sales', jobs: 'Applications and follow-ups', admin: 'Accounts and payments', settings: 'Account, data, reminders' };
+  const desc = { today: 'Plan and close your day', calendar: 'Day, week and month', tasks: 'Everything to do', projects: 'Boards for every project', life: 'Your 8 areas and goals', habits: 'Daily habits and streaks', progress: '40-day cycle, insights, roadmap', discover: '9 tests to know yourself', me: 'Your self-knowledge pack', career: 'Find careers that fit you', calm: 'Breathe and reflect', emi: 'Meet your 3D guide', coachme: 'Sessions with Milad', coachpanel: 'Clients, sessions and notes', products: 'Your products and sales', jobs: 'Applications and follow-ups', admin: 'Accounts and payments', settings: 'Account, data, reminders' };
   const col = { Plan: '#2a78d6', Grow: '#1baf7a', Discover: '#6250d6', Wellbeing: '#e87ba4', Business: '#c9a227', '': '#787774' };
   return header('More', '') + NAV_GROUPS().map(([g, items]) => `${g ? `<h2 class="sec-h">${g}</h2>` : '<h2 class="sec-h">Account</h2>'}<div class="hubgrid">${items.filter(([k]) => can(k) && !hidden().has(k)).map(([k, l, ic]) => `<a class="hubt" href="#/${k}" style="--hc:${col[g]}"><span class="hi">${ic}</span><b>${l}</b><span class="small">${desc[k] || ''}</span>${badge(k)}</a>`).join('')}</div>`).join('') +
     `<h2 class="sec-h">Extras</h2><div class="hubgrid"><a class="hubt" href="${BOOK_URL}" target="_blank" rel="noopener" style="--hc:#c9a227"><span class="hi">📘</span><b>Free book</b><span class="small">Self-Coaching Blueprint</span></a><a class="hubt" href="#/journal" style="--hc:#787774"><span class="hi">${I.journal}</span><b>Journal</b><span class="small">Your Night Balance days</span></a><a class="hubt" href="#/trash" style="--hc:#787774"><span class="hi">${I.trash}</span><b>Trash</b><span class="small">Restore deleted items</span></a></div>`;
@@ -2226,7 +2226,7 @@ function render() {
   if (drag && drag.on) { render.pending = true; return; }
   const { page, arg } = route();
   if (REMOVED.has(page) || (me && !can(page))) { location.replace('#/today'); return; }
-  const views = { cyclereport: vCycleReport, life: vLife, discover: vDiscover, test: () => vTest(arg), me: vMe, career: () => vCareer(arg), emi: vEmi, hub: vHub, projects: vBoards, board: () => vBoard(arg), calm: vCalm,  today: vToday, tasks: vTasks, calendar: vCalendar, plan: vPlan, more: vHub, learn: vLearn, evidence: vEvidence, decisions: vDecisions, notes: vNotes, note: () => vNote(arg), review: vReview, settings: vSettings, jobs: vJobs, immigration: vImmigration, progress: vProgress, journal: vJournal, report: vReport, templates: vTemplates, trash: vTrash, health: vHealth, course: () => vCourse(arg), documents: vDocuments, notes: vNotesHub, goal: () => vGoal(arg), area: () => vArea(arg), admin: vAdmin, habits: vHabits, products: vProducts };
+  const views = { coachme: vCoachMe, coachpanel: vCoachPanel, cyclereport: vCycleReport, life: vLife, discover: vDiscover, test: () => vTest(arg), me: vMe, career: () => vCareer(arg), emi: vEmi, hub: vHub, projects: vBoards, board: () => vBoard(arg), calm: vCalm,  today: vToday, tasks: vTasks, calendar: vCalendar, plan: vPlan, more: vHub, learn: vLearn, evidence: vEvidence, decisions: vDecisions, notes: vNotes, note: () => vNote(arg), review: vReview, settings: vSettings, jobs: vJobs, immigration: vImmigration, progress: vProgress, journal: vJournal, report: vReport, templates: vTemplates, trash: vTrash, health: vHealth, course: () => vCourse(arg), documents: vDocuments, notes: vNotesHub, goal: () => vGoal(arg), area: () => vArea(arg), admin: vAdmin, habits: vHabits, products: vProducts };
   if (page === 'immigration' || page === 'evidence') { ui.dTab = page; views[page] = vDocuments; } if (page === 'journal') views.journal = () => header('Journal', 'Your Night Balance days') + stripHead(vJournal());
   if (page === 'plan') { ui.pTab = ui.planTab === 'goals' ? 'goals' : 'roadmap'; views.plan = vProgress; } if (page === 'learn') { ui.pTab = 'learning'; views.learn = vProgress; }
   const html = icoize((views[page] || vToday)());
@@ -2844,7 +2844,7 @@ document.addEventListener('click', async e => {
     password: () => form('Change password', [{ k: 'current', label: 'Current password', type: 'password', req: true }, { k: 'next', label: 'New password (10+ characters)', type: 'password', req: true }], {}, v => { api('password', { body: v }).then(j => { ls.set(K.tok, j.token); toast('Password changed. Other devices must sign in again.'); }).catch(err => toast(err.message)); }),
     logout: async () => { if (!confirm('Sign out on this device? Data stays on the server.')) return; if (Object.keys(outbox).length) await sync(); try { await api('logout', { method: 'POST' }); } catch {} ls.del(K.tok); ls.del(K.db); ls.del(K.out); ls.del(K.rev); ls.del(K.user); me = null; db = blankDb(); outbox = {}; showLanding(); }
   };
-  Object.assign(map, v7Acts(a, id, e), v71Acts(a, id), v8Acts(a, id), v9Acts(a, id), v9JobActs(a, id), pmActs(a, id), v91Acts(a, id), v10Acts(a, id), { 'board-open': () => { closeSheet(true); location.hash = '#/board/' + encodeURIComponent(id); }, 'habit-open-s': () => {} });
+  Object.assign(map, v7Acts(a, id, e), v71Acts(a, id), v8Acts(a, id), v9Acts(a, id), v9JobActs(a, id), pmActs(a, id), v91Acts(a, id), v10Acts(a, id), v12Acts(a, id), { 'board-open': () => { closeSheet(true); location.hash = '#/board/' + encodeURIComponent(id); }, 'habit-open-s': () => {} });
   if (map[act]) { if (act !== 'sheet-close' && act !== 'form-save' && act !== 'form-del' && sheetCtx && ['new-task', 'new-event', 'new-note', 'new-decision', 'new-evidence', 'new-session', 'closeout', 'log-time', 'new-application', 'new-milestone', 'new-immig', 'weekly', 'money-add', 'from-tpl', 'new-course', 'morning', 'new-goal', 'wheel-test', 'cycle-new', 'focus-free', 'new-habit'].includes(act)) closeSheet(true); map[act](); }
 });
 document.addEventListener('input', e => { const k = e.target.dataset && e.target.dataset.input; if (k) { ui[k] = e.target.value; saveUi(); if (e.target.dataset.norender) return; clearTimeout(render.t); render.t = setTimeout(render, 180); } });
@@ -3807,6 +3807,61 @@ function v10Acts(a, id) {
 }
 const _startV10 = start;
 start = function () { _startV10(); setTimeout(ownerDevRoadmap, 3500); setTimeout(() => { const g = prefs().gcal || {}; if (g.url && (!g.at || Date.now() - Date.parse(g.at) > 6 * 3600e3)) gcalRun(false); }, 5000); };
+
+/* ================= v12: My coach (share + book) and Coach panel (owner) ================= */
+OWNER_ONLY.add('coachpanel');
+let CME = null, CPN = null;
+const fmtSlot = iso => { const d = new Date(iso); return d.toLocaleDateString(LOC(), { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' + d.toLocaleTimeString(LOC(), { hour: '2-digit', minute: '2-digit' }); };
+function bkEvent(b) { const s = new Date(b.at), e = new Date(s.getTime() + (b.len || 45) * 60000), iso = d => fromInput(`${dstr(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`); if (!get('events', 'bk-' + b.id)) save('events', { id: 'bk-' + b.id, title: isOwner() ? `Coaching · ${b.name || b.email}` : 'Coaching session with Milad', start: iso(s), end: iso(e), alarm: 30, kind: 'coach', notes: b.link || '' }); }
+function vCoachMe() {
+  if (!CME) { api('coach-me').then(r => { CME = r; (r.mine || []).forEach(bkEvent); if (route().page === 'coachme') render(); }).catch(e => toast(e.message)); return header('My coach', '') + '<div class="card empty">Loading…</div>'; }
+  const byDay = {}; (CME.slots || []).forEach(s => (byDay[s.slice(0, 10)] = byDay[s.slice(0, 10)] || []).push(s)); const days = Object.keys(byDay).slice(0, 10), sel = ui.cmDay && byDay[ui.cmDay] ? ui.cmDay : days[0];
+  return header('My coach', 'Sessions with Milad Ebrahimi') + `
+  <div class="card cm-share"><div class="main"><b>Share my progress with my coach</b><div class="small">Your coach sees only your Wheel of Life scores, active goals with progress, your 40-day cycle and your average day score. Never your tasks, notes, journal or money. Turn it off any time.</div></div><button class="btn small ${CME.share ? 'ok' : 'primary'}" data-act="cm-share">${CME.share ? '✓ Sharing' : 'Share'}</button></div>
+  ${(CME.mine || []).length ? `<div class="card"><h2>📅 Your sessions</h2><div class="list">${CME.mine.map(b => `<div class="row"><span class="att-i">🎙</span><div class="main"><div class="t">${esc(fmtSlot(b.at))}</div><div class="m"><span>${b.len} min · online</span>${b.topic ? `<span dir="auto">${esc(b.topic)}</span>` : ''}</div></div><div class="btns">${b.link ? `<a class="btn small primary" href="${esc(b.link)}" target="_blank" rel="noopener">Join</a>` : ''}<button class="btn small ghost" data-act="cm-cancel" data-id="${esc(b.id)}">Cancel</button></div></div>`).join('')}</div></div>` : ''}
+  ${CME.eligible ? `<div class="card"><h2>🗓 Book a session <span class="count">${CME.len} min</span></h2>${days.length ? `<div class="cm-days">${days.map(d => `<button class="${d === sel ? 'on' : ''}" data-act="cm-day" data-v="${d}"><small>${esc(parseD(d).toLocaleDateString(LOC(), { weekday: 'short' }))}</small><b>${esc(parseD(d).toLocaleDateString(LOC(), { day: 'numeric' }))}</b></button>`).join('')}</div><div class="cm-slots">${(byDay[sel] || []).map(s => `<button data-act="cm-book" data-v="${esc(s)}">${esc(new Date(s).toLocaleTimeString(LOC(), { hour: '2-digit', minute: '2-digit' }))}</button>`).join('')}</div><div class="small">Times in your time zone. Free cancellation up to 24 hours before.</div>` : '<div class="empty">No free times in the next two weeks. Check again soon.</div>'}</div>`
+    : `<div class="card cm-up"><b>1:1 coaching with Milad</b><p class="small">One online session a month (45 min), a monthly plan and a Wheel of Life review, together with everything in ME.Coach.</p><button class="btn primary" data-act="plans">See the Coaching plan</button></div>`}`;
+}
+function vCoachPanel() {
+  if (!CPN) { api('coach-panel').then(r => { CPN = r; (r.upcoming || []).forEach(bkEvent); if (route().page === 'coachpanel') render(); }).catch(e => toast(e.message)); return header('Coach panel', '') + '<div class="card empty">Loading…</div>'; }
+  const c = CPN.config, D = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const cl = x => { const avg = x.wheel.length ? r2(x.wheel.reduce((s, w) => s + w[1], 0) / x.wheel.length) : null;
+    return `<div class="card cp-c" data-act="cp-open" data-id="${esc(x.id)}" role="button"><div class="cp-h"><span class="av">${esc((x.name || x.email).slice(0, 1).toUpperCase())}</span><div class="main"><b dir="auto">${esc(x.name || '—')}</b><div class="small">${esc(x.email)}${x.lastActive ? ' · active ' + esc(rel(String(x.lastActive).slice(0, 10))) : ''}</div></div>${x.coachClient ? '<span class="chip s-done">Coaching</span>' : ''}</div>
+      ${x.shared ? `<div class="rmstats"><div><b>${avg ?? '–'}</b><span>wheel</span></div><div><b>${x.avg7 ?? '–'}</b><span>day score (7d)</span></div><div><b>${x.nights7 ?? 0}/7</b><span>nights closed</span></div><div><b>${x.goals.length}</b><span>goals</span></div></div>` : '<div class="small">Has not shared progress yet.</div>'}</div>`; };
+  return header('Coach panel', 'Clients, sessions and notes') + `
+  <div class="card"><h2>📅 Upcoming sessions <span class="count">${CPN.upcoming.length}</span></h2>${CPN.upcoming.length ? `<div class="list">${CPN.upcoming.map(b => `<div class="row"><span class="att-i">🎙</span><div class="main"><div class="t" dir="auto">${esc(b.name || b.email)}</div><div class="m"><span>${esc(fmtSlot(b.at))}</span>${b.topic ? `<span dir="auto">${esc(b.topic)}</span>` : ''}</div></div><div class="btns">${c.link ? `<a class="btn small primary" href="${esc(c.link)}" target="_blank" rel="noopener">Start</a>` : ''}<button class="btn small ghost" data-act="cp-cancel" data-id="${esc(b.id)}">Cancel</button></div></div>`).join('')}</div>` : '<div class="empty">No sessions booked yet.</div>'}</div>
+  <h2 class="sec-h">Clients <span class="count">${CPN.clients.length}</span></h2>${CPN.clients.length ? `<div class="cp-grid">${CPN.clients.map(cl).join('')}</div>` : '<div class="card empty">Clients appear here when they share their progress or you mark them as coaching clients.</div>'}
+  <details class="card"><summary><b>⚙ Availability and meeting link</b> <span class="small">${esc(c.days.map(d => D[d]).join(', '))} · ${esc(c.from)}–${esc(c.to)} · ${c.len} min${c.open ? ' · open to all subscribers' : ''}</span></summary>
+    <div class="pick" style="margin:10px 0" id="cpDays">${D.map((d, i) => `<button class="${c.days.includes(i) ? 'on' : ''}" data-act="cp-dtog" data-v="${i}">${d}</button>`).join('')}</div>
+    <div class="fgrid"><div class="f"><label>From</label><input type="time" id="cpFrom" value="${esc(c.from)}"></div><div class="f"><label>To</label><input type="time" id="cpTo" value="${esc(c.to)}"></div><div class="f"><label>Session length (min)</label><input type="number" id="cpLen" value="${c.len}"></div></div>
+    <div class="f"><label>Meeting link (Google Meet or Zoom)</label><input id="cpLink" value="${esc(c.link)}" placeholder="https://meet.google.com/…"></div><div class="f"><label>Time zone</label><input id="cpTz" value="${esc(c.tz)}"></div>
+    <label class="row"><input type="checkbox" id="cpOpen" ${c.open ? 'checked' : ''} style="width:20px;height:20px"><div class="main"><div class="t">Let every subscriber book (not only Coaching clients)</div></div></label>
+    <button class="btn primary" data-act="cp-save" style="margin-top:8px">Save availability</button></details>
+  <details class="card"><summary><b>👥 Mark coaching clients</b></summary><div class="list" style="margin-top:8px">${CPN.members.map(m => `<label class="row"><input type="checkbox" data-change="cp-client" data-id="${esc(m.id)}" ${m.coachClient ? 'checked' : ''} style="width:20px;height:20px"><div class="main"><div class="t" dir="auto">${esc(m.name || '—')}</div><div class="m"><span>${esc(m.email)}</span></div></div></label>`).join('') || '<div class="empty">No members yet.</div>'}</div></details>`;
+}
+function cpSheet(id) {
+  const x = (CPN.clients || []).find(c => c.id === id); if (!x) return;
+  openSheet(x.name || x.email, `${x.shared ? `${x.cycle ? `<div class="small" style="margin-bottom:8px">40-day cycle since ${esc(fmtDate(x.cycle.start, true))}${x.cycle.intention ? ` · <span dir="auto">“${esc(x.cycle.intention)}”</span>` : ''}</div>` : ''}
+    <h3 class="cp-t">Wheel of Life ${x.wheelDate ? `<span class="small">${esc(fmtDate(x.wheelDate))}</span>` : ''}</h3>${x.wheel.map(([t, v]) => `<div class="cr-a" style="--ac:var(--brass)"><span dir="auto">${esc(t)}</span><i><b style="width:${v * 10}%"></b></i><em>${v}</em></div>`).join('') || '<div class="small">No test yet.</div>'}
+    <h3 class="cp-t">Goals</h3><div class="list">${x.goals.map(g => `<div class="row"><div class="main"><div class="t" dir="auto">${esc(g.title)}</div>${g.pct != null ? `<div class="bar" style="margin-top:6px"><i style="width:${g.pct}%"></i></div>` : ''}<div class="m"><span>${esc(g.area)}</span>${g.target ? `<span>${esc(fmtDate(g.target))}</span>` : ''}${g.pct != null ? `<span>${g.pct}% of micro-actions</span>` : ''}</div></div></div>`).join('') || '<div class="small">No active goals.</div>'}</div>` : '<div class="small">This client has not shared progress.</div>'}
+    <h3 class="cp-t">Session notes</h3><div class="list">${x.notes.slice().reverse().map(n => `<div class="row"><div class="main"><div class="small">${esc(fmtDate(n.at.slice(0, 10), true))}</div><div dir="auto" style="white-space:pre-wrap">${esc(n.text)}</div></div></div>`).join('') || '<div class="small">No notes yet.</div>'}</div>
+    <div class="f" style="margin-top:10px"><textarea id="cpNote" rows="4" dir="auto" placeholder="What we talked about, agreed actions, next focus…"></textarea></div>`,
+    `<button class="btn primary wide" data-act="cp-note" data-id="${esc(id)}">Save note</button>`, { noFocus: true });
+}
+function v12Acts(a, id) {
+  return {
+    'cm-share': async () => { try { CME = await api('coach-me', { body: { share: !CME.share } }); render(); toast(CME.share ? 'Your coach can now see your progress summary' : 'Sharing stopped'); } catch (e) { toast(e.message); } },
+    'cm-day': () => { ui.cmDay = a.dataset.v; saveUi(); render(); },
+    'cm-book': () => { const at = a.dataset.v; form('Book this session', [{ html: `<p style="margin-top:0"><b>${esc(fmtSlot(at))}</b> · ${CME.len} min, online</p>` }, { k: 'topic', label: 'What would you like to work on? (optional)', type: 'textarea' }], {}, v => { api('coach-book', { body: { at, topic: v.topic || '' } }).then(r => { bkEvent(r.booking); CME = null; render(); toast('Booked · it is in your calendar'); celebrate(); }).catch(e => toast(e.message)); }); },
+    'cm-cancel': async () => { if (!confirm('Cancel this session?')) return; try { await api('coach-cancel', { body: { id } }); const ev = get('events', 'bk-' + id); if (ev) remove('events', ev.id); CME = null; render(); toast('Session cancelled'); } catch (e) { toast(e.message); } },
+    'cp-open': () => cpSheet(id),
+    'cp-cancel': async () => { if (!confirm('Cancel this client’s session?')) return; try { await api('coach-cancel', { body: { id } }); const ev = get('events', 'bk-' + id); if (ev) remove('events', ev.id); CPN = null; render(); } catch (e) { toast(e.message); } },
+    'cp-dtog': () => a.classList.toggle('on'),
+    'cp-save': async () => { const days = [...document.querySelectorAll('#cpDays .on')].map(b => Number(b.dataset.v)); try { CPN = await api('coach-panel', { body: { config: { days, from: $('#cpFrom').value, to: $('#cpTo').value, len: Number($('#cpLen').value), link: $('#cpLink').value.trim(), tz: $('#cpTz').value.trim(), open: $('#cpOpen').checked } } }); render(); toast('Availability saved'); } catch (e) { toast(e.message); } },
+    'cp-note': async () => { const t = ($('#cpNote') || {}).value || ''; if (!t.trim()) return; try { CPN = await api('coach-panel', { body: { uid: id, note: t } }); toast('Note saved'); cpSheet(id); } catch (e) { toast(e.message); } }
+  };
+}
+document.addEventListener('change', e => { const d = e.target.dataset || {}; if (d.change === 'cp-client') api('coach-panel', { body: { client: d.id, on: e.target.checked } }).then(r => { CPN = r; render(); }).catch(err => toast(err.message)); });
 
 /* ---------------- boot ---------------- */
 if ('serviceWorker' in navigator && location.protocol === 'https:') { const had = !!navigator.serviceWorker.controller; navigator.serviceWorker.register('sw.js').catch(() => {}); navigator.serviceWorker.addEventListener('controllerchange', () => { if (had) toast('ME.Coach was updated', 'Reload', () => location.reload()); }); }
