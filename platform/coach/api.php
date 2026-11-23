@@ -7,7 +7,7 @@
  */
 declare(strict_types=1);
 
-const APP_VERSION = '9.2.0';
+const APP_VERSION = '10.0.0';
 const TRIAL_DAYS = 7;
 const GLOBAL_FILES = ['users.json', 'tokens.json', 'attempts.json', 'keys.json', 'system.json', '.lock', 'webauthn-chal.json', 'requests.json'];
 /* Plans shown in the app. Keep the prices in sync with the public pages (platform/tools/build_coach_site.py). */
@@ -551,6 +551,36 @@ function mail_with_file(string $to, string $from, string $fromName, string $repl
     return @mail($to, $enc($subject), $body, implode("\r\n", $h), '-f' . $from);
 }
 
+/* ---------- v10: Claude assistant (owner sets the key in the app; it never leaves the server) ---------- */
+function ai_cfg(): array { $s = read_json('system.json', []); return is_array($s['ai'] ?? null) ? $s['ai'] : []; }
+function ai_call(string $system, array $content, int $max = 1200): array {
+    $c = ai_cfg(); $key = (string)($c['key'] ?? ''); if ($key === '') { return ['ok' => false, 'error' => 'AI is not set up yet. The owner adds the Anthropic API key in Settings → AI.']; }
+    $model = (string)($c['model'] ?? 'claude-opus-5-5');
+    $req = ['model' => $model, 'max_tokens' => $max, 'system' => $system, 'messages' => [['role' => 'user', 'content' => $content]], 'output_config' => ['effort' => 'low']];
+    $hdr = ['Content-Type: application/json', 'x-api-key: ' . $key, 'anthropic-version: 2023-06-01'];
+    if (in_array($model, ['claude-opus-5-5', 'claude-sonnet-5-5'], true)) { $req['fallbacks'] = 'default'; $hdr[] = 'anthropic-beta: server-side-fallback-2026-07-01'; }
+    $ch = curl_init('https://api.anthropic.com/v1/messages'); curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true, CURLOPT_POSTFIELDS => json_encode($req), CURLOPT_HTTPHEADER => $hdr, CURLOPT_TIMEOUT => 90, CURLOPT_CONNECTTIMEOUT => 10]);
+    $raw = curl_exec($ch); $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
+    $j = is_string($raw) ? json_decode($raw, true) : null;
+    if ($code !== 200 || !is_array($j)) { return ['ok' => false, 'error' => 'AI error' . ($code ? " ($code)" : '') . (is_array($j) && isset($j['error']['message']) ? ': ' . mb_substr((string)$j['error']['message'], 0, 160) : '')]; }
+    if (($j['stop_reason'] ?? '') === 'refusal') { return ['ok' => false, 'error' => 'The AI declined this request. Try rephrasing it.']; }
+    $txt = ''; foreach (($j['content'] ?? []) as $b) { if (($b['type'] ?? '') === 'text') { $txt .= $b['text']; } }
+    return ['ok' => true, 'text' => trim($txt), 'usage' => $j['usage'] ?? null];
+}
+function ai_quota(): bool { $d = gmdate('Y-m-d'); $q = read_json('ai-usage.json', []); $n = (int)(($q[$d] ?? 0)); $max = (int)(ai_cfg()['daily'] ?? 40); if ($n >= $max) { return false; } write_json('ai-usage.json', [$d => $n + 1]); return true; }
+/* read a Google Calendar secret iCal address (one-way: Google → ME.Coach) */
+function ics_parse(string $ics, string $from, string $to): array {
+    $out = []; $ics = preg_replace("/\r?\n[ \t]/", '', $ics);
+    foreach (explode('BEGIN:VEVENT', $ics) as $i => $blk) { if ($i === 0) { continue; } $g = function ($k) use ($blk) { return preg_match('/^' . $k . '(;[^:\r\n]*)?:(.*)$/m', $blk, $m) ? [trim($m[2]), $m[1] ?? ''] : ['', '']; };
+        [$s, $sp] = $g('DTSTART'); [$e] = $g('DTEND'); [$sum] = $g('SUMMARY'); [$uid] = $g('UID'); [$rr] = $g('RRULE'); if ($s === '') { continue; }
+        $allDay = strlen($s) === 8; $tz = preg_match('/TZID=([^;:]+)/', $sp, $m) ? $m[1] : 'UTC';
+        $conv = function ($v) use ($allDay, $tz) { if ($v === '') { return ''; } if ($allDay) { return substr($v, 0, 4) . '-' . substr($v, 4, 2) . '-' . substr($v, 6, 2); } try { $z = str_ends_with($v, 'Z') ? new DateTimeZone('UTC') : new DateTimeZone($tz); $d = DateTime::createFromFormat('Ymd\THis', rtrim($v, 'Z'), $z); return $d ? $d->format('c') : ''; } catch (Throwable $x) { return ''; } };
+        $st = $conv($s); $day = substr($st, 0, 10); if ($rr === '' && ($day < $from || $day > $to)) { continue; }
+        $out[] = ['uid' => $uid ?: md5($s . $sum), 'title' => str_replace(['\\,', '\;', '\\n'], [',', ';', ' '], $sum ?: 'Event'), 'start' => $st, 'end' => $conv($e), 'allDay' => $allDay, 'rrule' => $rr];
+        if (count($out) >= 400) { break; } }
+    return $out;
+}
+
 /* ---------- router ---------- */
 if (defined('M2031_LIB')) { return; }
 ensure_dir();
@@ -941,6 +971,44 @@ switch ($action) {
         with_lock(function () use ($id, $to, $subject, $cv, $day) { $l = read_json('sent.json', []); $l[] = ['id' => $id, 'to' => $to, 'subject' => $subject, 'cv' => $cv['name'] ?? '', 'at' => gmdate('c')]; write_json('sent.json', array_slice($l, -2000));
             $s = load_store(); $a = $s['collections']['applications'][$id] ?? null; if (is_array($a)) { $a['stage'] = 'Applied'; $a['appliedOn'] = $day; $a['sentTo'] = $to; $a['sentAt'] = gmdate('c'); $a['cvSent'] = $cv['name'] ?? ''; $a['followUp'] = gmdate('Y-m-d', time() + 7 * 86400); $a['updatedAt'] = now_ms(); $s['collections']['applications'][$id] = $a; $s['rev'] = (int)$s['rev'] + 1; $s['updatedAt'] = gmdate('c'); write_json('store.json', $s); } });
         out(200, ['ok' => true, 'sentTo' => $to]);
+
+    /* ----- v10: AI and Google Calendar import ----- */
+    case 'ai-config':
+        require_owner();
+        if ($method === 'POST') { $b = body(); with_lock(function () use ($b) { $s = read_json('system.json', []); $a = is_array($s['ai'] ?? null) ? $s['ai'] : [];
+            $k = trim((string)($b['key'] ?? '')); if ($k === '-') { $a['key'] = ''; } elseif ($k !== '') { if (!preg_match('/^sk-ant-[A-Za-z0-9_\-]{20,}$/', $k)) { fail(400, 'That does not look like an Anthropic API key (sk-ant-…).'); } $a['key'] = $k; }
+            $m = (string)($b['model'] ?? ''); if (in_array($m, ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'], true)) { $a['model'] = $m; }
+            if (isset($b['daily'])) { $a['daily'] = max(1, min(500, (int)$b['daily'])); } $s['ai'] = $a; write_json('system.json', $s); }); }
+        $a = ai_cfg(); out(200, ['ok' => true, 'hasKey' => !empty($a['key']), 'model' => $a['model'] ?? 'claude-opus-5-5', 'daily' => (int)($a['daily'] ?? 40)]);
+
+    case 'ai':
+        if ($method !== 'POST') { fail(405, 'POST only'); }
+        require_access(); $b = body(); $kind = (string)($b['kind'] ?? ''); $in = is_array($b['input'] ?? null) ? $b['input'] : [];
+        $clip = fn($k, $n = 1500) => mb_substr(trim((string)($in[$k] ?? '')), 0, $n);
+        if (!ai_quota()) { fail(429, 'Daily AI limit reached. It resets tomorrow.'); }
+        $u = cur_user(); $name = (string)($u['name'] ?? '');
+        if ($kind === 'cover') {
+            $content = []; $cvs = cv_index(); if ($cvs && is_file(udir() . '/cv/' . $cvs[0]['file']) && $cvs[0]['type'] === 'application/pdf') { $content[] = ['type' => 'document', 'source' => ['type' => 'base64', 'media_type' => 'application/pdf', 'data' => base64_encode(file_get_contents(udir() . '/cv/' . $cvs[0]['file']))]]; }
+            $content[] = ['type' => 'text', 'text' => "Job title: " . $clip('role', 200) . "\nCompany: " . $clip('company', 200) . "\nLocation: " . $clip('location', 200) . "\nJob ad:\n" . $clip('desc', 5000) . "\n\nWrite the email body of my application. Signed: " . $name];
+            $r = ai_call("You write short, specific job application emails for the applicant whose CV is attached (if attached). 120-180 words, plain text, no subject line, no placeholders, no invented facts: use only experience that is in the CV. Mention two concrete matches between the CV and the ad. Friendly, confident, British English. End with a one-line sign-off and the applicant's name.", $content, 900);
+        } elseif ($kind === 'micro') {
+            $r = ai_call("You are a self-coaching assistant following the book Self-Coaching Blueprint: goals become daily micro-actions of 2 to 30 minutes. Reply with exactly 6 micro-actions, one per line, no numbering, no extra text. Each starts with a verb and is concrete and doable today.", [['type' => 'text', 'text' => "Life area: " . $clip('area', 80) . "\nKeyword: " . $clip('keyword', 80) . "\nGoal: " . $clip('goal', 300) . "\nAlready planned: " . $clip('have', 600)]], 500);
+            if ($r['ok']) { $r['items'] = array_values(array_slice(array_filter(array_map(fn($l) => trim(preg_replace('/^[\-\*\d\.\)\s]+/', '', $l)), explode("\n", $r['text']))), 0, 6)); }
+        } elseif ($kind === 'emi') {
+            $r = ai_call("You are Emi, the warm, upbeat and slightly playful guide inside the ME.Coach self-coaching app (based on the book Self-Coaching Blueprint: Wheel of Life, 40-day goals, micro-actions, Morning and Night Balance). Answer in the user's language, in at most 90 words. Be practical: suggest one next step they can do in the app or in real life. You are not a therapist or doctor; for health, legal or crisis topics suggest a professional.", [['type' => 'text', 'text' => "About me (from the app): " . $clip('context', 1500) . "\n\nMy question: " . $clip('q', 800)]], 600);
+        } elseif ($kind === 'report') {
+            $r = ai_call("You are a self-coach writing a short end-of-cycle review for the Self-Coaching Blueprint 40-day cycle. Use only the data given. 4 short sections with headings: What went well, What held you back, Your patterns, Next 40 days (3 concrete suggestions). Under 220 words, plain text.", [['type' => 'text', 'text' => $clip('data', 6000)]], 900);
+        } else { fail(400, 'Unknown AI request'); }
+        if (!$r['ok']) { fail(502, $r['error']); }
+        out(200, $r);
+
+    case 'gcal-import':
+        if ($method !== 'POST') { fail(405, 'POST only'); }
+        require_access(); $b = body(); $url = trim((string)($b['url'] ?? ''));
+        if (!preg_match('#^https://calendar\.google\.com/calendar/ical/[^\s]+\.ics$#', $url)) { fail(400, 'Paste the “Secret address in iCal format” from Google Calendar settings.'); }
+        $raw = http_req($url); if (!$raw || strpos($raw, 'BEGIN:VCALENDAR') === false) { fail(502, 'Could not read that calendar. Check the address.'); }
+        $from = gmdate('Y-m-d', time() - 7 * 86400); $to = gmdate('Y-m-d', time() + 120 * 86400);
+        out(200, ['ok' => true, 'events' => ics_parse($raw, $from, $to)]);
 
     default:
         fail(404, 'Unknown action');

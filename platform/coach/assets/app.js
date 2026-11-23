@@ -5,7 +5,7 @@
 (() => {
 'use strict';
 
-const VERSION = '9.2.0';
+const VERSION = '10.0.0';
 const API = 'api.php';
 const K = { db: 'mec.db', out: 'mec.outbox', tok: 'mec.token', rev: 'mec.rev', ui: 'mec.ui', last: 'mec.lastSync', user: 'mec.user' };
 const COLS = ['tasks','events','projects','goals','skills','logs','evidence','decisions','notes','ielts','sessions','settings','milestones','applications','immigration','habits','money','templates','courses','areas','wheel','cycles','focus','products','tests','careers'];
@@ -2222,7 +2222,7 @@ function render() {
   if (drag && drag.on) { render.pending = true; return; }
   const { page, arg } = route();
   if (REMOVED.has(page) || (me && !can(page))) { location.replace('#/today'); return; }
-  const views = { life: vLife, discover: vDiscover, test: () => vTest(arg), me: vMe, career: () => vCareer(arg), emi: vEmi, hub: vHub, projects: vBoards, board: () => vBoard(arg), calm: vCalm,  today: vToday, tasks: vTasks, calendar: vCalendar, plan: vPlan, more: vHub, learn: vLearn, evidence: vEvidence, decisions: vDecisions, notes: vNotes, note: () => vNote(arg), review: vReview, settings: vSettings, jobs: vJobs, immigration: vImmigration, progress: vProgress, journal: vJournal, report: vReport, templates: vTemplates, trash: vTrash, health: vHealth, course: () => vCourse(arg), documents: vDocuments, notes: vNotesHub, goal: () => vGoal(arg), area: () => vArea(arg), admin: vAdmin, habits: vHabits, products: vProducts };
+  const views = { cyclereport: vCycleReport, life: vLife, discover: vDiscover, test: () => vTest(arg), me: vMe, career: () => vCareer(arg), emi: vEmi, hub: vHub, projects: vBoards, board: () => vBoard(arg), calm: vCalm,  today: vToday, tasks: vTasks, calendar: vCalendar, plan: vPlan, more: vHub, learn: vLearn, evidence: vEvidence, decisions: vDecisions, notes: vNotes, note: () => vNote(arg), review: vReview, settings: vSettings, jobs: vJobs, immigration: vImmigration, progress: vProgress, journal: vJournal, report: vReport, templates: vTemplates, trash: vTrash, health: vHealth, course: () => vCourse(arg), documents: vDocuments, notes: vNotesHub, goal: () => vGoal(arg), area: () => vArea(arg), admin: vAdmin, habits: vHabits, products: vProducts };
   if (page === 'immigration' || page === 'evidence') { ui.dTab = page; views[page] = vDocuments; } if (page === 'journal') views.journal = () => header('Journal', 'Your Night Balance days') + stripHead(vJournal());
   if (page === 'plan') { ui.pTab = ui.planTab === 'goals' ? 'goals' : 'roadmap'; views.plan = vProgress; } if (page === 'learn') { ui.pTab = 'learning'; views.learn = vProgress; }
   const html = icoize((views[page] || vToday)());
@@ -2840,7 +2840,7 @@ document.addEventListener('click', async e => {
     password: () => form('Change password', [{ k: 'current', label: 'Current password', type: 'password', req: true }, { k: 'next', label: 'New password (10+ characters)', type: 'password', req: true }], {}, v => { api('password', { body: v }).then(j => { ls.set(K.tok, j.token); toast('Password changed. Other devices must sign in again.'); }).catch(err => toast(err.message)); }),
     logout: async () => { if (!confirm('Sign out on this device? Data stays on the server.')) return; if (Object.keys(outbox).length) await sync(); try { await api('logout', { method: 'POST' }); } catch {} ls.del(K.tok); ls.del(K.db); ls.del(K.out); ls.del(K.rev); ls.del(K.user); me = null; db = blankDb(); outbox = {}; showLanding(); }
   };
-  Object.assign(map, v7Acts(a, id, e), v71Acts(a, id), v8Acts(a, id), v9Acts(a, id), v9JobActs(a, id), pmActs(a, id), v91Acts(a, id), { 'board-open': () => { closeSheet(true); location.hash = '#/board/' + encodeURIComponent(id); }, 'habit-open-s': () => {} });
+  Object.assign(map, v7Acts(a, id, e), v71Acts(a, id), v8Acts(a, id), v9Acts(a, id), v9JobActs(a, id), pmActs(a, id), v91Acts(a, id), v10Acts(a, id), { 'board-open': () => { closeSheet(true); location.hash = '#/board/' + encodeURIComponent(id); }, 'habit-open-s': () => {} });
   if (map[act]) { if (act !== 'sheet-close' && act !== 'form-save' && act !== 'form-del' && sheetCtx && ['new-task', 'new-event', 'new-note', 'new-decision', 'new-evidence', 'new-session', 'closeout', 'log-time', 'new-application', 'new-milestone', 'new-immig', 'weekly', 'money-add', 'from-tpl', 'new-course', 'morning', 'new-goal', 'wheel-test', 'cycle-new', 'focus-free', 'new-habit'].includes(act)) closeSheet(true); map[act](); }
 });
 document.addEventListener('input', e => { const k = e.target.dataset && e.target.dataset.input; if (k) { ui[k] = e.target.value; saveUi(); if (e.target.dataset.norender) return; clearTimeout(render.t); render.t = setTimeout(render, 180); } });
@@ -3139,7 +3139,7 @@ function goalWizard(preArea, preKw, fromGoal) {
     const fg = fromGoal && get('goals', fromGoal); const a0 = { pattern: preArea ? 'Intention' : 'Balance', area: preArea || (low || as[0]).id, kw: preKw || '', days: '40', micro: [], counts: {}, syms: {}, goal: fg ? fg.title : '', fromGoal: fg ? fg.id : '' };
     const ar = st => get('areas', st.area), fk = st => fieldKey(ar(st)) || 'lifestyle';
     const kwList = st => { const sc = kwScores(fk(st)); const f = G.field(fk(st)); return f.rows.map((r, i) => [r.k, sc.length ? sc[i][1] : null]).sort((x, y) => (x[1] ?? 11) - (y[1] ?? 11)); };
-    const ideas = st => { const kws = st.kw ? [st.kw] : kwList(st).slice(0, 3).map(x => x[0]); const a = ar(st); return [...new Set(kws.flatMap(k => G.KW[k] || []).concat((G.LIB[fk(st)] || []).filter(x => x.kind === 'habit').map(x => x.t)).concat((MICRO_TPL[a && a.title] || []).map(x => x.replace(/“?\{g\}”?/g, 'my goal'))))].slice(0, 14); };
+    const ideas = st => { const kws = st.kw ? [st.kw] : kwList(st).slice(0, 3).map(x => x[0]); const a = ar(st); return [...new Set((st.aiIdeas || []).concat(kws.flatMap(k => G.KW[k] || []).concat((G.LIB[fk(st)] || []).filter(x => x.kind === 'habit').map(x => x.t)).concat((MICRO_TPL[a && a.title] || []).map(x => x.replace(/“?\{g\}”?/g, 'my goal')))))].slice(0, 16); };
     const defCount = days => Math.round(Number(days) * 5 / 7);
     flowOpen({ cls: 'goalflow', a: a0, steps: [
       { html: st => `<div class="ob"><div class="ob-k">Step 1 · Choosing a field</div><h2>Which area of your life do you want to change?</h2>
@@ -3153,7 +3153,7 @@ function goalWizard(preArea, preKw, fromGoal) {
         <div class="gw-goal" style="--ac:${areaColor(ar(st))}"><span>${areaEmoji(ar(st))}</span><div><b dir="auto">${esc(st.goal)}</b><div class="small">${esc(ar(st).title)} · ${esc(st.kw)} · by ${esc(fmtDate(addDays(today(), Number(st.days) - 1), true))}</div></div></div></div>` },
       { html: st => `<div class="ob"><div class="ob-k">Step 3 · Micro-actions</div><h2>What can you do every day to get there?</h2><p class="small">Pick up to 3 small actions. Until an action is a micro-action, it is hard to do every day.</p>
         <div class="gw-mic">${ideas(st).concat(st.micro.filter(m => !ideas(st).includes(m))).map(m => `<button class="${st.micro.includes(m) ? 'on' : ''}" data-act="gw-mic" data-v="${esc(m)}" dir="auto">${st.micro.includes(m) ? '✓ ' : ''}${esc(m)}</button>`).join('')}</div>
-        <form class="qadd" data-form="gw-own" style="margin-top:10px"><input name="q" placeholder="Or write your own…" dir="auto" autocomplete="off"><button class="btn primary" type="submit">${I.plus}</button></form></div>`, check: st => st.micro.length ? '' : 'Pick at least one micro-action' },
+        <form class="qadd" data-form="gw-own" style="margin-top:10px"><input name="q" placeholder="Or write your own…" dir="auto" autocomplete="off"><button class="btn primary" type="submit">${I.plus}</button></form><button class="btn small" data-act="gw-ai" style="margin-top:8px">✨ More ideas with AI</button></div>`, check: st => st.micro.length ? '' : 'Pick at least one micro-action' },
       { html: st => `<div class="ob"><div class="ob-k">Step 4 · Number of actions</div><h2>How many times in the next ${st.days} days?</h2>${st.micro.map((m, i) => { const c = Number(st.counts[i]) || defCount(st.days); return `<div class="gw-cnt"><div dir="auto">${esc(m)}</div><div class="nums sm">${[...new Set([5, 10, 20, defCount(st.days), Number(st.days)])].sort((x, y) => x - y).map(v => `<button data-act="gw-count" data-i="${i}" data-v="${v}" class="${c === v ? 'on' : ''}">${v}</button>`).join('')}</div></div>`; }).join('')}<p class="small">${defCount(st.days)} = five days a week. ${st.days} = every day.</p></div>` },
       { html: st => `<div class="ob"><div class="ob-k">Step 5 · Action symbol</div><h2>Give each action a symbol</h2><p class="small">You will see it every morning in “My improvement action”.</p>${st.micro.map((m, i) => { const s = st.syms[i] || G.SYMBOLS[i]; return `<div class="gw-cnt"><div dir="auto"><b class="gw-sym">${esc(s)}</b> ${esc(m)}</div><div class="gw-syms">${G.SYMBOLS.map(x => `<button data-act="gw-sym" data-i="${i}" data-v="${esc(x)}" class="${s === x ? 'on' : ''}">${x}</button>`).join('')}</div></div>`; }).join('')}</div>` },
       { nextLabel: 'Create my goal', html: st => `<div class="ob"><div class="ob-k">Goal to Micro-Action table</div><h2>Your plan</h2><div class="gmtable"><div class="gm-top" style="--ac:${areaColor(ar(st))}"><span>${areaEmoji(ar(st))} ${esc(ar(st).title)} · ${esc(st.kw)}</span><b dir="auto">${esc(st.goal)}</b><span>by ${esc(fmtDate(addDays(today(), Number(st.days) - 1), true))}</span></div><div class="gm-h"><span>Sample</span><span>Micro-action</span><span>Count</span></div>${st.micro.map((m, i) => `<div class="gm-r"><span class="gw-sym">${esc(st.syms[i] || G.SYMBOLS[i])}</span><span dir="auto">${esc(m)}</span><span>× ${Number(st.counts[i]) || defCount(st.days)}</span></div>`).join('')}</div>
@@ -3208,7 +3208,7 @@ goalMicroCard = function (id) {
     return `<div class="card"><h2>${I.bolt} Micro-actions</h2><p class="small" style="margin-top:-4px">Turn this goal into a Goal to Micro-Action plan: daily actions, how many times, and a symbol for each.</p><div class="btns"><button class="btn primary small" data-act="plan-from-goal" data-id="${esc(id)}">Make my action plan</button></div><div class="list" style="margin-top:8px">${ms.slice(0, 4).map((t, i) => `<div class="row"><span class="mnum">${i + 1}</span><div class="main"><div class="t" dir="auto">${esc(t)}</div></div></div>`).join('')}</div></div>`;
   }
   const tot = g.plan.reduce((s, p) => s + p.count, 0), dn = g.plan.reduce((s, p) => s + Math.min(p.count, pDone(p)), 0), t = today();
-  return `<div class="card gmcard"><h2>${I.bolt} Action plan <span class="count">${dn}/${tot}</span><span style="flex:1"></span><button class="btn small ghost" data-act="plan-add" data-id="${esc(id)}">${I.plus} Action</button></h2>
+  return `<div class="card gmcard"><h2>${I.bolt} Action plan <span class="count">${dn}/${tot}</span><span style="flex:1"></span><button class="btn small ghost" data-act="plan-ai" data-id="${esc(id)}">✨ Ideas</button><button class="btn small ghost" data-act="plan-add" data-id="${esc(id)}">${I.plus} Action</button></h2>
   ${g.keyword ? `<div class="small" style="margin:-4px 0 8px">📘 ${esc(g.keyword)}${g.pain ? ` · instead of “${esc(g.pain)}”` : ''}</div>` : ''}
   <div class="list">${g.plan.map(p => { const n = pDone(p); return `<div class="row gmrow"><button class="check ${(p.done || {})[t] ? 'done' : ''}" data-act="plan-done" data-id="${esc(id)}" data-p="${esc(p.id)}" aria-label="Done today">${I.tick}</button><span class="psym">${esc(p.sym)}</span><div class="main" data-act="plan-edit" data-id="${esc(id)}" data-p="${esc(p.id)}" role="button"><div class="t" dir="auto">${esc(p.t)} <span class="small">✎</span></div><div class="bar" style="margin:6px 0 2px"><i style="width:${Math.min(100, Math.round(100 * n / p.count))}%"></i></div><div class="m"><span>${n} of ${p.count}</span>${n >= p.count ? '<span class="chip s-done">done</span>' : ''}</div></div><button class="icon-btn" data-act="plan-del" data-id="${esc(id)}" data-p="${esc(p.id)}" aria-label="Remove">${I.close}</button></div>`; }).join('')}</div>
   <div class="pdots">${(() => { const days = []; for (let i = 13; i >= 0; i--) days.push(addDays(t, -i)); return days.map(d => { const k = g.plan.filter(p => (p.done || {})[d]).length; return `<i title="${esc(fmtDate(d))}" style="opacity:${k ? .35 + .65 * k / g.plan.length : 1}" class="${k ? 'on' : ''}"></i>`; }).join(''); })()}</div><div class="small">Last 14 days</div></div>`;
@@ -3535,7 +3535,7 @@ function pageMenu() {
   else if (page === 'test' && arg) { add('test-start', 'Retake this test', '↻', idA(arg)); add('pm-del-test', 'Delete my result', '🗑', idA(arg)); }
   else if (page === 'jobs') { add('job-bulk', 'Add jobs', '+'); add('new-application', 'New application', '✎'); if (isOwner()) add('ap-keys', 'Job sources and sender email', '⚙'); }
   else if (page === 'habits') add('new-habit', 'New habit', '🔁');
-  else if (page === 'life' || page === 'progress') { add('goal-wizard', 'New goal (5 steps)', '⚑'); add('wheel-test', 'Wheel of Life test', '◎'); add('areas-edit', 'Edit areas', '✎'); add('cycle-new', 'New 40-day cycle', '↻'); }
+  else if (page === 'life' || page === 'progress') { add('goal-wizard', 'New goal (5 steps)', '⚑'); add('wheel-test', 'Wheel of Life test', '◎'); add('areas-edit', 'Edit areas', '✎'); add('cycle-new', 'New 40-day cycle', '↻'); add('cr-open', '40-day report', '📊'); }
   const common = [['new-task', 'Task', '✓'], ['goal-wizard', 'Goal', '⚑'], ['new-habit', 'Habit', '🔁'], ['new-event', 'Event', '📅']];
   openSheet('Options', `${it.length ? `<div class="pm-g">${it.join('')}</div>` : ''}<div class="small pm-h">Add</div><div class="pm-q">${common.map(([a, l, ic]) => `<button data-act="${a}"><span>${ic}</span>${l}</button>`).join('')}</div>
     <div class="pm-g" style="margin-top:12px"><button class="pm-i" data-act="go" data-to="hub"><span>▦</span>All sections</button><button class="pm-i" data-act="go" data-to="trash"><span>♻</span>Trash (restore deleted)</button><button class="pm-i" data-act="go" data-to="settings"><span>⚙</span>Settings</button></div>`, '', { noFocus: true });
@@ -3709,6 +3709,99 @@ document.addEventListener('change', e => {
   else if (d.change === 'k-pri') save('tasks', Object.assign({}, t, { priority: e.target.value }));
   else if (d.change === 'k-next') save('tasks', Object.assign({}, t, { nextAction: e.target.value }));
 });
+
+/* ================= v10: Claude assistant, 40-day report, Google Calendar import, development roadmap ================= */
+async function aiAsk(kind, input) { const r = await api('ai', { body: { kind, input } }); return r; }
+const aiBusy = (el, on, label) => { if (!el) return; el.disabled = on; if (on) { el.dataset.l = el.textContent; el.textContent = label || 'Thinking…'; } else if (el.dataset.l) el.textContent = el.dataset.l; };
+/* settings: AI key (owner) and Google Calendar import (everyone) */
+const _vSettingsV10 = vSettings;
+vSettings = function () {
+  setTimeout(() => { if (isOwner() && $('#aibox')) api('ai-config').then(r => { const b = $('#aibox'); if (b) b.innerHTML = `${r.hasKey ? '✓ Key saved' : 'No key yet'} · ${esc(r.model)} · max ${r.daily} requests a day <button class="btn small" data-act="ai-setup">${r.hasKey ? 'Change' : 'Add key'}</button>`; }).catch(() => {}); }, 0);
+  const g = prefs().gcal || {};
+  return _vSettingsV10().replace('<div class="spacer" style="height:14px"></div>', `<div class="spacer" style="height:14px"></div>
+  ${isOwner() ? `<div class="card setrow"><div class="main"><b>✨ AI assistant (Claude)</b><div class="small" id="aibox">Loading…</div></div></div>` : ''}
+  <div class="card setrow"><div class="main"><b>📅 Google Calendar</b><div class="small">${g.url ? `Connected · last import ${g.at ? esc(rel(String(g.at).slice(0, 10))) : 'never'} · ${g.n || 0} events` : 'Show your Google Calendar events inside ME.Coach.'}</div></div><div class="btns">${g.url ? `<button class="btn small" data-act="gcal-run">Import now</button>` : ''}<button class="btn small ${g.url ? 'ghost' : 'primary'}" data-act="gcal-setup">${g.url ? 'Change' : 'Connect'}</button></div></div>`);
+};
+function aiSetup() {
+  form('AI assistant', [{ html: '<p class="small" style="margin-top:0">Create a key at console.anthropic.com → API keys, then paste it here. It is stored only on your server and never shown again. Usage is billed by Anthropic to your account.</p>' }, { k: 'key', label: 'Anthropic API key', type: 'password', ph: 'sk-ant-…' }, [{ k: 'model', label: 'Model', type: 'select', options: [['claude-opus-5-5', 'Claude Opus 5.5 (best)'], ['claude-sonnet-5-5', 'Claude Sonnet 5.5'], ['claude-haiku-5-5', 'Claude Haiku 5.5 (cheapest)']], blank: false }, { k: 'daily', label: 'Max requests a day', type: 'number', def: 40 }]], { model: 'claude-opus-5-5', daily: 40 },
+    v => { api('ai-config', { body: { key: v.key || '', model: v.model, daily: Number(v.daily) || 40 } }).then(() => { toast('AI settings saved'); render(); }).catch(e => toast(e.message)); });
+}
+function gcalSetup() {
+  const g = prefs().gcal || {};
+  form('Google Calendar', [{ html: '<p class="small" style="margin-top:0">In Google Calendar on a computer: Settings → your calendar → Integrate calendar → copy <b>Secret address in iCal format</b>, paste it here. ME.Coach reads it every few hours. To send ME.Coach events to Google, use Settings → Calendar feed.</p>' }, { k: 'url', label: 'Secret iCal address', ph: 'https://calendar.google.com/calendar/ical/…/basic.ics' }], { url: g.url || '' }, v => {
+    const url = (v.url || '').trim(); if (!url) { save('settings', Object.assign({}, prefs(), { id: 'prefs', gcal: {} })); list('events').filter(e => e.source === 'google').forEach(e => remove('events', e.id)); toast('Disconnected'); return; }
+    save('settings', Object.assign({}, prefs(), { id: 'prefs', gcal: { url } })); setTimeout(() => gcalRun(true), 50);
+  });
+}
+async function gcalRun(loud) {
+  const g = prefs().gcal || {}; if (!g.url) return;
+  try { const r = await api('gcal-import', { body: { url: g.url } }); const seen = new Set();
+    r.events.forEach(x => { const id = 'gcal-' + String(x.uid).replace(/[^A-Za-z0-9]/g, '').slice(0, 60); seen.add(id); const cur = get('events', id), rec = { id, title: x.title, start: x.allDay ? x.start : x.start, end: x.end || '', allDay: !!x.allDay, rrule: x.rrule || '', source: 'google', kind: 'google' };
+      if (!cur || cur.title !== rec.title || cur.start !== rec.start || cur.end !== rec.end || (cur.rrule || '') !== rec.rrule) save('events', Object.assign({}, cur || {}, rec)); });
+    list('events').filter(e => e.source === 'google' && !seen.has(e.id)).forEach(e => _removeV9('events', e.id));
+    save('settings', Object.assign({}, prefs(), { id: 'prefs', gcal: Object.assign({}, g, { at: nowIso(), n: r.events.length }) })); if (loud) toast(`${r.events.length} Google events imported`);
+  } catch (e) { if (loud) toast(e.message); }
+}
+/* AI in the goal wizard, on the goal page, in the job email and in Emi */
+async function aiMicro(goalTitle, areaTitle, kw, have) { const r = await aiAsk('micro', { goal: goalTitle, area: areaTitle, keyword: kw || '', have: (have || []).join('; ') }); return r.items || []; }
+const _apSendSheetV10 = apSendSheet;
+apSendSheet = function (ids) {
+  _apSendSheetV10(ids); if (!sheetCtx || ids.length !== 1) return; const box = sheetCtx.el.querySelector('[name=body]'); if (!box) return;
+  box.insertAdjacentHTML('beforebegin', '<button type="button" class="btn small" data-act="ai-cover" style="margin-bottom:6px">✨ Write it from my CV and this ad</button>'); sheetCtx.aiJob = ids[0];
+};
+const _emiSheetV10 = emiSheet;
+emiSheet = function () { _emiSheetV10(); if (!sheetCtx) return; const b = sheetCtx.el.querySelector('.emi-sh'); if (b) b.insertAdjacentHTML('afterend', `<form class="qadd" data-form="emi-ask" style="margin:4px 0 12px"><input name="q" placeholder="Ask Emi anything…" dir="auto" autocomplete="off"><button class="btn primary" type="submit">✨</button></form><div id="emi-ans" class="emi-ans" hidden></div>`); };
+function emiContext() {
+  const as = areas().map(a => `${a.title} ${areaScore(a.id) ?? '?'}/10`).join(', '), gs = list('goals').filter(g => !['Done', 'Achieved', 'Dropped'].includes(g.status)).slice(0, 6).map(g => g.title).join('; '), a = assess();
+  return `Name: ${(me && me.name) || ''}. Wheel: ${as}. Goals: ${gs}. Today: ${a.s}/10 (${a.level}). Open tasks today: ${list('tasks').filter(x => isOpen(x) && (x.due === today() || x.focusDate === today())).map(x => x.title).slice(0, 6).join('; ')}.`;
+}
+document.addEventListener('submit', async e => {
+  const f = e.target; if (!(f.dataset && f.dataset.form === 'emi-ask')) return; e.preventDefault(); e.stopImmediatePropagation();
+  const q = (f.q.value || '').trim(), out = $('#emi-ans'); if (!q || !out) return; out.hidden = false; out.textContent = 'Emi is thinking…'; if (emiInst) emiInst.play('think');
+  try { const r = await aiAsk('emi', { q, context: emiContext() }); out.textContent = r.text; if (emiInst) { emiInst.play('nod'); emiInst.say(r.text.slice(0, 140) + (r.text.length > 140 ? '…' : ''), 7000); } f.q.value = ''; } catch (err) { out.textContent = err.message; }
+}, true);
+
+/* ---------- 40-day report ---------- */
+function vCycleReport() {
+  const c = activeCycle() || list('cycles').sort((a, b) => String(b.start).localeCompare(String(a.start)))[0];
+  if (!c) return header('40-day report', '') + '<div class="card empty">Start a 40-day cycle to get a report.</div>';
+  const st = cycleStats(c), end = addDays(c.start, (Number(c.days) || 40) - 1), ws = wheels(), before = ws.filter(w => w.date <= c.start)[0] || ws[ws.length - 1], after = ws.filter(w => w.date >= c.start)[0] || ws[0];
+  const days = []; for (let i = 0; i < st.day; i++) days.push(addDays(c.start, i));
+  const sc = days.map(d => { const l = logOf('closeout', d); return [d, l ? Number(l.assess != null ? l.assess : l.score) || 0 : 0]; });
+  const gs = (c.goals || []).map(id => get('goals', id)).filter(Boolean), done = g => (g.plan || []).reduce((s, p) => s + Object.keys(p.done || {}).filter(d => d >= c.start && d <= end).length, 0);
+  const best = sc.slice().sort((a, b) => b[1] - a[1]).filter(x => x[1]).slice(0, 3), avgA = sc.filter(x => x[1]).length ? r2(sc.filter(x => x[1]).reduce((s, x) => s + x[1], 0) / sc.filter(x => x[1]).length) : null;
+  const rows = as => areas().map(a => { const b = before ? areaScore(a.id, before) : null, n = after ? areaScore(a.id, after) : null; return `<div class="cr-a" style="--ac:${areaColor(a)}"><span>${areaEmoji(a)} ${esc(a.title)}</span><i><b style="width:${(b || 0) * 10}%" class="was"></b><b style="width:${(n || 0) * 10}%"></b></i><em>${b ?? '–'} → ${n ?? '–'}</em></div>`; }).join('');
+  ui.crData = `Cycle ${c.start} to ${end}, day ${st.day}/40. Intention: ${c.intention || ''}. Mornings ${st.morning}, nights ${st.night}, average day ${avgA ?? 'n/a'}/10. Wheel before: ${before ? areas().map(a => a.title + ' ' + (areaScore(a.id, before) ?? '?')).join(', ') : 'n/a'}. Wheel now: ${after ? areas().map(a => a.title + ' ' + (areaScore(a.id, after) ?? '?')).join(', ') : 'n/a'}. Goals: ${gs.map(g => `${g.title} (${done(g)} micro-actions done${g.plan ? ' of ' + g.plan.reduce((s, p) => s + p.count, 0) : ''})`).join('; ')}. Night notes: ${days.map(d => (logOf('closeout', d) || {}).better).filter(Boolean).slice(-8).join(' | ')}`;
+  return header('40-day report', `${fmtDate(c.start, true)} – ${fmtDate(end, true)}`) + `<div class="cr">
+  <div class="card cr-hero">${ring(Math.round(100 * st.day / (Number(c.days) || 40)), 92, `${st.day}/40`)}<div class="main"><div class="small">Intention</div><b dir="auto">${esc(c.intention || 'My 40 days')}</b><div class="rmstats" style="margin-top:10px"><div><b>${st.morning}</b><span>mornings</span></div><div><b>${st.night}</b><span>nights</span></div><div><b>${avgA ?? '–'}</b><span>avg day /10</span></div><div><b>${gs.reduce((s, g) => s + done(g), 0)}</b><span>micro-actions</span></div></div></div></div>
+  <div class="card"><h2>Day by day</h2><div class="cr-bars">${sc.map(([d, v]) => `<i title="${esc(fmtDate(d))}: ${v}/10" style="height:${Math.max(4, v * 10)}%;opacity:${v ? 1 : .25}"></i>`).join('')}</div><div class="small">${best.length ? 'Best days: ' + best.map(([d, v]) => `${esc(fmtDate(d))} (${v})`).join(' · ') : 'Close your days with Night Balance to see this chart.'}</div></div>
+  <div class="card"><h2>Wheel of Life: start → now</h2>${rows()}<div class="small" style="margin-top:6px">Faded bar = start of the cycle. Retake the book test at the end to see the real change.</div></div>
+  <div class="card"><h2>Goals and micro-actions</h2><div class="list">${gs.map(g => { const tot = (g.plan || []).reduce((s, p) => s + p.count, 0), d = done(g); return `<div class="row" data-act="go" data-to="goal/${encodeURIComponent(g.id)}"><div class="main"><div class="t" dir="auto">${esc(g.title)}</div><div class="bar" style="margin-top:6px"><i style="width:${tot ? Math.min(100, Math.round(100 * d / tot)) : pct(goalProgress(g))}%"></i></div><div class="m"><span>${d}${tot ? ' of ' + tot : ''} micro-actions</span></div></div></div>`; }).join('') || '<div class="empty">No goals in this cycle.</div>'}</div></div>
+  <div class="card"><h2>✨ Coach review</h2><div id="cr-ai" class="small" style="white-space:pre-wrap">A short review written by AI from the numbers above.</div><div class="btns" style="margin-top:10px"><button class="btn primary small" data-act="cr-ai">Write my review</button><button class="btn small" data-act="print-pack">Save as PDF</button>${st.day >= 40 ? `<button class="btn small" data-act="bt-start">Retake the book test</button>` : ''}</div></div></div>`;
+}
+
+/* ---------- owner: the ME.Coach development roadmap as a goal with milestones (once) ---------- */
+function ownerDevRoadmap() {
+  if (!isOwner() || !ls.get(K.rev) || prefs().devRoadmapV1) return; const ar = areaForField('business') || areas()[0];
+  const g = save('goals', { id: 'g-mecoach-dev', title: 'ME.Coach: launch and grow the product', areaId: ar ? ar.id : '', area: ar ? ar.title : '', target: '2027-04-30', status: 'In progress', why: 'Income beyond my salary and a product with my name on it' });
+  [['9.3 Launch-ready: payments, Google sign-in, job sender email, 7 days of real use', '2026-11-30'], ['10 AI assistant: cover letters, micro-action ideas, Emi chat', '2026-12-15'], ['10.5 40-day report and Google Calendar import', '2026-12-31'], ['11 Persian and Arabic interface, Gulf pricing, first 10 paying users', '2027-02-15'], ['12 Coach panel and coaching plan with booking', '2027-04-30']]
+    .forEach(([t, d], i) => save('milestones', { id: 'ms-mecoach-' + (i + 1), title: t, target: d, goalId: g.id, status: i < 2 ? 'In progress' : 'Planned' }));
+  save('settings', Object.assign({}, prefs(), { id: 'prefs', devRoadmapV1: today() }));
+}
+
+function v10Acts(a, id) {
+  return {
+    'ai-setup': () => aiSetup(), 'gcal-setup': () => gcalSetup(), 'gcal-run': () => gcalRun(true),
+    'ai-cover': async () => { const j = sheetCtx && get('applications', sheetCtx.aiJob); if (!j) return; aiBusy(a, true, 'Reading your CV and the ad…'); try { const r = await aiAsk('cover', { role: j.role, company: j.company, location: j.location, desc: j.desc }); const box = sheetCtx && sheetCtx.el.querySelector('[name=body]'); if (box) box.value = r.text; toast('Draft ready · edit before sending'); } catch (e) { toast(e.message); } aiBusy(a, false); },
+    'gw-ai': async () => { if (!flow) return; const st = flow.a, ar = get('areas', st.area); aiBusy(a, true); try { const items = await aiMicro(st.goal || (st.goalTxt || ''), ar ? ar.title : '', st.kw, st.micro); st.aiIdeas = items; flowDraw(); } catch (e) { toast(e.message); aiBusy(a, false); } },
+    'plan-ai': async () => { const g = get('goals', id); if (!g) return; const ar = goalArea(g); aiBusy(a, true); try { const items = await aiMicro(g.title, ar ? ar.title : '', g.keyword, (g.plan || []).map(p => p.t)); openSheet('✨ Micro-action ideas', `<div class="list">${items.map(t => `<div class="row"><div class="main"><div class="t" dir="auto">${esc(t)}</div></div><button class="btn small" data-act="plan-add-ai" data-id="${esc(id)}" data-v="${esc(t)}">+ Add</button></div>`).join('')}</div>`, '', { noFocus: true }); } catch (e) { toast(e.message); } aiBusy(a, false); },
+    'plan-add-ai': () => { const g = get('goals', id); if (!g) return; const syms = window.MEC_GROWTH ? MEC_GROWTH.SYMBOLS : ['★']; save('goals', Object.assign({}, g, { plan: [...(g.plan || []), { id: 'p' + Date.now().toString(36), t: a.dataset.v, count: 28, sym: syms[(g.plan || []).length % syms.length], done: {} }] })); a.textContent = '✓ Added'; a.disabled = true; },
+    'cr-open': () => { closeSheet(true); location.hash = '#/cyclereport'; },
+    'cr-ai': async () => { aiBusy(a, true, 'Writing…'); try { const r = await aiAsk('report', { data: ui.crData || '' }); const b = $('#cr-ai'); if (b) b.textContent = r.text; } catch (e) { toast(e.message); } aiBusy(a, false); }
+  };
+}
+const _startV10 = start;
+start = function () { _startV10(); setTimeout(ownerDevRoadmap, 3500); setTimeout(() => { const g = prefs().gcal || {}; if (g.url && (!g.at || Date.now() - Date.parse(g.at) > 6 * 3600e3)) gcalRun(false); }, 5000); };
 
 /* ---------------- boot ---------------- */
 if ('serviceWorker' in navigator && location.protocol === 'https:') { const had = !!navigator.serviceWorker.controller; navigator.serviceWorker.register('sw.js').catch(() => {}); navigator.serviceWorker.addEventListener('controllerchange', () => { if (had) toast('ME.Coach was updated', 'Reload', () => location.reload()); }); }

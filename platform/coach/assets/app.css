@@ -873,3 +873,8 @@ main,.shell{overflow-x:clip}
 /* overall polish */
 .card{transition:box-shadow .2s,border-color .2s}.card[role=button]:hover,.acard:hover{box-shadow:0 6px 18px rgba(15,15,15,.08)}
 .top h1{letter-spacing:-.02em}
+/* v10 */
+.emi-ans{background:var(--paper-2);border-radius:12px;padding:10px 12px;font-size:14px;line-height:1.5;margin-bottom:12px;white-space:pre-wrap}
+.cr-hero{display:flex;gap:14px;align-items:center}.cr-hero .main{flex:1;min-width:0}.cr-hero b{color:var(--ink)}
+.cr-bars{display:flex;align-items:flex-end;gap:3px;height:110px;margin-bottom:8px}.cr-bars i{flex:1;background:var(--brass);border-radius:3px 3px 0 0;min-width:3px}
+.cr-a{display:grid;grid-template-columns:130px 1fr 70px;gap:8px;align-items:center;font-size:13.5px;padding:4px 0}.cr-a i{position:relative;height:10px;background:var(--paper-dim);border-radius:6px;overflow:hidden}.cr-a i b{position:absolute;left:0;top:0;bottom:0;background:var(--ac);border-radius:6px}.cr-a i b.was{opacity:.3}.cr-a em{font-style:normal;font-weight:700;text-align:right;color:var(--ink)}
