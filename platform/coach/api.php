@@ -7,7 +7,7 @@
  */
 declare(strict_types=1);
 
-const APP_VERSION = '12.1.0';
+const APP_VERSION = '13.0.0';
 const TRIAL_DAYS = 7;
 const GLOBAL_FILES = ['users.json', 'tokens.json', 'attempts.json', 'keys.json', 'system.json', '.lock', 'webauthn-chal.json', 'requests.json', 'bookings.json', 'coach-notes.json'];
 /* Plans shown in the app. Keep the prices in sync with the public pages (platform/tools/build_coach_site.py). */
@@ -553,10 +553,11 @@ function mail_with_file(string $to, string $from, string $fromName, string $repl
 
 /* ---------- v10: Claude assistant (owner sets the key in the app; it never leaves the server) ---------- */
 function ai_cfg(): array { $s = read_json('system.json', []); return is_array($s['ai'] ?? null) ? $s['ai'] : []; }
-function ai_call(string $system, array $content, int $max = 1200): array {
+function ai_call(string $system, array $content, int $max = 1200): array { return ai_call_multi($system, [['role' => 'user', 'content' => $content]], $max); }
+function ai_call_multi(string $system, array $messages, int $max = 1200): array {
     $c = ai_cfg(); $key = (string)($c['key'] ?? ''); if ($key === '') { return ['ok' => false, 'error' => 'AI is not set up yet. The owner adds the Anthropic API key in Settings → AI.']; }
     $model = (string)($c['model'] ?? 'claude-opus-5-5');
-    $req = ['model' => $model, 'max_tokens' => $max, 'system' => $system, 'messages' => [['role' => 'user', 'content' => $content]], 'output_config' => ['effort' => 'low']];
+    $req = ['model' => $model, 'max_tokens' => $max, 'system' => $system, 'messages' => $messages, 'output_config' => ['effort' => 'low']];
     $hdr = ['Content-Type: application/json', 'x-api-key: ' . $key, 'anthropic-version: 2023-06-01'];
     if (in_array($model, ['claude-opus-5-5', 'claude-sonnet-5-5'], true)) { $req['fallbacks'] = 'default'; $hdr[] = 'anthropic-beta: server-side-fallback-2026-07-01'; }
     $ch = curl_init('https://api.anthropic.com/v1/messages'); curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true, CURLOPT_POSTFIELDS => json_encode($req), CURLOPT_HTTPHEADER => $hdr, CURLOPT_TIMEOUT => 90, CURLOPT_CONNECTTIMEOUT => 10]);
@@ -608,6 +609,18 @@ function client_summary(string $uid, array $u): array {
     return ['id' => $uid, 'name' => $u['name'] ?? '', 'email' => $u['email'] ?? '', 'plan' => user_public($u, $uid)['plan'], 'coachClient' => !empty($u['coachClient']) || ($u['planName'] ?? '') === 'coach', 'shared' => !empty($u['coachShare']),
         'wheel' => !empty($u['coachShare']) ? $wheel : [], 'wheelDate' => !empty($u['coachShare']) && $w ? ($w['date'] ?? '') : '', 'goals' => !empty($u['coachShare']) ? array_slice($goals, 0, 8) : [], 'avg7' => !empty($u['coachShare']) && $days ? round(array_sum($days) / count($days), 2) : null, 'nights7' => !empty($u['coachShare']) ? count($days) : null, 'cycle' => !empty($u['coachShare']) ? $cy : null,
         'lastActive' => is_array($s) ? ($s['updatedAt'] ?? '') : '', 'notes' => array_slice($notes, -20)];
+}
+
+/* ---------- v13: Ava, the private AI coach (chat + Siri) ---------- */
+const AVA_SYSTEM = "You are Ava, the private coach inside ME.Coach: smart, elegant and warm, with a light sense of humour. You coach with the method of the book Self-Coaching Blueprint by Milad Ebrahimi: the Wheel of Life (8 areas), 40-day goals, goals broken into daily micro-actions, Morning Balance (expectation, focus, Top 3, improvement actions, gratitude) and Night Balance (score, what to improve, carry over, ideas). Use the user's data given below. Answer in the user's language. Be concise (under 120 words unless asked for more), concrete and kind. Ask at most one question back. When you suggest actions the user can add to the app, put each on its own line starting with '• ' (max 3). You are not a therapist, doctor or lawyer: for health, legal or crisis topics, encourage professional help.";
+function ava_context(array $s): string {
+    $c = $s['collections'] ?? []; $live = fn($k) => array_values(array_filter((array)($c[$k] ?? []), fn($r) => is_array($r) && empty($r['deleted'])));
+    $areas = []; foreach ($live('areas') as $a) { $areas[$a['id']] = $a['title'] ?? ''; }
+    $wh = $live('wheel'); usort($wh, fn($a, $b) => strcmp((string)($b['date'] ?? ''), (string)($a['date'] ?? ''))); $wheel = [];
+    if ($wh) { foreach (($wh[0]['scores'] ?? []) as $id => $v) { if (isset($areas[$id])) { $wheel[] = $areas[$id] . ' ' . round((float)$v, 1); } } }
+    $goals = []; foreach ($live('goals') as $g) { if (!in_array($g['status'] ?? '', ['Done', 'Achieved', 'Dropped', 'Cancelled'], true)) { $goals[] = ($g['title'] ?? '') . (!empty($g['target']) ? ' (by ' . $g['target'] . ')' : ''); } }
+    $d = local_day($s); $tasks = []; foreach ($live('tasks') as $t) { if (!in_array((string)($t['state'] ?? ''), DONE_STATES, true) && (($t['focusDate'] ?? '') === $d || ($t['due'] ?? '') === $d)) { $tasks[] = $t['title'] ?? ''; } }
+    return 'Today: ' . $d . '. Wheel of Life: ' . implode(', ', $wheel) . '. Goals: ' . implode('; ', array_slice($goals, 0, 6)) . '. Tasks today: ' . implode('; ', array_slice($tasks, 0, 8)) . '.';
 }
 
 /* ---------- router ---------- */
@@ -1107,6 +1120,22 @@ switch ($action) {
         });
         if ($res !== '') { fail(400, $res); }
         out(200, ['ok' => true]);
+
+    case 'ava':
+        if ($method !== 'POST') { fail(405, 'POST only'); }
+        require_access(); if (!ai_quota()) { fail(429, 'Daily AI limit reached. It resets tomorrow.'); }
+        $b = body(); $msgs = []; foreach (array_slice((array)($b['messages'] ?? []), -12) as $m) { $r = ($m['role'] ?? '') === 'assistant' ? 'assistant' : 'user'; $t = mb_substr(trim((string)($m['content'] ?? '')), 0, 2000); if ($t !== '') { $msgs[] = ['role' => $r, 'content' => $t]; } }
+        while ($msgs && $msgs[0]['role'] !== 'user') { array_shift($msgs); } if (!$msgs || end($msgs)['role'] !== 'user') { fail(400, 'Say something to Ava.'); }
+        $u = cur_user(); $sys = AVA_SYSTEM . "\n\nUser: " . ($u['name'] ?? '') . ". " . ava_context(load_store()) . ' ' . mb_substr((string)($b['context'] ?? ''), 0, 800);
+        $c = ai_cfg(); if (empty($c['key'])) { fail(502, 'AI is not set up yet. The owner adds the Anthropic API key in Settings → AI.'); }
+        $first = array_shift($msgs); $r = ai_call_multi($sys, array_merge([$first], $msgs), 900);
+        if (!$r['ok']) { fail(502, $r['error']); } out(200, $r);
+
+    case 's-ava':
+        shortcut_auth(); $q = shortcut_text(); if ($q === '') { plain('Ask me anything, for example: what should I focus on today?'); }
+        if (!ai_quota()) { plain('We have reached today’s AI limit. Let’s talk tomorrow.'); }
+        $u = cur_user(); $r = ai_call_multi(AVA_SYSTEM . "\nYou are answering by voice through Siri: plain sentences only, no lists or symbols, under 70 words.\n\nUser: " . ($u['name'] ?? '') . '. ' . ava_context(load_store()), [['role' => 'user', 'content' => $q]], 400);
+        plain($r['ok'] ? str_replace(['• ', '*', '#'], ['', '', ''], $r['text']) : 'Sorry, I could not answer right now.');
 
     default:
         fail(404, 'Unknown action');

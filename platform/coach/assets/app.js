@@ -5,7 +5,7 @@
 (() => {
 'use strict';
 
-const VERSION = '12.1.0';
+const VERSION = '13.0.0';
 const API = 'api.php';
 const K = { db: 'mec.db', out: 'mec.outbox', tok: 'mec.token', rev: 'mec.rev', ui: 'mec.ui', last: 'mec.lastSync', user: 'mec.user' };
 const COLS = ['tasks','events','projects','goals','skills','logs','evidence','decisions','notes','ielts','sessions','settings','milestones','applications','immigration','habits','money','templates','courses','areas','wheel','cycles','focus','products','tests','careers'];
@@ -430,6 +430,7 @@ async function siriSheet() {
     ${blk('My Top 3', 'my top three', ['Add <b>Get Contents of URL</b> with the link (method GET)', 'Add <b>Speak Text</b> with Contents of URL', 'Name it <b>My top three</b>'], u('s-top3'))}
     ${blk('Log practice', 'log practice', ['Add <b>Ask for Input</b> (Text): “Which skill?”', 'Add <b>Ask for Input</b> (Number): “How many minutes?”', 'Add <b>Get Contents of URL</b> with the link, then tap the link text and add <b>&skill=</b>[first answer]<b>&min=</b>[second answer]', 'Add <b>Speak Text</b>, name it <b>Log practice</b>'], u('s-log'))}
     ${blk('Save job ad', 'save this job (or from the Share button)', ['In the shortcut settings turn on <b>Show in Share Sheet</b> (accepts URLs and Safari pages)', 'Add <b>Get Contents of URL</b> with the link: method POST, Form fields <b>url</b> = Shortcut Input and <b>text</b> = Shortcut Input’s Name', 'Add <b>Show Notification</b> with Contents of URL', 'Name it <b>Save job</b>. In Safari, tap Share → Save job'], u('s-job'))}
+    ${blk('Ask Ava', 'ask Ava', ['Add <b>Dictate Text</b>', 'Add <b>Get Contents of URL</b>, paste the link, open Show More: Method <b>POST</b>, Request Body <b>Form</b>, add field <b>text</b> = Dictated Text', 'Add <b>Speak Text</b> with Contents of URL', 'Name the shortcut <b>Ask Ava</b>. Then say “Hey Siri, Ask Ava” and ask your question'], u('s-ava'))}
     <div class="btns" style="margin-top:6px"><button class="btn small danger" data-act="siri-rotate">Make new links (old ones stop working)</button></div>`;
   } catch (e) { $('.sheet-b', sheetCtx.el).innerHTML = `<div class="empty">${esc(e.message === 'offline' ? 'Needs a connection.' : e.message)}</div>`; }
 }
@@ -1834,7 +1835,7 @@ function v71Acts(a, id) {
   };
 }
 
-/* ================= v8: Emi guide, Discover (tests + pack + career), Life hub, micro-actions, grouped navigation ================= */
+/* ================= v8: Ava guide, Discover (tests + pack + career), Life hub, micro-actions, grouped navigation ================= */
 Object.assign(I, {
   wheel: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6 5.6 18.4"/></svg>',
   compass: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></svg>',
@@ -1855,14 +1856,14 @@ const AREA_EMOJI = { 'Career': '💼', 'Money': '💰', 'Health': '💪', 'Famil
 const areaEmoji = a => AREA_EMOJI[a && a.title] || '◎';
 const areaByName = n => areas().find(a => a.title === n) || null;
 
-/* ---------- Emi: floating guide ---------- */
+/* ---------- Ava: floating guide ---------- */
 let emiInst = null, emiReactAt = 0;
 const emiAllowed = () => !ui.emiOff && (!navigator.webdriver || ui.emiForce) && !(window.matchMedia && matchMedia('(max-width: 340px)').matches);
 function emiDock() {
   let d = $('#emi-dock');
   if (!emiAllowed() || !ls.get(K.tok)) { if (d) { if (emiInst) emiInst.destroy(); emiInst = null; d.remove(); } return; }
   if (d) return;
-  d = document.createElement('div'); d.id = 'emi-dock'; d.innerHTML = '<div class="emi-stage"></div><button class="emi-more" data-act="emi-sheet" aria-label="Talk to Emi">…</button>'; document.body.appendChild(d);
+  d = document.createElement('div'); d.id = 'emi-dock'; d.innerHTML = '<div class="emi-stage"></div><button class="emi-more" data-act="emi-sheet" aria-label="Talk to Ava">…</button>'; document.body.appendChild(d);
   needEmi().then(() => {
     if (!window.Emi || !Emi.supported()) { d.classList.add('emi-flat'); return; }
     emiInst = Emi.mount(d.querySelector('.emi-stage'), { fps: 30, zoom: 6.8, onTap: () => emiTalk() });
@@ -1887,9 +1888,9 @@ function emiTips() {
 }
 function emiSheet() {
   const tips = emiTips();
-  openSheet('Emi · your guide', `<div class="emi-sh"><div class="emi-sh-stage" id="emi-sh-stage"></div><div class="main"><b>Hi, I’m Emi! 👋</b><p class="small">Your slightly goofy, always-on-your-side guide. I cheer, I nudge, I tell bad jokes. Tap me any time.</p></div></div>
+  openSheet('Ava · your guide', `<div class="emi-sh"><div class="emi-sh-stage" id="emi-sh-stage"></div><div class="main"><b>Hi, I’m Ava! 👋</b><p class="small">Your slightly goofy, always-on-your-side guide. I cheer, I nudge, I tell bad jokes. Tap me any time.</p></div></div>
     <div class="list">${tips.slice(0, 4).map(([t, act, l, arg]) => `<div class="row"><span class="att-i">${I.spark}</span><div class="main"><div class="t" dir="auto">${esc(t)}</div></div><button class="btn small" data-act="${act}" ${act === 'go' ? `data-to="${esc(arg)}"` : arg ? `data-id="${esc(arg)}"` : ''}>${esc(l)}</button></div>`).join('')}</div>
-    <div class="btns" style="margin-top:12px"><a class="btn primary" href="#/emi" data-act="sheet-close-go">Meet Emi in 3D</a><button class="btn ghost" data-act="emi-hide">Hide Emi</button></div>`, '', { noFocus: true });
+    <div class="btns" style="margin-top:12px"><a class="btn primary" href="#/emi" data-act="sheet-close-go">Meet Ava in 3D</a><button class="btn ghost" data-act="emi-hide">Hide Ava</button></div>`, '', { noFocus: true });
   if (emiInst) emiInst.play('nod');
 }
 function emiReact(kind, text) {
@@ -1913,11 +1914,11 @@ save = function (c, rec) {
 };
 function vEmi() {
   setTimeout(() => { const el = $('#emi-big'); if (!el || el.dataset.on) return; el.dataset.on = 1; needEmi().then(() => { if (!$('#emi-big')) return; if (!Emi.supported()) { el.innerHTML = '<div class="empty">3D is not available on this device.</div>'; return; } const x = Emi.mount(el, { orbit: true, zoom: window.innerWidth < 700 ? 7.4 : 6.2, onTap: () => {} }); vEmi.inst = x; if (x) { x.play('wave'); x.say('Hi! Drag me to see me from every side.', 4500); } }); }, 0);
-  const acts = [['laugh', 'Laugh'], ['wink', 'Wink'], ['giggle', 'Giggle'], ['hop', 'Hop'], ['heart', 'Love'], ['facepalm', 'Facepalm'], ['yawn', 'Yawn'], ['lookaround', 'Look around'], ['wave', 'Wave'], ['celebrate', 'Celebrate'], ['think', 'Think'], ['dance', 'Dance'], ['shy', 'Shy'], ['surprised', 'Surprised'], ['thumbs', 'Thumbs up'], ['cheer', 'Cheer'], ['stretch', 'Stretch'], ['breathe', 'Breathe'], ['sleep', 'Sleep'], ['point-left', 'Point left'], ['point-right', 'Point right']];
-  return header('Meet Emi', 'Your ME.Coach guide') + `<div class="emi-page"><div class="card emi-viewer"><div id="emi-big"></div><div class="emi-views">${[['front', 'Front'], ['three', '¾'], ['right', 'Right'], ['back', 'Back'], ['left', 'Left'], ['top', 'Top']].map(([k, l]) => `<button data-act="emi-view" data-v="${k}">${l}</button>`).join('')}<button data-act="emi-spin">Turntable</button></div></div>
-  <div class="card"><h2>Make Emi move</h2><div class="emi-acts">${acts.map(([k, l]) => `<button class="btn small" data-act="emi-play" data-v="${k}">${l}</button>`).join('')}</div>
-  <h2 style="margin-top:16px">About Emi</h2><p class="small">Emi lives in the corner of your app. Emi waves in the morning, cheers when you keep a habit, breathes with you in Calm, celebrates finished tests and suggests your next tiny step. Tap Emi for a tip; drag here to see every side.</p>
-  <div class="btns"><button class="btn" data-act="emi-toggle">${ui.emiOff ? 'Show Emi in the app' : 'Hide Emi in the app'}</button></div></div></div>`;
+  const acts = [['explain', 'Explain'], ['glasses', 'Adjust glasses'], ['caring', 'Caring'], ['proud', 'Proud'], ['laugh', 'Laugh'], ['wink', 'Wink'], ['giggle', 'Giggle'], ['hop', 'Hop'], ['heart', 'Love'], ['facepalm', 'Facepalm'], ['yawn', 'Yawn'], ['lookaround', 'Look around'], ['wave', 'Wave'], ['celebrate', 'Celebrate'], ['think', 'Think'], ['dance', 'Dance'], ['shy', 'Shy'], ['surprised', 'Surprised'], ['thumbs', 'Thumbs up'], ['cheer', 'Cheer'], ['stretch', 'Stretch'], ['breathe', 'Breathe'], ['sleep', 'Sleep'], ['point-left', 'Point left'], ['point-right', 'Point right']];
+  return header('Meet Ava', 'Your ME.Coach guide') + `<div class="emi-page"><div class="card emi-viewer"><div id="emi-big"></div><div class="emi-views">${[['front', 'Front'], ['three', '¾'], ['right', 'Right'], ['back', 'Back'], ['left', 'Left'], ['top', 'Top']].map(([k, l]) => `<button data-act="emi-view" data-v="${k}">${l}</button>`).join('')}<button data-act="emi-spin">Turntable</button></div></div>
+  <div class="card"><h2>Feelings</h2><div class="emi-acts" style="margin-bottom:12px">${[['happy', '😊 Happy'], ['calm', '😌 Calm'], ['excited', '🤩 Excited'], ['thinking', '🤔 Thinking'], ['caring', '🤗 Caring'], ['proud', '😎 Proud'], ['surprised', '😮 Surprised'], ['focused', '🧐 Focused'], ['sad', '🥺 Sad']].map(([k, l]) => `<button class="btn small" data-act="emi-mood" data-v="${k}">${l}</button>`).join('')}</div><button class="btn primary" data-act="ava-open" style="margin-bottom:14px">💬 Talk to Ava</button><h2>Make Ava move</h2><div class="emi-acts">${acts.map(([k, l]) => `<button class="btn small" data-act="emi-play" data-v="${k}">${l}</button>`).join('')}</div>
+  <h2 style="margin-top:16px">About Ava</h2><p class="small">Ava lives in the corner of your app. Ava waves in the morning, cheers when you keep a habit, breathes with you in Calm, celebrates finished tests and suggests your next tiny step. Tap Ava for a tip; drag here to see every side.</p>
+  <div class="btns"><button class="btn" data-act="emi-toggle">${ui.emiOff ? 'Show Ava in the app' : 'Hide Ava in the app'}</button></div></div></div>`;
 }
 
 /* ---------- micro-actions (tiny steps for every goal) ---------- */
@@ -2178,7 +2179,7 @@ const NAV_GROUPS = () => [
   ['Plan', [['today', 'Today', I.today], ['calendar', 'Calendar', I.cal], ['tasks', 'Tasks', I.tasks], ['projects', 'Boards', I.board]]],
   ['Grow', [['life', 'Life areas', I.wheel], ['habits', 'Habits', I.repeat], ['progress', 'Coach', I.prog]]],
   ['Discover', [['discover', 'Tests', I.spark], ['me', 'My pack', I.user], ['career', 'Career explorer', I.compass]]],
-  ['Wellbeing', [['calm', 'Calm', I.calm], ['emi', 'Emi guide', I.star], ['coachme', 'My coach', I.user]]],
+  ['Wellbeing', [['calm', 'Calm', I.calm], ['emi', 'Ava guide', I.star], ['coachme', 'My coach', I.user]]],
   ...(isOwner() ? [['Business', [['coachpanel', 'Coach panel', I.users], ['products', 'Products', I.money], ['jobs', 'Job search', I.jobs], ['admin', 'Members', I.users]]]] : []),
   ['', [['settings', 'Settings', I.set]]]
 ];
@@ -2195,7 +2196,7 @@ function vHub() {
 
 function v8Acts(a, id) {
   return {
-    'emi-sheet': () => emiSheet(), 'emi-hide': () => { ui.emiOff = true; saveUi(); closeSheet(true); emiDock(); toast('Emi is hidden. Turn it back on in More → Emi guide.'); },
+    'emi-sheet': () => emiSheet(), 'emi-hide': () => { ui.emiOff = true; saveUi(); closeSheet(true); emiDock(); toast('Ava is hidden. Turn it back on in More → Ava guide.'); },
     'emi-toggle': () => { ui.emiOff = !ui.emiOff; saveUi(); emiDock(); render(); },
     'emi-view': () => vEmi.inst && vEmi.inst.view(a.dataset.v), 'emi-spin': () => vEmi.inst && vEmi.inst.autoRotate(true), 'emi-play': () => vEmi.inst && vEmi.inst.play(a.dataset.v),
     'sheet-close-go': () => closeSheet(true),
@@ -2844,7 +2845,7 @@ document.addEventListener('click', async e => {
     password: () => form('Change password', [{ k: 'current', label: 'Current password', type: 'password', req: true }, { k: 'next', label: 'New password (10+ characters)', type: 'password', req: true }], {}, v => { api('password', { body: v }).then(j => { ls.set(K.tok, j.token); toast('Password changed. Other devices must sign in again.'); }).catch(err => toast(err.message)); }),
     logout: async () => { if (!confirm('Sign out on this device? Data stays on the server.')) return; if (Object.keys(outbox).length) await sync(); try { await api('logout', { method: 'POST' }); } catch {} ls.del(K.tok); ls.del(K.db); ls.del(K.out); ls.del(K.rev); ls.del(K.user); me = null; db = blankDb(); outbox = {}; showLanding(); }
   };
-  Object.assign(map, v7Acts(a, id, e), v71Acts(a, id), v8Acts(a, id), v9Acts(a, id), v9JobActs(a, id), pmActs(a, id), v91Acts(a, id), v10Acts(a, id), v12Acts(a, id), v121Acts(a, id), { 'board-open': () => { closeSheet(true); location.hash = '#/board/' + encodeURIComponent(id); }, 'habit-open-s': () => {} });
+  Object.assign(map, v7Acts(a, id, e), v71Acts(a, id), v8Acts(a, id), v9Acts(a, id), v9JobActs(a, id), pmActs(a, id), v91Acts(a, id), v10Acts(a, id), v12Acts(a, id), v121Acts(a, id), v13Acts(a, id), { 'board-open': () => { closeSheet(true); location.hash = '#/board/' + encodeURIComponent(id); }, 'habit-open-s': () => {} });
   if (map[act]) { if (act !== 'sheet-close' && act !== 'form-save' && act !== 'form-del' && sheetCtx && ['new-task', 'new-event', 'new-note', 'new-decision', 'new-evidence', 'new-session', 'closeout', 'log-time', 'new-application', 'new-milestone', 'new-immig', 'weekly', 'money-add', 'from-tpl', 'new-course', 'morning', 'new-goal', 'wheel-test', 'cycle-new', 'focus-free', 'new-habit'].includes(act)) closeSheet(true); map[act](); }
 });
 document.addEventListener('input', e => { const k = e.target.dataset && e.target.dataset.input; if (k) { ui[k] = e.target.value; saveUi(); if (e.target.dataset.norender) return; clearTimeout(render.t); render.t = setTimeout(render, 180); } });
@@ -3052,7 +3053,7 @@ function migrate() {
 }
 function start() { setTimeout(emiDock, 400); document.documentElement.classList.add('in-app'); loadBilling(); document.title = 'ME.Coach'; db = normalise(ls.get(K.db, null)); outbox = ls.get(K.out, {}) || {}; migrate(); render.keepScroll = false; render(); sync(); refreshMe().then(() => { render(); if (me && me.access === false) paywall(); else if (sheetCtx && sheetCtx.paywall) closeSheet(); }); if (ui.focus) focusShow(); else if (!signedIn.pk) setTimeout(tour, 900); signedIn.pk = false; }
 
-/* ================= v9: the book's method end to end, growth library, visual roadmap, friendlier Emi ================= */
+/* ================= v9: the book's method end to end, growth library, visual roadmap, friendlier Ava ================= */
 const needGrowth = () => window.MEC_GROWTH ? Promise.resolve() : loadJs('assets/growth-data.js');
 const BOOK8 = ['Business', 'Finance', 'Lifestyle', 'Health', 'Relationships', 'Social', 'Mental', 'Spiritual'];
 /* new accounts use the 8 fields of the book */
@@ -3308,7 +3309,7 @@ onboard = function () {
   needGrowth().catch(() => {});
   const goalIdeas = a => { const f = (FOCUS_OPTS.find(x => x[0] === a.focus) || [])[2] || 'Lifestyle', k = f.toLowerCase(); const P = window.MEC_GROWTH ? MEC_GROWTH.PAIN[k] || [] : []; return [...new Set(P.map(x => x[1]).concat([GOAL_TPL[f]]))].filter(Boolean); };
   const steps = [
-    { html: a => `<div class="ob"><div class="ob-k">${brandMark} Coach</div><h2>Hi! I’m Emi. What should I call you?</h2><input class="big" data-k="name" value="${esc(a.name || '')}" placeholder="Your first name" autocomplete="given-name" dir="auto"><p class="small">The rest is just taps. About one minute.</p><div class="ochips" style="margin:6px 0 10px">${[['en', 'English'], ['fa', 'فارسی'], ['ar', 'العربية']].map(([k, l]) => `<button type="button" class="ochip ${(ui.lang || 'en') === k ? 'on' : ''}" data-act="ob-lang" data-v="${k}">${l}</button>`).join('')}</div><button class="btn ghost small" data-act="ob-skip">Skip — I will import my own data</button></div>`, check: a => a.name && a.name.trim() ? '' : 'Tell me your name' },
+    { html: a => `<div class="ob"><div class="ob-k">${brandMark} Coach</div><h2>Hi! I’m Ava. What should I call you?</h2><input class="big" data-k="name" value="${esc(a.name || '')}" placeholder="Your first name" autocomplete="given-name" dir="auto"><p class="small">The rest is just taps. About one minute.</p><div class="ochips" style="margin:6px 0 10px">${[['en', 'English'], ['fa', 'فارسی'], ['ar', 'العربية']].map(([k, l]) => `<button type="button" class="ochip ${(ui.lang || 'en') === k ? 'on' : ''}" data-act="ob-lang" data-v="${k}">${l}</button>`).join('')}</div><button class="btn ghost small" data-act="ob-skip">Skip — I will import my own data</button></div>`, check: a => a.name && a.name.trim() ? '' : 'Tell me your name' },
     { html: a => `<div class="ob"><h2>${esc(a.name)}, what matters most right now?</h2><div class="ochips">${FOCUS_OPTS.map(([v, l]) => chip('focus', v, l, a.focus === v)).join('')}</div></div>`, check: a => a.focus ? '' : 'Pick one' },
     { html: a => `<div class="ob"><h2>Pick your first goal</h2><p class="small">You can change the words later.</p><div class="ochips col">${goalIdeas(a).map(g => chip('goal', g, g, a.goal === g)).join('')}</div><div class="small" style="margin:16px 0 6px">By when?</div><div class="ochips">${[['40', '40 days'], ['90', '3 months'], ['180', '6 months'], ['365', '1 year']].map(([v, l]) => chip('horizon', v, l, (a.horizon || '40') === v)).join('')}</div></div>`, check: a => a.goal ? '' : 'Pick a goal' },
     { html: () => `<div class="ob"><h2>Your Wheel of Life</h2><p>Eight quick taps, one per area of life, from 1 to 10. Later you can take the full 80-question test from the book.</p><div class="ob-wheel">${miniWheel(CLASSIC, {}, -1)}</div></div>`, nextLabel: 'Start' },
@@ -3408,7 +3409,7 @@ vRoadmap = function () {
   ${ms.some(m => !m.target) ? `<div class="card"><h2>No date yet</h2><div class="list">${ms.filter(m => !m.target).map(m => `<div class="row" data-act="milestone" data-id="${esc(m.id)}"><div class="main"><div class="t" dir="auto">${esc(m.title)}</div></div></div>`).join('')}</div></div>` : ''}`;
 };
 
-/* ---------- Emi: warmer, funnier words ---------- */
+/* ---------- Ava: warmer, funnier words ---------- */
 const EMI_JOKES = ['Why did the to-do list go to therapy? Too many unresolved issues. 😄', 'I tried to catch fog once. I mist. Anyway, how is your day going?', 'Fun fact: tiny steps are my favourite size. I am also tiny. Coincidence? 🤔', 'Coffee first, world domination second. Or Top 3 first. Your call. ☕', 'I don’t have legs for running, but I can cheer really loud. 📣', 'Plot twist: you are doing better than you think.', 'My hobby? Watching you tick boxes. It never gets old. ✓'];
 emiGreeting = function () { const h = new Date().getHours(), nm = me && me.name ? me.name.split(' ')[0] : 'friend'; const opts = h < 5 ? [`Still up, ${nm}? Sleep is a superpower 😴`] : h < 12 ? [`Morning, ${nm}! ☀ Ready for a good one?`, `Hey ${nm}! New day, fresh start.`, `Good morning, ${nm}! I saved you a seat.`] : h < 18 ? [`Hey ${nm}! How’s the day treating you?`, `Hi ${nm}! Quick win time?`, `Afternoon, ${nm}! Water break? 💧`] : [`Evening, ${nm}! Let’s land this day softly. 🌙`, `Hey ${nm}! Proud of you for showing up today.`]; return opts[Math.floor(Math.random() * opts.length)]; };
 emiTalk = function () { if (!emiInst) return; const tips = emiTips(); const r = Math.random(); if (r < .3) { emiInst.play(['laugh', 'wink', 'giggle'][Math.floor(Math.random() * 3)]); emiInst.say(EMI_JOKES[Math.floor(Math.random() * EMI_JOKES.length)]); return; } const t = tips[Math.floor(Math.random() * Math.min(3, tips.length))]; emiInst.say(t ? t[0] : emiGreeting()); };
@@ -3747,7 +3748,7 @@ async function gcalRun(loud) {
     save('settings', Object.assign({}, prefs(), { id: 'prefs', gcal: Object.assign({}, g, { at: nowIso(), n: r.events.length }) })); if (loud) toast(`${r.events.length} Google events imported`);
   } catch (e) { if (loud) toast(e.message); }
 }
-/* AI in the goal wizard, on the goal page, in the job email and in Emi */
+/* AI in the goal wizard, on the goal page, in the job email and in Ava */
 async function aiMicro(goalTitle, areaTitle, kw, have) { const r = await aiAsk('micro', { goal: goalTitle, area: areaTitle, keyword: kw || '', have: (have || []).join('; ') }); return r.items || []; }
 const _apSendSheetV10 = apSendSheet;
 apSendSheet = function (ids) {
@@ -3755,14 +3756,14 @@ apSendSheet = function (ids) {
   box.insertAdjacentHTML('beforebegin', '<button type="button" class="btn small" data-act="ai-cover" style="margin-bottom:6px">✨ Write it from my CV and this ad</button>'); sheetCtx.aiJob = ids[0];
 };
 const _emiSheetV10 = emiSheet;
-emiSheet = function () { _emiSheetV10(); if (!sheetCtx) return; const b = sheetCtx.el.querySelector('.emi-sh'); if (b) b.insertAdjacentHTML('afterend', `<form class="qadd" data-form="emi-ask" style="margin:4px 0 12px"><input name="q" placeholder="Ask Emi anything…" dir="auto" autocomplete="off"><button class="btn primary" type="submit">✨</button></form><div id="emi-ans" class="emi-ans" hidden></div>`); };
+emiSheet = function () { _emiSheetV10(); if (!sheetCtx) return; const b = sheetCtx.el.querySelector('.emi-sh'); if (b) b.insertAdjacentHTML('afterend', `<form class="qadd" data-form="emi-ask" style="margin:4px 0 12px"><input name="q" placeholder="Ask Ava anything…" dir="auto" autocomplete="off"><button class="btn primary" type="submit">✨</button></form><div id="emi-ans" class="emi-ans" hidden></div>`); };
 function emiContext() {
   const as = areas().map(a => `${a.title} ${areaScore(a.id) ?? '?'}/10`).join(', '), gs = list('goals').filter(g => !['Done', 'Achieved', 'Dropped'].includes(g.status)).slice(0, 6).map(g => g.title).join('; '), a = assess();
   return `Name: ${(me && me.name) || ''}. Wheel: ${as}. Goals: ${gs}. Today: ${a.s}/10 (${a.level}). Open tasks today: ${list('tasks').filter(x => isOpen(x) && (x.due === today() || x.focusDate === today())).map(x => x.title).slice(0, 6).join('; ')}.`;
 }
 document.addEventListener('submit', async e => {
   const f = e.target; if (!(f.dataset && f.dataset.form === 'emi-ask')) return; e.preventDefault(); e.stopImmediatePropagation();
-  const q = (f.q.value || '').trim(), out = $('#emi-ans'); if (!q || !out) return; out.hidden = false; out.textContent = 'Emi is thinking…'; if (emiInst) emiInst.play('think');
+  const q = (f.q.value || '').trim(), out = $('#emi-ans'); if (!q || !out) return; out.hidden = false; out.textContent = 'Ava is thinking…'; if (emiInst) emiInst.play('think');
   try { const r = await aiAsk('emi', { q, context: emiContext() }); out.textContent = r.text; if (emiInst) { emiInst.play('nod'); emiInst.say(r.text.slice(0, 140) + (r.text.length > 140 ? '…' : ''), 7000); } f.q.value = ''; } catch (err) { out.textContent = err.message; }
 }, true);
 
@@ -3789,7 +3790,7 @@ function vCycleReport() {
 function ownerDevRoadmap() {
   if (!isOwner() || !ls.get(K.rev) || prefs().devRoadmapV1) return; const ar = areaForField('business') || areas()[0];
   const g = save('goals', { id: 'g-mecoach-dev', title: 'ME.Coach: launch and grow the product', areaId: ar ? ar.id : '', area: ar ? ar.title : '', target: '2027-04-30', status: 'In progress', why: 'Income beyond my salary and a product with my name on it' });
-  [['9.3 Launch-ready: payments, Google sign-in, job sender email, 7 days of real use', '2026-11-30'], ['10 AI assistant: cover letters, micro-action ideas, Emi chat', '2026-12-15'], ['10.5 40-day report and Google Calendar import', '2026-12-31'], ['11 Persian and Arabic interface, Gulf pricing, first 10 paying users', '2027-02-15'], ['12 Coach panel and coaching plan with booking', '2027-04-30']]
+  [['9.3 Launch-ready: payments, Google sign-in, job sender email, 7 days of real use', '2026-11-30'], ['10 AI assistant: cover letters, micro-action ideas, Ava chat', '2026-12-15'], ['10.5 40-day report and Google Calendar import', '2026-12-31'], ['11 Persian and Arabic interface, Gulf pricing, first 10 paying users', '2027-02-15'], ['12 Coach panel and coaching plan with booking', '2027-04-30']]
     .forEach(([t, d], i) => save('milestones', { id: 'ms-mecoach-' + (i + 1), title: t, target: d, goalId: g.id, status: i < 2 ? 'In progress' : 'Planned' }));
   save('settings', Object.assign({}, prefs(), { id: 'prefs', devRoadmapV1: today() }));
 }
@@ -3882,6 +3883,57 @@ function v121Acts(a) {
 }
 const _vSettingsV121 = vSettings;
 vSettings = function () { return _vSettingsV121().replace('<div class="spacer" style="height:14px"></div>', `<div class="spacer" style="height:14px"></div><div class="card setrow"><div class="main"><b>♻ Restore my data</b><div class="small">Go back to a daily server copy of your tasks, habits, goals and courses. Features are not affected.</div></div><button class="btn small primary" data-act="bk-open">Open</button></div>`); };
+
+/* ================= v13: Ava, the private AI coach (chat, voice, Siri) ================= */
+let avaInst = null, avaBusy = false, avaRec = null;
+const avaLog = () => (ui.avaChat = Array.isArray(ui.avaChat) ? ui.avaChat : []);
+const AVA_CHIPS = [['☀ Plan my day', 'Help me plan today in 3 steps.'], ['😮‍💨 I feel stuck', 'I feel unmotivated today. What should I do?'], ['🎯 My goal', 'Look at my goals. What is the one micro-action I should do next?'], ['📊 Review my week', 'Review my week and tell me what to improve.'], ['💼 Job search', 'Give me one smart step for my job search today.']];
+function avaMood(t) { if (/sad|tired|stress|anx|worr|lonely|stuck|unmotiv|خسته|ناراحت|استرس|نگران|غمگین|حزين|متعب|قلق|ضغط/i.test(t)) return ['caring', 'caring']; if (/did it|done|won|got the|happy|great news|انجام دادم|موفق|خوشحال|قبول شدم|نجحت|سعيد/i.test(t)) return ['excited', 'celebrate']; if (/\?|چطور|چه|كيف|ماذا/.test(t)) return ['thinking', 'think']; return ['happy', 'nod']; }
+function avaRender() {
+  const el = $('#ava'); if (!el) return; const log = avaLog();
+  const msg = m => { const parts = String(m.content).split('\n'), bullets = parts.filter(l => /^\s*[•\-]\s+/.test(l)).map(l => l.replace(/^\s*[•\-]\s+/, '').trim()).slice(0, 3);
+    return `<div class="av-m ${m.role}"><div dir="auto">${esc(m.content).replace(/\n/g, '<br>')}</div>${m.role === 'assistant' && bullets.length ? `<div class="av-acts">${bullets.map(b => `<button data-act="ava-task" data-v="${esc(b)}">+ Today: ${esc(b.slice(0, 40))}${b.length > 40 ? '…' : ''}</button>`).join('')}</div>` : ''}${m.role === 'assistant' ? `<button class="av-say" data-act="ava-say" data-v="${esc(m.content)}" aria-label="Read aloud">🔊</button>` : ''}</div>`; };
+  $('#av-list').innerHTML = (log.length ? log.map(msg).join('') : `<div class="av-hi"><b>Hi${me && me.name ? ' ' + esc(me.name.split(' ')[0]) : ''}, I’m Ava.</b><span>Your private coach. I know your Wheel, goals and today’s plan. Ask me anything.</span></div>`) + (avaBusy ? '<div class="av-m assistant typing"><i></i><i></i><i></i></div>' : '');
+  $('#av-list').scrollTop = 1e6; applyLang();
+}
+function avaOpen(prefill) {
+  if (sheetCtx) closeSheet(true); let el = $('#ava');
+  if (!el) { el = document.createElement('div'); el.id = 'ava'; document.body.appendChild(el); }
+  el.innerHTML = `<div class="av-top"><div class="av-stage" id="av-stage"></div><div class="main"><b>Ava</b><span class="small">Your private coach · smart, elegant, friendly</span></div><button class="icon-btn" data-act="ava-voice" aria-label="Voice replies" title="Read replies aloud">${ui.avaVoice ? '🔊' : '🔈'}</button><button class="icon-btn" data-act="ava-clear" aria-label="New chat" title="New chat">↺</button><button class="icon-btn" data-act="ava-close" aria-label="Close">${I.close}</button></div>
+  <div class="av-list" id="av-list"></div><div class="av-chips">${AVA_CHIPS.map(([l, q]) => `<button data-act="ava-ask" data-v="${esc(q)}">${esc(l)}</button>`).join('')}</div>
+  <form class="av-in" data-form="ava"><button type="button" class="icon-btn av-mic" data-act="ava-mic" aria-label="Speak">🎤</button><input name="q" placeholder="Message Ava…" dir="auto" autocomplete="off" value="${esc(prefill || '')}"><button class="btn primary" type="submit">Send</button></form>`;
+  requestAnimationFrame(() => el.classList.add('on')); avaRender();
+  needEmi().then(() => { const st = $('#av-stage'); if (!st || !window.Emi || !Emi.supported() || (navigator.webdriver && !ui.emiForce)) return; avaInst = Emi.mount(st, { fps: 30, zoom: 3.4 }); if (avaInst) { avaInst.mood('happy'); avaInst.play('wave'); } }).catch(() => {});
+}
+function avaClose() { const el = $('#ava'); if (!el) return; if (avaInst) { avaInst.destroy(); avaInst = null; } try { speechSynthesis.cancel(); } catch (e) { } el.remove(); }
+function avaSpeak(t) { try { if (!('speechSynthesis' in window)) return; speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(String(t).replace(/[•*#]/g, '')); const fa = /[؀-ۿ]/.test(t); u.lang = fa ? (/[پچژگ]/.test(t) || ui.lang === 'fa' ? 'fa-IR' : 'ar-SA') : 'en-GB'; const v = speechSynthesis.getVoices().find(x => x.lang.startsWith(u.lang.slice(0, 2)) && /female|samantha|serena|karen|moira|tessa|zira|laila|maryam/i.test(x.name)) || speechSynthesis.getVoices().find(x => x.lang.startsWith(u.lang.slice(0, 2))); if (v) u.voice = v; u.rate = 1.02; speechSynthesis.speak(u); } catch (e) { } }
+async function avaSend(q) {
+  q = String(q || '').trim(); if (!q || avaBusy) return; const log = avaLog(); log.push({ role: 'user', content: q }); avaBusy = true; avaRender();
+  const [mood, act] = avaMood(q); if (avaInst) { avaInst.mood(mood); avaInst.play('listen'); }
+  try { const r = await api('ava', { body: { messages: log.slice(-12), context: emiContext() } }); log.push({ role: 'assistant', content: r.text }); ui.avaChat = log.slice(-30); saveUi();
+    if (avaInst) { avaInst.play(act === 'nod' ? 'explain' : act); avaInst.say(r.text.length > 120 ? r.text.slice(0, 118) + '…' : r.text, 6000); } if (ui.avaVoice) avaSpeak(r.text); SND.play('soft');
+  } catch (e) { log.push({ role: 'assistant', content: e.message }); } avaBusy = false; avaRender();
+}
+document.addEventListener('submit', e => { const f = e.target; if (!(f.dataset && f.dataset.form === 'ava')) return; e.preventDefault(); e.stopImmediatePropagation(); const v = f.q.value; f.q.value = ''; avaSend(v); }, true);
+function avaMic(btn) {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SR) { toast('Voice input is not supported in this browser. Use the keyboard mic instead.'); return; }
+  if (avaRec) { avaRec.stop(); return; } avaRec = new SR(); avaRec.lang = ui.lang === 'fa' ? 'fa-IR' : ui.lang === 'ar' ? 'ar-OM' : 'en-GB'; avaRec.interimResults = false; btn.classList.add('rec');
+  avaRec.onresult = ev => { const t = ev.results[0][0].transcript; avaSend(t); }; avaRec.onend = () => { btn.classList.remove('rec'); avaRec = null; }; avaRec.onerror = () => { btn.classList.remove('rec'); avaRec = null; };
+  if (avaInst) avaInst.play('listen'); avaRec.start();
+}
+function v13Acts(a) {
+  return {
+    'ava-open': () => avaOpen(), 'emi-mood': () => vEmi.inst && vEmi.inst.mood(a.dataset.v), 'ava-close': () => avaClose(), 'ava-ask': () => avaSend(a.dataset.v), 'ava-mic': () => avaMic(a), 'ava-say': () => avaSpeak(a.dataset.v),
+    'ava-clear': () => { ui.avaChat = []; saveUi(); avaRender(); if (avaInst) avaInst.play('wave'); },
+    'ava-voice': () => { ui.avaVoice = !ui.avaVoice; saveUi(); a.textContent = ui.avaVoice ? '🔊' : '🔈'; toast(ui.avaVoice ? 'Ava will read replies aloud' : 'Voice replies off'); },
+    'ava-task': () => { save('tasks', { title: a.dataset.v, due: today(), state: 'To do', priority: 'P2', owner: 'Me' }); a.textContent = '✓ Added to today'; a.disabled = true; }
+  };
+}
+/* the corner button opens the chat; Today and More get a shortcut */
+const _emiDockV13 = emiDock;
+emiDock = function () { _emiDockV13(); const b = $('#emi-dock .emi-more'); if (b) { b.dataset.act = 'ava-open'; b.textContent = '💬'; b.setAttribute('aria-label', 'Talk to Ava'); } };
+const _todayHeroV13 = todayHero;
+todayHero = function () { return _todayHeroV13().replace('<div class="th-stats">', `<button class="th-ava" data-act="ava-open">💬 Ask Ava, your coach</button><div class="th-stats">`); };
 
 /* ---------------- boot ---------------- */
 if ('serviceWorker' in navigator && location.protocol === 'https:') { const had = !!navigator.serviceWorker.controller; navigator.serviceWorker.register('sw.js').catch(() => {}); navigator.serviceWorker.addEventListener('controllerchange', () => { if (had) toast('ME.Coach was updated', 'Reload', () => location.reload()); }); }

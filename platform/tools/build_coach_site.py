@@ -12,7 +12,7 @@ import json
 import pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent / 'coach'
-VERSION = '12.1.0'
+VERSION = '13.0.0'
 BASE = 'https://miladebrahimi.me/coach/'
 
 PLANS = [
@@ -66,7 +66,7 @@ FAQ = [
     ('What is the Coaching plan?', 'Everything in Pro plus one online 1:1 session a month with Milad Ebrahimi, author of <i>Self-Coaching Blueprint</i>, to review your Wheel, your cycle and your plan. Places are limited.'),
     ('Can I pay in Omani rial?', 'Yes. Prices are shown in Omani rial and US dollars. Card payment and local options are available; if you prefer bank transfer, choose a plan in the app and follow the instructions.'),
     ('Which tests are included?', 'DISC style, 16 Types (an independent, MBTI-style questionnaire based on Jung’s ideas; not the official MBTI), Big Five, Enneagram, career interests (Holland RIASEC), core values, conflict style, emotional intelligence and an energy check. They come with any paid plan; the Wheel of Life test is free for everyone. They are tools for reflection, not clinical or hiring assessments.'),
-    ('Who is Emi?', 'Emi is your 3D guide inside ME.Coach. Emi waves in the morning, cheers when you keep a habit, breathes with you in Calm, celebrates finished tests and suggests your next tiny step. You can hide Emi any time.'),
+    ('Who is Ava?', 'Ava is your 3D guide inside ME.Coach. Ava waves in the morning, cheers when you keep a habit, breathes with you in Calm, celebrates finished tests and suggests your next tiny step. You can hide Ava any time.'),
     ('Is the book really free?', 'Yes. Download the PDF of <i>Self-Coaching Blueprint</i> from this site or inside the app.'),
 ]
 
@@ -186,11 +186,11 @@ def landing_html():
 <ul class="s-list"><li>Drag cards between To do, Doing, Waiting and Done</li><li>Breathing exercises and short guided reflections</li><li>Live widgets for your iPhone, iPad and desktop</li><li>Sign in with Face ID or Google</li></ul></div>
 <div class="s-duo">{shot('s6-board', 'Project board in ME.Coach')}{shot('s8-calm', 'Calm screen with breathing and meditation')}</div></div></section>
 
-<section class="s-sec alt" id="emi"><div class="s-wrap s-split"><div><span class="kicker">Meet Emi</span><h2>A guide that walks with you, every day.</h2>
-<p class="lead">Emi lives in your app. Emi waves in the morning, cheers when you keep a habit, breathes with you in Calm, celebrates every finished test and points you to your next tiny step.</p>
-<ul class="s-list"><li>Reacts to what you do, all day</li><li>Suggests your next step in each life area</li><li>Sits with you during every test</li></ul><p class="muted small">Drag Emi to see every side. Tap for a reaction.</p></div>
-<div class="s-emi" id="site-emi" aria-label="Emi, the ME.Coach guide, in 3D"><img src="assets/img/emi.webp" alt="Emi, the ME.Coach guide" width="420" height="480" loading="lazy"></div></div></section>
-<script>(function(){{var el=document.getElementById('site-emi');if(!el||!('IntersectionObserver' in window))return;var go=function(){{var l=function(s,cb){{var x=document.createElement('script');x.src=s;x.onload=cb;document.head.appendChild(x)}};l('assets/vendor/three.min.js?v={VERSION}',function(){{l('assets/emi.js?v={VERSION}',function(){{if(!window.Emi||!Emi.supported())return;el.innerHTML='';var e=Emi.mount(el,{{orbit:true,zoom:6.6}});if(e){{e.play('wave');e.say('Hi, I am Emi! Drag me around.',4000)}}}})}})}};var io=new IntersectionObserver(function(es){{if(es[0].isIntersecting){{io.disconnect();go()}}}},{{rootMargin:'200px'}});io.observe(el)}})();</script>
+<section class="s-sec alt" id="emi"><div class="s-wrap s-split"><div><span class="kicker">Meet Ava</span><h2>Your private coach, always one tap away.</h2>
+<p class="lead">Ava is smart, elegant and friendly. Chat with her any time, by text or voice, or just say “Hey Siri, Ask Ava”. She knows your Wheel, goals and today’s plan, turns advice into tasks, and cheers you on with real emotions.</p>
+<ul class="s-list"><li>Private AI coach chat, with voice</li><li>Works with Siri on iPhone</li><li>Reacts to what you do, all day</li></ul><p class="muted small">Drag Ava to see every side. Tap for a reaction.</p></div>
+<div class="s-emi" id="site-emi" aria-label="Ava, the ME.Coach guide, in 3D"><img src="assets/img/emi.webp" alt="Ava, the ME.Coach guide" width="420" height="480" loading="lazy"></div></div></section>
+<script>(function(){{var el=document.getElementById('site-emi');if(!el||!('IntersectionObserver' in window))return;var go=function(){{var l=function(s,cb){{var x=document.createElement('script');x.src=s;x.onload=cb;document.head.appendChild(x)}};l('assets/vendor/three.min.js?v={VERSION}',function(){{l('assets/emi.js?v={VERSION}',function(){{if(!window.Ava||!Ava.supported())return;el.innerHTML='';var e=Ava.mount(el,{{orbit:true,zoom:6.6}});if(e){{e.play('wave');e.say('Hi, I am Ava! Drag me around.',4000)}}}})}})}};var io=new IntersectionObserver(function(es){{if(es[0].isIntersecting){{io.disconnect();go()}}}},{{rootMargin:'200px'}});io.observe(el)}})();</script>
 
 <section class="s-sec"><div class="s-wrap s-split rev"><div><span class="kicker">Know yourself</span><h2>Nine tests. One personal pack.</h2>
 <p class="lead">DISC, 16 types, Big Five, Enneagram, career interests, values, conflict style and emotional intelligence. ME.Coach turns your answers into one pack: who you are, how you work best, how to deal with other people, and tiny steps for each area of your life.</p>
