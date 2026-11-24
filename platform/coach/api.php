@@ -7,7 +7,7 @@
  */
 declare(strict_types=1);
 
-const APP_VERSION = '13.0.0';
+const APP_VERSION = '14.0.0';
 const TRIAL_DAYS = 7;
 const GLOBAL_FILES = ['users.json', 'tokens.json', 'attempts.json', 'keys.json', 'system.json', '.lock', 'webauthn-chal.json', 'requests.json', 'bookings.json', 'coach-notes.json'];
 /* Plans shown in the app. Keep the prices in sync with the public pages (platform/tools/build_coach_site.py). */
@@ -623,6 +623,24 @@ function ava_context(array $s): string {
     return 'Today: ' . $d . '. Wheel of Life: ' . implode(', ', $wheel) . '. Goals: ' . implode('; ', array_slice($goals, 0, 6)) . '. Tasks today: ' . implode('; ', array_slice($tasks, 0, 8)) . '.';
 }
 
+
+/* ---------- v14: YouTube gift link and invite (referral) rewards ---------- */
+function gift_cfg(): array { $s = read_json('system.json', []); return ($s['gift'] ?? []) + ['code' => '', 'days' => 30, 'max' => 500, 'used' => 0, 'on' => false]; }
+function ref_code(string $uid): string { return substr(hash('sha256', 'ref' . $uid), 0, 8); }
+function signup_bonus(string $uid, array $b): void {
+    $gift = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', (string)($b['gift'] ?? ''))); $ref = preg_replace('/[^a-f0-9]/', '', (string)($b['ref'] ?? ''));
+    with_lock(function () use ($uid, $gift, $ref) {
+        $us = users(); if (!isset($us[$uid])) { return; } $s = read_json('system.json', []); $g = gift_cfg(); $now = time();
+        if ($gift !== '' && !empty($g['on']) && $gift === strtoupper((string)$g['code']) && (int)$g['used'] < (int)$g['max']) {
+            $us[$uid]['trialEnds'] = max((int)$us[$uid]['trialEnds'], $now + (int)$g['days'] * 86400); $us[$uid]['source'] = 'gift:' . $gift; $g['used'] = (int)$g['used'] + 1; $s['gift'] = $g; write_json('system.json', $s);
+        }
+        if ($ref !== '') { foreach ($us as $rid => &$ru) { if ($rid !== $uid && ref_code((string)$rid) === $ref) { $us[$uid]['referredBy'] = $rid; $us[$uid]['trialEnds'] = (int)$us[$uid]['trialEnds'] + 7 * 86400;
+            if ((int)($ru['refRewards'] ?? 0) < 10) { $ru['refRewards'] = (int)($ru['refRewards'] ?? 0) + 1; if ((int)($ru['paidUntil'] ?? 0) > $now) { $ru['paidUntil'] = (int)$ru['paidUntil'] + 7 * 86400; } elseif (($ru['role'] ?? '') !== 'owner') { $ru['trialEnds'] = max($now, (int)($ru['trialEnds'] ?? 0)) + 7 * 86400; } }
+            break; } } unset($ru); }
+        write_json('users.json', $us);
+    });
+}
+
 /* ---------- router ---------- */
 if (defined('M2031_LIB')) { return; }
 ensure_dir();
@@ -642,7 +660,7 @@ switch ($action) {
         $b = body(); $email = strtolower(trim((string)($b['email'] ?? ''))); $pw = (string)($b['password'] ?? ''); $name = mb_substr(trim((string)($b['name'] ?? '')), 0, 60);
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) { fail(400, 'Enter a valid email address'); }
         if (mb_strlen($pw) < 8) { fail(400, 'Use at least 8 characters for the password'); }
-        $uid = create_user($email, $name, ['passHash' => password_hash($pw, PASSWORD_DEFAULT)]);
+        $uid = create_user($email, $name, ['passHash' => password_hash($pw, PASSWORD_DEFAULT)]); signup_bonus($uid, $b);
         throttle_hit(true);
         out(200, ['ok' => true, 'token' => issue_token((string)($b['device'] ?? 'device'), $uid), 'user' => user_public(users()[$uid], $uid)]);
 
@@ -655,7 +673,8 @@ switch ($action) {
         $ev = $info['email_verified'] ?? false;
         if (!$info || ($info['aud'] ?? '') !== $cid || !in_array($info['iss'] ?? '', ['accounts.google.com', 'https://accounts.google.com'], true) || !($ev === true || $ev === 'true') || (int)($info['exp'] ?? 0) < time() || empty($info['email'])) { throttle_hit(false); fail(401, 'Google sign-in failed. Try again.'); }
         $email = strtolower((string)$info['email']); $uid = find_uid_by_email($email); $created = false;
-        if ($uid === '') { $nm = trim((string)($b['name'] ?? '')) ?: (string)($info['given_name'] ?? $info['name'] ?? ''); $uid = create_user($email, mb_substr($nm, 0, 60), ['google' => (string)($info['sub'] ?? ''), 'passHash' => '']); $created = true; }
+        if ($uid === '') { $nm = trim((string)($b['name'] ?? '')) ?: (string)($info['given_name'] ?? $info['name'] ?? ''); $GLOBALS['NEWUSER_G'] = 1; $uid = create_user($email, mb_substr($nm, 0, 60), ['google' => (string)($info['sub'] ?? ''), 'passHash' => '']); $created = true; }
+        if (!empty($GLOBALS['NEWUSER_G'])) { signup_bonus($uid, $b); }
         else { with_lock(function () use ($uid, $info) { $us = users(); if (empty($us[$uid]['google'])) { $us[$uid]['google'] = (string)($info['sub'] ?? ''); write_json('users.json', $us); } }); }
         throttle_hit(true);
         out(200, ['ok' => true, 'created' => $created, 'token' => issue_token((string)($b['device'] ?? 'device'), $uid), 'user' => user_public(users()[$uid], $uid)]);
@@ -1136,6 +1155,20 @@ switch ($action) {
         if (!ai_quota()) { plain('We have reached today’s AI limit. Let’s talk tomorrow.'); }
         $u = cur_user(); $r = ai_call_multi(AVA_SYSTEM . "\nYou are answering by voice through Siri: plain sentences only, no lists or symbols, under 70 words.\n\nUser: " . ($u['name'] ?? '') . '. ' . ava_context(load_store()), [['role' => 'user', 'content' => $q]], 400);
         plain($r['ok'] ? str_replace(['• ', '*', '#'], ['', '', ''], $r['text']) : 'Sorry, I could not answer right now.');
+
+    case 'invite':
+        require_auth(); $u = cur_user(); $base = (is_https() ? 'https://' : 'http://') . ($_SERVER['HTTP_HOST'] ?? '') . rtrim(dirname(strtok((string)($_SERVER['REQUEST_URI'] ?? ''), '?')), '/') . '/';
+        $n = 0; foreach (users() as $x) { if (($x['referredBy'] ?? '') === $GLOBALS['UID']) { $n++; } }
+        out(200, ['ok' => true, 'link' => $base . '?ref=' . ref_code($GLOBALS['UID']), 'joined' => $n, 'rewards' => (int)($u['refRewards'] ?? 0)]);
+
+    case 'gift-config':
+        require_owner(); $base = (is_https() ? 'https://' : 'http://') . ($_SERVER['HTTP_HOST'] ?? '') . rtrim(dirname(strtok((string)($_SERVER['REQUEST_URI'] ?? ''), '?')), '/') . '/';
+        if ($method === 'POST') { $b = body(); with_lock(function () use ($b) { $s = read_json('system.json', []); $g = gift_cfg(); $c = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', (string)($b['code'] ?? $g['code']))); if ($c !== '') { $g['code'] = substr($c, 0, 20); } $g['days'] = max(7, min(90, (int)($b['days'] ?? $g['days']))); $g['max'] = max(1, min(10000, (int)($b['max'] ?? $g['max']))); $g['on'] = !empty($b['on']); $s['gift'] = $g; write_json('system.json', $s); }); }
+        $g = gift_cfg(); out(200, ['ok' => true, 'gift' => $g, 'link' => $g['code'] !== '' ? $base . '?gift=' . $g['code'] : '']);
+
+    case 'gift-info':
+        $g = gift_cfg(); $c = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', (string)($_GET['code'] ?? '')));
+        out(200, ['ok' => true, 'valid' => !empty($g['on']) && $c !== '' && $c === strtoupper((string)$g['code']) && (int)$g['used'] < (int)$g['max'], 'days' => (int)$g['days']]);
 
     default:
         fail(404, 'Unknown action');

@@ -5,7 +5,7 @@
 (() => {
 'use strict';
 
-const VERSION = '13.0.0';
+const VERSION = '14.0.0';
 const API = 'api.php';
 const K = { db: 'mec.db', out: 'mec.outbox', tok: 'mec.token', rev: 'mec.rev', ui: 'mec.ui', last: 'mec.lastSync', user: 'mec.user' };
 const COLS = ['tasks','events','projects','goals','skills','logs','evidence','decisions','notes','ielts','sessions','settings','milestones','applications','immigration','habits','money','templates','courses','areas','wheel','cycles','focus','products','tests','careers'];
@@ -1795,7 +1795,7 @@ async function googleButton(el, onCred, text) {
   } catch { el.remove(); }
 }
 async function googleSignIn(cred, plan) {
-  try { const r = await api('google', { body: { credential: cred, device: device(), name: plan && plan.name } }); signedIn(r, r.created && plan && !plan.skip ? plan : null, r.created); }
+  try { const r = await api('google', { body: { credential: cred, device: device(), name: plan && plan.name, ...growthBody() } }); signedIn(r, r.created && plan && !plan.skip ? plan : null, r.created); }
   catch (e) { toast(e.message === 'offline' ? 'No connection.' : e.message); }
 }
 function securePrompt() {
@@ -2180,7 +2180,7 @@ const NAV_GROUPS = () => [
   ['Grow', [['life', 'Life areas', I.wheel], ['habits', 'Habits', I.repeat], ['progress', 'Coach', I.prog]]],
   ['Discover', [['discover', 'Tests', I.spark], ['me', 'My pack', I.user], ['career', 'Career explorer', I.compass]]],
   ['Wellbeing', [['calm', 'Calm', I.calm], ['emi', 'Ava guide', I.star], ['coachme', 'My coach', I.user]]],
-  ...(isOwner() ? [['Business', [['coachpanel', 'Coach panel', I.users], ['products', 'Products', I.money], ['jobs', 'Job search', I.jobs], ['admin', 'Members', I.users]]]] : []),
+  ...(isOwner() ? [['Business', [['coachpanel', 'Coach panel', I.users], ['jobs', 'Job search', I.jobs], ['admin', 'Members', I.users]]]] : []),
   ['', [['settings', 'Settings', I.set]]]
 ];
 const navActive = page => ({ today: 'today', calendar: 'calendar', life: 'life', area: 'life', goal: 'life', habits: 'life', progress: 'life', plan: 'life', learn: 'life', discover: 'discover', test: 'discover', me: 'discover', career: 'discover' })[page] || 'hub';
@@ -2845,7 +2845,7 @@ document.addEventListener('click', async e => {
     password: () => form('Change password', [{ k: 'current', label: 'Current password', type: 'password', req: true }, { k: 'next', label: 'New password (10+ characters)', type: 'password', req: true }], {}, v => { api('password', { body: v }).then(j => { ls.set(K.tok, j.token); toast('Password changed. Other devices must sign in again.'); }).catch(err => toast(err.message)); }),
     logout: async () => { if (!confirm('Sign out on this device? Data stays on the server.')) return; if (Object.keys(outbox).length) await sync(); try { await api('logout', { method: 'POST' }); } catch {} ls.del(K.tok); ls.del(K.db); ls.del(K.out); ls.del(K.rev); ls.del(K.user); me = null; db = blankDb(); outbox = {}; showLanding(); }
   };
-  Object.assign(map, v7Acts(a, id, e), v71Acts(a, id), v8Acts(a, id), v9Acts(a, id), v9JobActs(a, id), pmActs(a, id), v91Acts(a, id), v10Acts(a, id), v12Acts(a, id), v121Acts(a, id), v13Acts(a, id), { 'board-open': () => { closeSheet(true); location.hash = '#/board/' + encodeURIComponent(id); }, 'habit-open-s': () => {} });
+  Object.assign(map, v7Acts(a, id, e), v71Acts(a, id), v8Acts(a, id), v9Acts(a, id), v9JobActs(a, id), pmActs(a, id), v91Acts(a, id), v10Acts(a, id), v12Acts(a, id), v121Acts(a, id), v13Acts(a, id), v14Acts(a, id), { 'board-open': () => { closeSheet(true); location.hash = '#/board/' + encodeURIComponent(id); }, 'habit-open-s': () => {} });
   if (map[act]) { if (act !== 'sheet-close' && act !== 'form-save' && act !== 'form-del' && sheetCtx && ['new-task', 'new-event', 'new-note', 'new-decision', 'new-evidence', 'new-session', 'closeout', 'log-time', 'new-application', 'new-milestone', 'new-immig', 'weekly', 'money-add', 'from-tpl', 'new-course', 'morning', 'new-goal', 'wheel-test', 'cycle-new', 'focus-free', 'new-habit'].includes(act)) closeSheet(true); map[act](); }
 });
 document.addEventListener('input', e => { const k = e.target.dataset && e.target.dataset.input; if (k) { ui[k] = e.target.value; saveUi(); if (e.target.dataset.norender) return; clearTimeout(render.t); render.t = setTimeout(render, 180); } });
@@ -2991,7 +2991,7 @@ function onboard() {
     { nextLabel: 'Create my account', html: a => { const pa = primaryArea(a); return `<div class="ob"><h2>Your plan is ready</h2><div class="plan"><div class="plan-r"><span class="sw" style="background:${AREA_COL[CLASSIC.indexOf(pa) % 8]}"></span><div><b dir="auto">${esc(a.goal)}</b><div class="small">${esc(pa)} · in ${a.horizon || 6} months</div></div></div><div class="plan-r"><span class="sw" style="background:${AREA_COL[CLASSIC.indexOf(secondArea(a)) % 8]}"></span><div><b>${esc(GOAL_TPL[secondArea(a)])}</b><div class="small">${esc(secondArea(a))} · your lowest score</div></div></div>${(a.habits || []).length ? `<div class="plan-r"><span class="sw"></span><div><b>${(a.habits || []).map(esc).join(' · ')}</b><div class="small">Daily habits</div></div></div>` : ''}<div class="plan-r"><span class="sw"></span><div><b>40-day cycle starts today</b><div class="small">Morning ${esc(a.mt || '07:30')} · Night ${esc(a.nt || '21:30')}</div></div></div></div>
       <div id="gbtn-ob" class="gbtn" style="margin-top:16px"></div><div class="f" style="margin-top:12px"><label>Email</label><input data-k="email" type="email" autocomplete="username" inputmode="email" value="${esc(a.email || '')}"></div><div class="f"><label>Password (8+ characters)</label><input data-k="pw" type="password" autocomplete="new-password"></div><p class="small">7 days free. No card needed.</p></div>`; },
       check: a => !/^\S+@\S+\.\S+$/.test(a.email || '') ? 'Enter your email' : (a.pw || '').length < 8 ? 'Use at least 8 characters' : '',
-      done: async a => { try { const r = await api('signup', { body: { email: a.email, password: a.pw, name: a.name, device: device() } }); signedIn(r, a.skip ? null : a, true); } catch (e) { toast(e.message === 'offline' ? 'No connection.' : e.message); } } }
+      done: async a => { try { const r = await api('signup', { body: { email: a.email, password: a.pw, name: a.name, device: device(), ...growthBody() } }); signedIn(r, a.skip ? null : a, true); } catch (e) { toast(e.message === 'offline' ? 'No connection.' : e.message); } } }
   ];
   flowOpen({ cls: 'onboard', steps, a: { horizon: '6', when: 'morning', hours: '2', habits: [] } });
 }
@@ -3320,7 +3320,7 @@ onboard = function () {
     { nextLabel: 'Create my account', html: a => { const pa = primaryArea(a); return `<div class="ob"><h2>Your plan is ready</h2><div class="plan"><div class="plan-r"><span class="sw" style="background:${AREA_COL[CLASSIC.indexOf(pa) % 8]}"></span><div><b dir="auto">${esc(a.goal)}</b><div class="small">${esc(pa)} · ${({ 40: '40 days', 90: '3 months', 180: '6 months', 365: '1 year' })[a.horizon || '40']} · with 3 micro-actions</div></div></div><div class="plan-r"><span class="sw" style="background:${AREA_COL[CLASSIC.indexOf(secondArea(a)) % 8]}"></span><div><b>${esc(GOAL_TPL[secondArea(a)])}</b><div class="small">${esc(secondArea(a))} · your lowest score</div></div></div>${(a.habits || []).length ? `<div class="plan-r"><span class="sw"></span><div><b>${(a.habits || []).map(esc).join(' · ')}</b><div class="small">Habits</div></div></div>` : ''}<div class="plan-r"><span class="sw"></span><div><b>40-day cycle starts today</b><div class="small">Morning ${esc(a.mt || '07:30')} · Night ${esc(a.nt || '21:30')}</div></div></div></div>
       <div id="gbtn-ob" class="gbtn" style="margin-top:16px"></div><div class="f" style="margin-top:12px"><label>Email</label><input data-k="email" type="email" autocomplete="username" inputmode="email" value="${esc(a.email || '')}"></div><div class="f"><label>Password (8+ characters)</label><input data-k="pw" type="password" autocomplete="new-password"></div><p class="small">7 days free. No card needed.</p></div>`; },
       check: a => !/^\S+@\S+\.\S+$/.test(a.email || '') ? 'Enter your email' : (a.pw || '').length < 8 ? 'Use at least 8 characters' : '',
-      done: async a => { try { const r = await api('signup', { body: { email: a.email, password: a.pw, name: a.name, device: device() } }); signedIn(r, a.skip ? null : a, true); } catch (e) { toast(e.message === 'offline' ? 'No connection.' : e.message); } } }
+      done: async a => { try { const r = await api('signup', { body: { email: a.email, password: a.pw, name: a.name, device: device(), ...growthBody() } }); signedIn(r, a.skip ? null : a, true); } catch (e) { toast(e.message === 'offline' ? 'No connection.' : e.message); } } }
   ];
   flowOpen({ cls: 'onboard', steps, a: { horizon: '40', habits: [], mt: '07:30', nt: '21:30' } });
 };
@@ -3934,6 +3934,59 @@ const _emiDockV13 = emiDock;
 emiDock = function () { _emiDockV13(); const b = $('#emi-dock .emi-more'); if (b) { b.dataset.act = 'ava-open'; b.textContent = '💬'; b.setAttribute('aria-label', 'Talk to Ava'); } };
 const _todayHeroV13 = todayHero;
 todayHero = function () { return _todayHeroV13().replace('<div class="th-stats">', `<button class="th-ava" data-act="ava-open">💬 Ask Ava, your coach</button><div class="th-stats">`); };
+
+/* ================= v14: YouTube gift link, invite friends, share my Wheel card ================= */
+(() => { const q = new URLSearchParams(location.search); if (q.get('gift')) ls.set('mec.gift', q.get('gift')); if (q.get('ref')) ls.set('mec.ref', q.get('ref')); })();
+const growthBody = () => ({ gift: ls.get('mec.gift') || '', ref: ls.get('mec.ref') || '' });
+/* the gift banner on the public landing page */
+const _showLandingV14 = showLanding;
+showLanding = function (msg) {
+  _showLandingV14(msg); const g = ls.get('mec.gift'); if (!g || $('#giftbar')) return;
+  fetch(`${API}?action=gift-info&code=${encodeURIComponent(g)}`).then(r => r.json()).then(r => { if (!r.valid || $('#giftbar')) return; const b = document.createElement('div'); b.id = 'giftbar'; b.innerHTML = `🎁 <b>A gift from Milad’s YouTube:</b> ${r.days} days of ME.Coach free. <a href="./?start=1" data-act="l-start">Claim it</a>`; document.body.prepend(b); }).catch(() => {});
+};
+/* invite friends: both get 7 days */
+async function inviteSheet() {
+  let r; try { r = await api('invite'); } catch (e) { toast(e.message); return; }
+  openSheet('Invite friends', `<div class="inv"><div class="inv-i">🎁</div><b>Give 7 days, get 7 days</b><p class="small">When a friend signs up with your link, they get 7 extra free days and you get 7 days added to your plan (up to 10 friends).</p>
+    <div class="mono siri-u">${esc(r.link)}</div><div class="btns" style="justify-content:center;margin-top:10px"><button class="btn primary" data-act="inv-share" data-v="${esc(r.link)}">Share link</button><button class="btn" data-act="copy" data-text="${esc(r.link)}">Copy</button></div>
+    <div class="small" style="margin-top:12px">${r.joined} friend${r.joined === 1 ? '' : 's'} joined · ${r.rewards * 7} bonus days earned</div></div>`, '', { noFocus: true });
+}
+/* a beautiful image of my Wheel of Life to share on Instagram, WhatsApp… */
+async function wheelCard() {
+  const w = wheels()[0]; if (!w) { toast('Take the Wheel of Life test first'); return; }
+  let link = ''; try { link = (await api('invite')).link; } catch (e) { }
+  const as = areas().filter(a => areaScore(a.id, w) != null), W = 1080, H = 1350, c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
+  const bg = g.createLinearGradient(0, 0, W, H); bg.addColorStop(0, '#1d2440'); bg.addColorStop(1, '#3a3f6b'); g.fillStyle = bg; g.fillRect(0, 0, W, H);
+  g.fillStyle = '#e6c35a'; g.font = '600 34px -apple-system, Segoe UI, sans-serif'; g.textAlign = 'center'; g.fillText('MY WHEEL OF LIFE', W / 2, 110);
+  g.fillStyle = '#fff'; g.font = '800 64px -apple-system, Segoe UI, sans-serif'; g.fillText((me && me.name ? me.name.split(' ')[0] + '’s' : 'My') + ' balance', W / 2, 190);
+  const cx = W / 2, cy = 590, R = 330, n = as.length, st = 2 * Math.PI / n;
+  as.forEach((a, i) => { const s = areaScore(a.id, w), a0 = -Math.PI / 2 + i * st + .02, a1 = a0 + st - .04; g.beginPath(); g.moveTo(cx, cy); g.arc(cx, cy, R, a0, a1); g.closePath(); g.fillStyle = 'rgba(255,255,255,.08)'; g.fill();
+    g.beginPath(); g.moveTo(cx, cy); g.arc(cx, cy, R * s / 10, a0, a1); g.closePath(); g.fillStyle = AREA_COL[(Number(a.color) || i) % 8]; g.fill();
+    const am = a0 + st / 2 - .02, lx = cx + Math.cos(am) * (R + 52), ly = cy + Math.sin(am) * (R + 52); g.fillStyle = '#fff'; g.font = '600 26px -apple-system, Segoe UI, sans-serif'; g.fillText(String(a.title).slice(0, 14), lx, ly); g.fillStyle = '#e6c35a'; g.font = '800 28px -apple-system, Segoe UI, sans-serif'; g.fillText(String(s), lx, ly + 32); });
+  const avg = Math.round(10 * as.reduce((x, a) => x + areaScore(a.id, w), 0) / (as.length || 1)) / 10; g.beginPath(); g.arc(cx, cy, 86, 0, 7); g.fillStyle = '#1d2440'; g.fill(); g.fillStyle = '#fff'; g.font = '800 64px -apple-system, Segoe UI, sans-serif'; g.fillText(String(avg), cx, cy + 18); g.font = '500 22px -apple-system, Segoe UI, sans-serif'; g.fillStyle = '#c9cde0'; g.fillText('out of 10', cx, cy + 50);
+  g.fillStyle = '#fff'; g.font = '600 36px -apple-system, Segoe UI, sans-serif'; g.fillText('What does your wheel look like?', W / 2, 1100);
+  g.fillStyle = '#c9cde0'; g.font = '500 28px -apple-system, Segoe UI, sans-serif'; g.fillText('Free test · ME.Coach · based on the book Self-Coaching Blueprint', W / 2, 1150);
+  g.fillStyle = '#e6c35a'; g.font = '700 30px -apple-system, Segoe UI, sans-serif'; g.fillText((link || location.origin + location.pathname).replace(/^https?:\/\//, ''), W / 2, 1230);
+  c.toBlob(async blob => { const f = new File([blob], 'my-wheel-of-life.png', { type: 'image/png' });
+    try { if (navigator.canShare && navigator.canShare({ files: [f] })) { await navigator.share({ files: [f], text: 'My Wheel of Life. What does yours look like?', url: link || undefined }); return; } } catch (e) { if (e.name === 'AbortError') return; }
+    const u = URL.createObjectURL(blob), l = document.createElement('a'); l.href = u; l.download = 'my-wheel-of-life.png'; document.body.appendChild(l); l.click(); l.remove(); toast('Image saved. Post it with your invite link.'); }, 'image/png');
+}
+/* owner: the YouTube gift link */
+async function giftSheet() {
+  let r; try { r = await api('gift-config'); } catch (e) { toast(e.message); return; } const g = r.gift;
+  form('YouTube gift link', [{ html: `<p class="small" style="margin-top:0">Share this link in your YouTube videos and descriptions. New sign-ups through it get a longer free trial. ${g.used} of ${g.max} used.${r.link ? `<br><span class="mono">${esc(r.link)}</span>` : ''}</p>` }, [{ k: 'code', label: 'Code', ph: 'YOUTUBE' }, { k: 'days', label: 'Free days', type: 'number' }], [{ k: 'max', label: 'Max sign-ups', type: 'number' }, { k: 'on', label: 'Gift link is active', type: 'check' }]], { code: g.code || 'YOUTUBE', days: g.days, max: g.max, on: g.on },
+    v => { api('gift-config', { body: { code: v.code, days: Number(v.days), max: Number(v.max), on: !!v.on } }).then(x => { toast('Saved'); if (x.link) toast('Gift link: ' + x.link, 'Copy', () => navigator.clipboard && navigator.clipboard.writeText(x.link)); }).catch(e => toast(e.message)); });
+}
+function v14Acts(a) {
+  return {
+    'inv-open': () => inviteSheet(), 'wheel-card': () => wheelCard(), 'gift-open': () => giftSheet(),
+    'inv-share': async () => { const l = a.dataset.v; try { if (navigator.share) { await navigator.share({ title: 'ME.Coach', text: 'Try ME.Coach with me: your self-coaching app. We both get 7 free days.', url: l }); return; } } catch (e) { if (e.name === 'AbortError') return; } try { await navigator.clipboard.writeText(l); toast('Link copied'); } catch (e) { toast(l); } }
+  };
+}
+const _vSettingsV14 = vSettings;
+vSettings = function () { return _vSettingsV14().replace('<div class="spacer" style="height:14px"></div>', `<div class="spacer" style="height:14px"></div><div class="card setrow"><div class="main"><b>🎁 Invite friends</b><div class="small">Give 7 days, get 7 days.</div></div><button class="btn small primary" data-act="inv-open">Invite</button></div>${isOwner() ? `<div class="card setrow"><div class="main"><b>📺 YouTube gift link</b><div class="small">A longer free trial for your YouTube audience.</div></div><button class="btn small" data-act="gift-open">Set up</button></div>` : ''}`); };
+const _vLifeV14 = vLife;
+vLife = function () { return _vLifeV14().replace('<button class="btn primary small" data-act="wheel-test">', '<button class="btn small" data-act="wheel-card">📤 Share my wheel</button><button class="btn primary small" data-act="wheel-test">'); };
 
 /* ---------------- boot ---------------- */
 if ('serviceWorker' in navigator && location.protocol === 'https:') { const had = !!navigator.serviceWorker.controller; navigator.serviceWorker.register('sw.js').catch(() => {}); navigator.serviceWorker.addEventListener('controllerchange', () => { if (had) toast('ME.Coach was updated', 'Reload', () => location.reload()); }); }

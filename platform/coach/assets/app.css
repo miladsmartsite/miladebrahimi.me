@@ -901,3 +901,6 @@ html[dir=rtl] #emi-dock{left:auto;right:max(8px,env(safe-area-inset-right,0px))}
 .av-in{display:flex;gap:8px;align-items:center;padding:8px 12px calc(10px + env(safe-area-inset-bottom,0));border-top:1px solid var(--line);max-width:760px;width:100%;margin:0 auto}.av-in input{flex:1;min-width:0;border:1px solid var(--line);border-radius:22px;padding:11px 14px;font-size:16px;background:var(--card)}
 .av-mic.rec{background:#e34948;color:#fff;border-radius:50%;animation:avb 1s infinite}
 .th-ava{display:block;width:100%;margin-top:12px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.1);color:#fff;border-radius:12px;padding:10px;font-size:14px;font-weight:600;cursor:pointer;text-align:left}
+/* v14 */
+#giftbar{position:sticky;top:0;z-index:70;background:linear-gradient(90deg,#c9a227,#e6c35a);color:#1d2440;text-align:center;padding:10px 14px;font-size:15px}#giftbar a{color:#1d2440;font-weight:800;margin-left:8px}
+.inv{text-align:center}.inv-i{font-size:44px}.inv b{font-size:18px;color:var(--ink)}
