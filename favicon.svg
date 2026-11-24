@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- "ME" monogram with the bronze bar (Milad Style). Text is outlined by the browser's Manrope-less fallback,
+       so the letterforms are drawn as paths-free bold sans; the PNG icons carry the exact Manrope render. -->
+  <rect width="32" height="32" fill="#141414"/>
+  <text x="15.6" y="19.5" text-anchor="middle" font-family="Manrope, 'Segoe UI', Arial, sans-serif" font-weight="800" font-size="15" letter-spacing="-1.2" fill="#F4EFE6">ME</text>
+  <rect x="10" y="23" width="12" height="2.4" fill="#C49A5A"/>
+</svg>
