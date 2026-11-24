@@ -6,12 +6,12 @@
  * of sync with what's actually published.
  */
 import { getCollection } from 'astro:content';
+import { getPublishedArticles } from '@lib/articles';
 import BaseLayout from '@layouts/BaseLayout.astro';
 import PageHero from '@components/PageHero.astro';
 import Section from '@components/Section.astro';
 
-const articles = await getCollection('articles', ({ data }) => !data.draft);
-const publishedArticles = articles.filter((a) => !a.data.placeholder);
+const publishedArticles = await getPublishedArticles();
 const books = await getCollection('books', ({ data }) => !data.draft);
 
 const categories = [

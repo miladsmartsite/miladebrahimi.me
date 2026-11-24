@@ -1,17 +1,15 @@
 import rss from '@astrojs/rss';
 import type { APIContext } from 'astro';
-import { getCollection } from 'astro:content';
+import { getPublishedArticles } from '@lib/articles';
 import { SITE } from '@lib/site';
 
 /**
- * Published articles only — a `placeholder: true` entry's own body says
- * "not yet published," so including it here would tell subscribers the
- * opposite of what the page itself says. The feed is legitimately empty
- * until the first real article ships.
+ * Published articles only (see src/lib/publication.ts): not a draft, not a
+ * placeholder, and already due. A scheduled article appears in the feed on
+ * the first build at or after its publishDate.
  */
 export async function GET(context: APIContext) {
-  const articles = await getCollection('articles', ({ data }) => !data.draft && !data.placeholder);
-  const sorted = articles.sort((a, b) => b.data.publishDate.valueOf() - a.data.publishDate.valueOf());
+  const sorted = await getPublishedArticles();
 
   return rss({
     title: `${SITE.name} — Ideas`,

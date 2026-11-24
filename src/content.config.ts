@@ -1,5 +1,6 @@
 import { defineCollection, z } from 'astro:content';
 import { glob } from 'astro/loaders';
+import { normalizePublishDate } from './lib/publication';
 
 /**
  * Shared fields every collection uses to control publication state.
@@ -76,7 +77,9 @@ const articles = defineCollection({
   schema: z.object({
     title: z.string(),
     description: z.string(),
-    publishDate: z.coerce.date(),
+    // Interpreted in UTC; a missing/empty/non-date value fails the build
+    // instead of coercing to 1970 (see src/lib/publication.ts).
+    publishDate: z.preprocess(normalizePublishDate, z.coerce.date()),
     updatedDate: z.coerce.date().optional(),
     // Every piece is written by Milad today; kept as an explicit (not
     // hard-coded) field so a real guest byline is a frontmatter value away,

@@ -1,15 +1,47 @@
 name: Build and Deploy Astro
 
+# One workflow, three triggers, one deploy path:
+#
+#   push to main      — a normal content/code change ships immediately.
+#   schedule (hourly) — rebuilds so a scheduled article (publishDate in the
+#                       future when it was merged) goes live once it is due.
+#                       The site is static, so "published" means "the first
+#                       build that runs at or after publishDate"
+#                       (see src/lib/publication.ts).
+#   workflow_dispatch — manual "Run workflow" button (main only, see the job).
+#
+# Stale-build protection: every run except a first-attempt push re-checks, just
+# before publishing, that the commit it built is still the tip of main, and
+# stands down if it is not (see "Refuse to deploy a build that is no longer the
+# tip of main"). A newer commit always has its own push run that deploys it.
+#
+# GitHub cron is UTC and best-effort: runs can start several minutes late
+# (more under load at the top of the hour, hence minute 17). An article
+# scheduled for 10:00 UTC goes live at the first run at or after 10:00 —
+# normally ~10:17 UTC, so expect up to ~1 hour of latency, never minute-level
+# precision. Local time = UTC + your offset (e.g. UTC+4: 10:17 UTC = 14:17).
 on:
   push:
     branches:
       - main
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
 
 permissions:
   contents: write
 
+# A push and a scheduled run must not force-push the deploy branch at once.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
 jobs:
   build-and-deploy:
+    # A manual run can be started from any branch in the Actions UI; only main may
+    # build and publish to the deploy branch. Push and schedule events already
+    # run on main (push is filtered above; schedule always uses the default branch).
+    if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
     steps:
@@ -28,7 +60,52 @@ jobs:
       - name: Build Astro
         run: npm run build
 
+      # Scheduled runs happen every hour; most change nothing. Skip the
+      # deploy-branch push when the build is byte-identical to what is
+      # already deployed, so the host is not asked to redeploy hourly. Push
+      # and manual runs always deploy. Any problem in this check falls
+      # through to deploying (fail-safe).
+      - name: Detect whether the build changed
+        id: changed
+        run: |
+          echo "deploy=true" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            if git clone --quiet --depth 1 --branch deploy "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" /tmp/current; then
+              if diff -rq --exclude=.git dist /tmp/current > /dev/null; then
+                echo "deploy=false" >> "$GITHUB_OUTPUT"
+                echo "Build identical to the deploy branch; skipping deploy."
+              fi
+            fi
+          fi
+
+      # Last check before the force-push to the deploy branch. A scheduled run, a
+      # manual run, or a re-run of an old run builds the commit it was started
+      # for; if main has moved on since, publishing it would put OLDER content
+      # live over the newer deploy. In that case this run stands down (the newer
+      # commit's own push run deploys it). First-attempt push runs are skipped
+      # here on purpose: they are already ordered by the concurrency group.
+      # If main's tip cannot be read, the step FAILS (visible, emailed) rather
+      # than deploying blind or silently skipping.
+      - name: Refuse to deploy a build that is no longer the tip of main
+        id: fresh
+        if: steps.changed.outputs.deploy == 'true' && (github.event_name != 'push' || github.run_attempt > 1)
+        run: |
+          built="$(git rev-parse HEAD)"
+          tip="$(git ls-remote "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" refs/heads/main | cut -f1)" || tip=""
+          if [ -z "$tip" ]; then
+            echo "::error::Could not read the tip of main, so this build was not deployed. Re-run the job."
+            exit 1
+          fi
+          if [ "$tip" = "$built" ]; then
+            echo "Built ${built:0:7}, which is the tip of main: OK to deploy."
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Built ${built:0:7} but main is now ${tip:0:7}; not deploying this stale build. The run for the newer commit deploys it."
+            echo "current=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Publish dist to deploy branch
+        if: steps.changed.outputs.deploy == 'true' && steps.fresh.outputs.current != 'false'
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"

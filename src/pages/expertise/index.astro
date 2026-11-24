@@ -10,6 +10,7 @@
  * rather than forcing a fake connection.
  */
 import { getCollection } from 'astro:content';
+import { getPublishedArticles } from '@lib/articles';
 import BaseLayout from '@layouts/BaseLayout.astro';
 import PageHero from '@components/PageHero.astro';
 import Section from '@components/Section.astro';
@@ -21,7 +22,7 @@ const allProjects = await getCollection('projects', ({ data }) => !data.draft);
 // Published, real pieces only — a category match with articles that are
 // still placeholder stubs would look like more depth than actually exists
 // yet (Phase 10 §24: "do not create empty lists").
-const publishedArticles = await getCollection('articles', ({ data }) => !data.draft && !data.placeholder);
+const publishedArticles = await getPublishedArticles();
 
 const matrix = EXPERTISE_AREAS.map((area) => {
   const related = allProjects.filter((p) => p.data.tags.some((t) => area.relatedTags.includes(t)));

@@ -7,6 +7,8 @@ import tailwindcss from '@tailwindcss/vite';
 
 import sitemap from '@astrojs/sitemap';
 
+import { findPublishDateProblem } from './src/lib/publication.ts';
+
 // The sitemap integration's `filter` only ever sees a URL string, not
 // content-collection data, so a placeholder article's own `placeholder:
 // true` flag can't be checked there directly. Reading each article's
@@ -23,6 +25,18 @@ const placeholderArticleSlugs = new Set(
     .filter((file) => /^placeholder:\s*true\s*$/m.test(fs.readFileSync(path.join(articlesDir, file), 'utf-8')))
     .map((file) => file.replace(/\.md$/, '')),
 );
+
+// Validate each article's RAW `publishDate` line before YAML parsing. YAML
+// silently normalises some unquoted dates (2026-02-31 becomes 3 March,
+// 2026-13-01 becomes 1 January 2027), so by the time the content schema runs
+// the mistake is invisible. Failing here — at build, dev and `astro check`
+// start-up — names the offending file instead of publishing on the wrong day.
+// The rules live in src/lib/publication.ts (shared with the schema and tests).
+for (const file of fs.readdirSync(articlesDir)) {
+  if (!file.endsWith('.md') || file === 'README.md') continue;
+  const problem = findPublishDateProblem(fs.readFileSync(path.join(articlesDir, file), 'utf-8'));
+  if (problem) throw new Error(`Invalid publishDate in src/content/articles/${file}: ${problem}`);
+}
 
 // https://astro.build/config
 export default defineConfig({

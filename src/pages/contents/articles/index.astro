@@ -4,7 +4,7 @@
  * a short "latest" list, then the full archive. Reading time is computed
  * from each entry's real body text — see src/lib/reading-time.ts.
  */
-import { getCollection } from 'astro:content';
+import { getPublishedArticles } from '@lib/articles';
 import BaseLayout from '@layouts/BaseLayout.astro';
 import PageHero from '@components/PageHero.astro';
 import Section from '@components/Section.astro';
@@ -14,8 +14,7 @@ import ArticleCard from '@components/ArticleCard.astro';
 import { readingTime } from '@lib/reading-time';
 import { SITE } from '@lib/site';
 
-const allArticles = await getCollection('articles', ({ data }) => !data.draft);
-const articles = allArticles.sort((a, b) => b.data.publishDate.valueOf() - a.data.publishDate.valueOf());
+const articles = await getPublishedArticles();
 // An explicit `featured: true` wins the slot; otherwise the most recent
 // piece takes it — so the archive always has exactly one lead entry,
 // never zero and never a pile of equally-"featured" ones.
