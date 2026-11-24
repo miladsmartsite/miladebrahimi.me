@@ -1,15 +1,15 @@
 # ME Family Brief
 
 One page that every Claude account and collaborator works from. Update it when a decision changes.
-Owner: Milad Ebrahimi · Muscat, Oman · last updated 24 Nov 2026
+Owner: Milad Ebrahimi · Muscat, Oman · last updated 24 Nov 2026 (v15)
 
 ## The three products
 
 | Product | What it is | Audience | Status | Launch |
 |---|---|---|---|---|
 | **ME English** | English learning app | Public, paying users | In build (other Claude account) | **1 Jan 2027, main launch** |
-| **ME.Coach** | Self-coaching app based on the book *Self-Coaching Blueprint* | Public (7-day free trial) + Milad's private owner mode | Built, v14 | Soft launch: free gift for Milad's YouTube audience; public launch after ME English |
-| **ME Studio** | Content and side-income system (YouTube, Amazon, products) | Milad only (internal tool) | In build (other Claude account) | No public launch for now |
+| **ME.Coach** | Focused platform for the book *Self-Coaching Blueprint* and Milad's teaching: tests, goals and follow-up, learning path | Public (7-day free trial) + Milad's private owner mode | Built, v15 | Soft launch: free gift for Milad's YouTube audience; public launch after ME English |
+| **ME Studio** | Content, side income and work system (YouTube, Amazon, products, projects, job search, money) | Milad only (internal tool) | In build (other Claude account) | No public launch for now |
 
 The three apps are **not connected** for now: separate accounts, separate data, no shared sign-in. They share only a brand style.
 
@@ -22,8 +22,8 @@ The three apps are **not connected** for now: separate accounts, separate data, 
 ## Who does what
 - **This Claude account:** ME.Coach only (code in `platform/coach`, branch `claude/milad2031-platform`).
 - **Other Claude account:** ME English and ME Studio.
-- Moved out of ME.Coach: the **Products / sales** tracker belongs to ME Studio (hidden in ME.Coach, data kept).
-- Stays in ME.Coach: goals (including income goals), job search and Autopilot, coach panel, Ava.
+- Moved out of ME.Coach to ME Studio (hidden in ME.Coach, data kept, export in Settings): **Job search + Autopilot, Products, Boards/projects, Money**. Handoff: `platform/handoff/job-autopilot/HANDOFF.md`.
+- Stays in ME.Coach: Blueprint path, Wheel test and 9 tests, 5-step goals and micro-actions, Morning/Night Balance, 40-day cycle, habits, calendar and tasks, Ava, coach panel.
 
 ## ME.Coach facts
 - URL: `miladebrahimi.me/coach` (Hostinger). Sales pages: `index.html`, `ar.html`, `fa.html`.

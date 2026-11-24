@@ -5,7 +5,7 @@
 (() => {
 'use strict';
 
-const VERSION = '14.0.0';
+const VERSION = '15.0.0';
 const API = 'api.php';
 const K = { db: 'mec.db', out: 'mec.outbox', tok: 'mec.token', rev: 'mec.rev', ui: 'mec.ui', last: 'mec.lastSync', user: 'mec.user' };
 const COLS = ['tasks','events','projects','goals','skills','logs','evidence','decisions','notes','ielts','sessions','settings','milestones','applications','immigration','habits','money','templates','courses','areas','wheel','cycles','focus','products','tests','careers'];
@@ -265,7 +265,7 @@ const icoize = h => String(h).replace(/<span>([^<]{1,3})<\/span>/gu, (m, g) => G
 const NAV_MAIN = [['today', 'Today', I.today], ['calendar', 'Calendar', I.cal], ['life', 'Life', '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6 5.6 18.4"/></svg>'], ['discover', 'Discover', '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3l2.2 5.6L20 11l-5.8 2.4L12 19l-2.2-5.6L4 11l5.8-2.4z"/></svg>'], ['hub', 'More', '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/></svg>']];
 Object.assign(I, { board: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="5" height="15" rx="1.5"/><rect x="10" y="4" width="5" height="10" rx="1.5"/><rect x="17" y="4" width="4" height="7" rx="1.5"/></svg>', calm: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 21c-4-2.5-7-6-7-10a7 7 0 0 1 14 0c0 4-3 7.5-7 10z"/><path d="M12 8v6M9 11h6"/></svg>', users: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/></svg>' });
 const NAV_MORE = [['projects', 'Boards', I.board], ['calm', 'Calm', I.calm], ['products', 'Products', I.money], ['jobs', 'Job search', I.jobs], ['admin', 'Members', I.users], ['settings', 'Settings', I.set]];
-const P_TABS = [['overview', 'Coach'], ['insights', 'Insights'], ['wheel', 'Wheel'], ['goals', 'Goals'], ['roadmap', 'Roadmap'], ['learning', 'Learning'], ['money', 'Money']];
+const P_TABS = [['overview', 'Coach'], ['insights', 'Insights'], ['wheel', 'Wheel'], ['goals', 'Goals'], ['roadmap', 'Roadmap'], ['learning', 'Learning']];
 
 /* ---------------- chips ---------------- */
 function stateChip(s0) { const s = STATES.includes(s0) ? s0 : (LEGACY[s0] || 'To do'); const c = s === 'Done' ? 's-done' : s === 'Waiting' ? 's-wait' : s === 'Doing' ? 's-prog' : ''; return s === 'To do' ? '' : `<span class="chip ${c}">${esc(s)}</span>`; }
@@ -2176,11 +2176,11 @@ function careerSave(fn) { const p = careerProfile(); const n = fn(Object.assign(
 
 /* ---------- navigation: grouped and visual ---------- */
 const NAV_GROUPS = () => [
-  ['Plan', [['today', 'Today', I.today], ['calendar', 'Calendar', I.cal], ['tasks', 'Tasks', I.tasks], ['projects', 'Boards', I.board]]],
-  ['Grow', [['life', 'Life areas', I.wheel], ['habits', 'Habits', I.repeat], ['progress', 'Coach', I.prog]]],
+  ['Plan', [['today', 'Today', I.today], ['calendar', 'Calendar', I.cal], ['tasks', 'Tasks', I.tasks]]],
+  ['Grow', [['path', 'Blueprint path', I.flag], ['life', 'Life areas', I.wheel], ['habits', 'Habits', I.repeat], ['progress', 'Coach', I.prog]]],
   ['Discover', [['discover', 'Tests', I.spark], ['me', 'My pack', I.user], ['career', 'Career explorer', I.compass]]],
   ['Wellbeing', [['calm', 'Calm', I.calm], ['emi', 'Ava guide', I.star], ['coachme', 'My coach', I.user]]],
-  ...(isOwner() ? [['Business', [['coachpanel', 'Coach panel', I.users], ['jobs', 'Job search', I.jobs], ['admin', 'Members', I.users]]]] : []),
+  ...(isOwner() ? [['Business', [['coachpanel', 'Coach panel', I.users], ['admin', 'Members', I.users]]]] : []),
   ['', [['settings', 'Settings', I.set]]]
 ];
 const navActive = page => ({ today: 'today', calendar: 'calendar', life: 'life', area: 'life', goal: 'life', habits: 'life', progress: 'life', plan: 'life', learn: 'life', discover: 'discover', test: 'discover', me: 'discover', career: 'discover' })[page] || 'hub';
@@ -2188,7 +2188,7 @@ function sideHtml(page) {
   return `<aside class="side"><div class="brand">ME<b>.</b>Coach<span>self-coaching</span></div>${NAV_GROUPS().map(([g, items]) => `${g ? `<div class="grp">${g}</div>` : '<div class="grp sp"></div>'}${items.filter(([k]) => can(k) && !hidden().has(k)).map(([k, l, ic]) => `<a href="#/${k}" class="${page === k || (navActive(page) === k && page !== 'today') || (k === 'projects' && page === 'board') ? 'on' : ''}">${ic}${l}${badge(k)}</a>`).join('')}`).join('')}</aside>`;
 }
 function vHub() {
-  const desc = { today: 'Plan and close your day', calendar: 'Day, week and month', tasks: 'Everything to do', projects: 'Boards for every project', life: 'Your 8 areas and goals', habits: 'Daily habits and streaks', progress: '40-day cycle, insights, roadmap', discover: '9 tests to know yourself', me: 'Your self-knowledge pack', career: 'Find careers that fit you', calm: 'Breathe and reflect', emi: 'Meet your 3D guide', coachme: 'Sessions with Milad', coachpanel: 'Clients, sessions and notes', products: 'Your products and sales', jobs: 'Applications and follow-ups', admin: 'Accounts and payments', settings: 'Account, data, reminders' };
+  const desc = { today: 'Plan and close your day', calendar: 'Day, week and month', tasks: 'Everything to do', projects: 'Boards for every project', life: 'Your 8 areas and goals', habits: 'Daily habits and streaks', progress: '40-day cycle, insights, roadmap', discover: '9 tests to know yourself', me: 'Your self-knowledge pack', career: 'Find careers that fit you', calm: 'Breathe and reflect', emi: 'Meet your 3D guide', path: 'Follow the book step by step', coachme: 'Sessions with Milad', coachpanel: 'Clients, sessions and notes', products: 'Your products and sales', jobs: 'Applications and follow-ups', admin: 'Accounts and payments', settings: 'Account, data, reminders' };
   const col = { Plan: '#2a78d6', Grow: '#1baf7a', Discover: '#6250d6', Wellbeing: '#e87ba4', Business: '#c9a227', '': '#787774' };
   return header('More', '') + NAV_GROUPS().map(([g, items]) => `${g ? `<h2 class="sec-h">${g}</h2>` : '<h2 class="sec-h">Account</h2>'}<div class="hubgrid">${items.filter(([k]) => can(k) && !hidden().has(k)).map(([k, l, ic]) => `<a class="hubt" href="#/${k}" style="--hc:${col[g]}"><span class="hi">${ic}</span><b>${l}</b><span class="small">${desc[k] || ''}</span>${badge(k)}</a>`).join('')}</div>`).join('') +
     `<h2 class="sec-h">Extras</h2><div class="hubgrid"><a class="hubt" href="${BOOK_URL}" target="_blank" rel="noopener" style="--hc:#c9a227"><span class="hi">📘</span><b>Free book</b><span class="small">Self-Coaching Blueprint</span></a><a class="hubt" href="#/journal" style="--hc:#787774"><span class="hi">${I.journal}</span><b>Journal</b><span class="small">Your Night Balance days</span></a><a class="hubt" href="#/trash" style="--hc:#787774"><span class="hi">${I.trash}</span><b>Trash</b><span class="small">Restore deleted items</span></a></div>`;
@@ -2227,7 +2227,7 @@ function render() {
   if (drag && drag.on) { render.pending = true; return; }
   const { page, arg } = route();
   if (REMOVED.has(page) || (me && !can(page))) { location.replace('#/today'); return; }
-  const views = { coachme: vCoachMe, coachpanel: vCoachPanel, cyclereport: vCycleReport, life: vLife, discover: vDiscover, test: () => vTest(arg), me: vMe, career: () => vCareer(arg), emi: vEmi, hub: vHub, projects: vBoards, board: () => vBoard(arg), calm: vCalm,  today: vToday, tasks: vTasks, calendar: vCalendar, plan: vPlan, more: vHub, learn: vLearn, evidence: vEvidence, decisions: vDecisions, notes: vNotes, note: () => vNote(arg), review: vReview, settings: vSettings, jobs: vJobs, immigration: vImmigration, progress: vProgress, journal: vJournal, report: vReport, templates: vTemplates, trash: vTrash, health: vHealth, course: () => vCourse(arg), documents: vDocuments, notes: vNotesHub, goal: () => vGoal(arg), area: () => vArea(arg), admin: vAdmin, habits: vHabits, products: vProducts };
+  const views = { path: vPath, coachme: vCoachMe, coachpanel: vCoachPanel, cyclereport: vCycleReport, life: vLife, discover: vDiscover, test: () => vTest(arg), me: vMe, career: () => vCareer(arg), emi: vEmi, hub: vHub, projects: vBoards, board: () => vBoard(arg), calm: vCalm,  today: vToday, tasks: vTasks, calendar: vCalendar, plan: vPlan, more: vHub, learn: vLearn, evidence: vEvidence, decisions: vDecisions, notes: vNotes, note: () => vNote(arg), review: vReview, settings: vSettings, jobs: vJobs, immigration: vImmigration, progress: vProgress, journal: vJournal, report: vReport, templates: vTemplates, trash: vTrash, health: vHealth, course: () => vCourse(arg), documents: vDocuments, notes: vNotesHub, goal: () => vGoal(arg), area: () => vArea(arg), admin: vAdmin, habits: vHabits, products: vProducts };
   if (page === 'immigration' || page === 'evidence') { ui.dTab = page; views[page] = vDocuments; } if (page === 'journal') views.journal = () => header('Journal', 'Your Night Balance days') + stripHead(vJournal());
   if (page === 'plan') { ui.pTab = ui.planTab === 'goals' ? 'goals' : 'roadmap'; views.plan = vProgress; } if (page === 'learn') { ui.pTab = 'learning'; views.learn = vProgress; }
   const html = icoize((views[page] || vToday)());
@@ -2618,7 +2618,7 @@ function weeklyReview() {
 }
 const IMM_STARTER = [['Passport', 'Identity'], ['National ID / birth certificate', 'Identity'], ['Degree certificate', 'Education'], ['Academic transcripts', 'Education'], ['Employment reference letters', 'Employment'], ['English test report (IELTS)', 'English test'], ['Police clearance certificates', 'Police & health'], ['Medical examination', 'Police & health'], ['Proof of funds', 'Finance'], ['Passport-style photos', 'Forms & fees']];
 function quickAdd() {
-  openSheet('Add', `<div class="grid two">${[['morning', 'Morning Balance', I.today], ['closeout', 'Night Balance', I.moon], ['focus-free', 'Focus', I.timer], ['breathe', 'Breathe', I.calm], ['new-task', 'Task', I.tasks], ['new-habit', 'Habit', I.repeat], ['new-goal', 'Goal', I.flag], ['new-project', 'Board', I.board], ['new-event', 'Event', I.cal], ['log-time', 'Log practice', I.clock], ['new-course', 'Course', I.course], ['money-add', 'Update savings', I.money], ['weekly', 'Weekly review', I.review]].concat(isOwner() ? [['job-bulk', 'Add jobs', I.jobs], ['sprint', 'Job sprint', I.jobs], ['new-product', 'Product', I.money]] : []).map(([a, l, ic]) => `<button class="card row" data-act="${a}" style="align-items:center;text-align:left"><span style="width:24px;color:var(--brass-ink)">${ic}</span><div class="main"><div class="t">${l}</div></div></button>`).join('')}</div>`, '', { noFocus: true });
+  openSheet('Add', `<div class="grid two">${[['morning', 'Morning Balance', I.today], ['closeout', 'Night Balance', I.moon], ['focus-free', 'Focus', I.timer], ['breathe', 'Breathe', I.calm], ['new-task', 'Task', I.tasks], ['new-habit', 'Habit', I.repeat], ['new-goal', 'Goal', I.flag], ['new-event', 'Event', I.cal], ['log-time', 'Log practice', I.clock], ['new-course', 'Course', I.course], ['weekly', 'Weekly review', I.review]].map(([a, l, ic]) => `<button class="card row" data-act="${a}" style="align-items:center;text-align:left"><span style="width:24px;color:var(--brass-ink)">${ic}</span><div class="main"><div class="t">${l}</div></div></button>`).join('')}</div>`, '', { noFocus: true });
 }
 
 /* ---------------- navigation polish ---------------- */
@@ -2845,7 +2845,7 @@ document.addEventListener('click', async e => {
     password: () => form('Change password', [{ k: 'current', label: 'Current password', type: 'password', req: true }, { k: 'next', label: 'New password (10+ characters)', type: 'password', req: true }], {}, v => { api('password', { body: v }).then(j => { ls.set(K.tok, j.token); toast('Password changed. Other devices must sign in again.'); }).catch(err => toast(err.message)); }),
     logout: async () => { if (!confirm('Sign out on this device? Data stays on the server.')) return; if (Object.keys(outbox).length) await sync(); try { await api('logout', { method: 'POST' }); } catch {} ls.del(K.tok); ls.del(K.db); ls.del(K.out); ls.del(K.rev); ls.del(K.user); me = null; db = blankDb(); outbox = {}; showLanding(); }
   };
-  Object.assign(map, v7Acts(a, id, e), v71Acts(a, id), v8Acts(a, id), v9Acts(a, id), v9JobActs(a, id), pmActs(a, id), v91Acts(a, id), v10Acts(a, id), v12Acts(a, id), v121Acts(a, id), v13Acts(a, id), v14Acts(a, id), { 'board-open': () => { closeSheet(true); location.hash = '#/board/' + encodeURIComponent(id); }, 'habit-open-s': () => {} });
+  Object.assign(map, v7Acts(a, id, e), v71Acts(a, id), v8Acts(a, id), v9Acts(a, id), v9JobActs(a, id), pmActs(a, id), v91Acts(a, id), v10Acts(a, id), v12Acts(a, id), v121Acts(a, id), v13Acts(a, id), v14Acts(a, id), v15Acts(a, id), v15PathActs(a, id), { 'board-open': () => { closeSheet(true); location.hash = '#/board/' + encodeURIComponent(id); }, 'habit-open-s': () => {} });
   if (map[act]) { if (act !== 'sheet-close' && act !== 'form-save' && act !== 'form-del' && sheetCtx && ['new-task', 'new-event', 'new-note', 'new-decision', 'new-evidence', 'new-session', 'closeout', 'log-time', 'new-application', 'new-milestone', 'new-immig', 'weekly', 'money-add', 'from-tpl', 'new-course', 'morning', 'new-goal', 'wheel-test', 'cycle-new', 'focus-free', 'new-habit'].includes(act)) closeSheet(true); map[act](); }
 });
 document.addEventListener('input', e => { const k = e.target.dataset && e.target.dataset.input; if (k) { ui[k] = e.target.value; saveUi(); if (e.target.dataset.norender) return; clearTimeout(render.t); render.t = setTimeout(render, 180); } });
@@ -3669,7 +3669,7 @@ vLife = function () {
     ${T('p-tab', 'data-t="roadmap"', '#6250d6', '🛣', 'Roadmap', nm ? esc(rel(nm.target)) : '–', nm ? esc(nm.title).slice(0, 40) : 'add milestones', null)}
     ${T('p-tab', 'data-t="insights"', '#e87ba4', '📈', 'Insights', avg ?? '–', 'average day score, 7 days', avg ? avg * 10 : 0)}
     ${T('p-tab', 'data-t="learning"', '#eb6834', '📘', 'Learning', cs.length, 'active courses', null)}
-    ${T('p-tab', 'data-t="money"', '#008300', '💰', 'Money', esc(String(prefs().currency || 'OMR')), 'savings and income', null)}</div>`;
+</div>`;
 };
 
 /* ---------- Roadmap: filter by area (one, several or all), three views ---------- */
@@ -3987,6 +3987,39 @@ const _vSettingsV14 = vSettings;
 vSettings = function () { return _vSettingsV14().replace('<div class="spacer" style="height:14px"></div>', `<div class="spacer" style="height:14px"></div><div class="card setrow"><div class="main"><b>🎁 Invite friends</b><div class="small">Give 7 days, get 7 days.</div></div><button class="btn small primary" data-act="inv-open">Invite</button></div>${isOwner() ? `<div class="card setrow"><div class="main"><b>📺 YouTube gift link</b><div class="small">A longer free trial for your YouTube audience.</div></div><button class="btn small" data-act="gift-open">Set up</button></div>` : ''}`); };
 const _vLifeV14 = vLife;
 vLife = function () { return _vLifeV14().replace('<button class="btn primary small" data-act="wheel-test">', '<button class="btn small" data-act="wheel-card">📤 Share my wheel</button><button class="btn primary small" data-act="wheel-test">'); };
+
+/* ================= v15: the job system moved to ME Studio (hidden here, data kept, export for the move) ================= */
+attention = (orig => function () { return orig().filter(x => !(x[0] === 'go' && x[1] === 'jobs')); })(attention);
+agenda = (orig => function (f, t) { return orig(f, t).filter(x => x.kind !== 'follow'); })(agenda);
+function jobsExport() {
+  const bids = new Set(list('projects').map(p => p.id)); const out = { app: 'me-coach-work-income', version: 1, exportedAt: nowIso(), applications: list('applications'), autopilot: prefs().autopilot || null, jobTpl: prefs().jobTpl || null, jobTarget: prefs().jobTarget || null, products: list('products'), boards: list('projects'), boardTasks: list('tasks').filter(t => t.projectId && bids.has(t.projectId)), money: list('money'), savingsGoal: prefs().savingsGoal || null, currency: prefs().currency || null };
+  const u = URL.createObjectURL(new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' })), l = document.createElement('a'); l.href = u; l.download = `me-coach-jobs-${today()}.json`; document.body.appendChild(l); l.click(); l.remove();
+  toast(`Exported ${out.applications.length} applications, ${out.products.length} products, ${out.boards.length} boards, ${out.money.length} money records`);
+}
+const _vSettingsV15 = vSettings;
+vSettings = function () { return _vSettingsV15().replace('<div class="spacer" style="height:14px"></div>', `<div class="spacer" style="height:14px"></div>${isOwner() ? `<div class="card setrow"><div class="main"><b>📦 Work and income → ME Studio</b><div class="small">Job search, products, boards and money now live in ME Studio. Export them, then pause Autopilot here. Nothing is deleted.</div></div><div class="btns"><button class="btn small primary" data-act="jobs-export">Export</button><button class="btn small" data-act="jobs-pause">${(prefs().autopilot || {}).on ? 'Pause Autopilot' : 'Paused'}</button><a class="btn small ghost" href="#/jobs">Old page</a></div></div>` : ''}`); };
+function v15Acts() { return { 'jobs-export': () => jobsExport(), 'jobs-pause': () => { save('settings', Object.assign({}, prefs(), { id: 'prefs', autopilot: Object.assign({}, prefs().autopilot || {}, { on: false }) })); toast('Autopilot paused in ME.Coach'); render(); } }; }
+
+/* ================= v15: the Blueprint path — follow the book step by step ================= */
+const BOOK = typeof BOOK_URL !== 'undefined' ? BOOK_URL : 'book/self-coaching-blueprint.pdf';
+function pathSteps() {
+  const c = activeCycle() || list('cycles').sort((a, b) => String(b.start).localeCompare(String(a.start)))[0], st = c ? cycleStats(c) : null, bw = bookLatest(), plans = list('goals').filter(g => Array.isArray(g.plan) && g.plan.length);
+  const retest = c && wheels().some(w => w.book && w.date >= addDays(c.start, 30));
+  return [
+    { k: 'commit', ch: 'Chapter 1', t: 'Make your commitment', d: 'Decide that the next 40 days are for you. Write one sentence about why.', done: !!prefs().commitDate, act: 'path-commit', btn: 'I commit' },
+    { k: 'test', ch: 'Chapter 2', t: 'Take the Balance Wheel Test', d: '80 statements, 8 fields. See where you really are today.', done: !!bw, act: 'bt-start', btn: 'Take the test' },
+    { k: 'goal', ch: 'Chapter 3', t: 'Turn a goal into micro-actions', d: 'Field, keyword, pain and pleasure, micro-actions, count and symbol.', done: plans.length > 0, act: 'goal-wizard', btn: 'Plan a goal' },
+    { k: 'daily', ch: 'Chapter 4', t: 'Live the Daily Balance for 40 days', d: 'One minute in the morning, one at night. Your daily score shows your level.', done: !!(st && st.morning + st.night >= 60), prog: st ? Math.min(100, Math.round(100 * (st.morning + st.night) / 80)) : 0, sub: st ? `${st.morning} mornings · ${st.night} nights · day ${st.day} of 40` : '', act: st ? 'morning' : 'cycle-new', btn: st ? 'Morning Balance' : 'Start 40 days' },
+    { k: 'retest', ch: 'Last note', t: 'Retest and celebrate', d: 'After 40 days, take the test again and compare your wheels.', done: !!retest, act: st && st.day >= 35 ? 'bt-start' : 'cr-open', btn: st && st.day >= 35 ? 'Retest now' : '40-day report' }
+  ];
+}
+function vPath() {
+  const steps = pathSteps(), done = steps.filter(s => s.done).length, next = steps.find(s => !s.done);
+  return header('Blueprint path', 'The Self-Coaching Blueprint, step by step') + `
+  <div class="card ph-hero"><div class="ph-ring" style="--p:${Math.round(100 * done / steps.length)}"><b>${done}/${steps.length}</b></div><div class="main"><div class="small">Your journey through the book</div><b>${next ? 'Next: ' + esc(next.t) : 'You completed the Blueprint 🎉'}</b><div class="btns" style="margin-top:8px">${next ? `<button class="btn primary small" data-act="${next.act}">${esc(next.btn)}</button>` : '<button class="btn primary small" data-act="cycle-new">Start a new 40 days</button>'}<a class="btn small" href="${esc(BOOK)}" target="_blank" rel="noopener">📘 Open the book</a></div></div></div>
+  <div class="ph-steps">${steps.map((s, i) => `<div class="ph-s ${s.done ? 'done' : s === next ? 'cur' : ''}"><div class="ph-n">${s.done ? '✓' : i + 1}</div><div class="card"><div class="small">${esc(s.ch)}</div><b>${esc(s.t)}</b><p class="small">${esc(s.d)}</p>${s.prog != null && !s.done ? `<div class="bar"><i style="width:${s.prog}%"></i></div><div class="small" style="margin-top:4px">${esc(s.sub)}</div>` : ''}${s.done ? '' : `<button class="btn small ${s === next ? 'primary' : ''}" data-act="${s.act}">${esc(s.btn)}</button>`}</div></div>`).join('')}</div>`;
+}
+function v15PathActs() { return { 'path-commit': () => form('My commitment', [{ html: '<p class="small" style="margin-top:0">From the book, Chapter 1: change starts with a decision. Write why the next 40 days matter to you.</p>' }, { k: 'why', label: 'I commit to the next 40 days because…', type: 'textarea', req: true }], {}, v => { if (!String(v.why || '').trim()) return 'Write one sentence.'; save('settings', Object.assign({}, prefs(), { id: 'prefs', commitDate: today(), commitWhy: v.why.trim() })); toast('Committed. Let’s go! 💪'); celebrate(); }) }; }
 
 /* ---------------- boot ---------------- */
 if ('serviceWorker' in navigator && location.protocol === 'https:') { const had = !!navigator.serviceWorker.controller; navigator.serviceWorker.register('sw.js').catch(() => {}); navigator.serviceWorker.addEventListener('controllerchange', () => { if (had) toast('ME.Coach was updated', 'Reload', () => location.reload()); }); }
