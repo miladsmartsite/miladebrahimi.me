@@ -7,4 +7,5 @@ coverImage: "/images/books/the-balance.jpg"
 draft: false
 placeholder: false
 order: 2
+pillar: "balance"
 ---

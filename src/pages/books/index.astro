@@ -1,0 +1,70 @@
+---
+/**
+ * /books: the three books, newest first, each tied to its pillar.
+ * Self-Coaching Blueprint (English) leads; a "buy" button appears only
+ * once BOOK_STORE_URL is set in site.ts.
+ */
+import { getCollection } from 'astro:content';
+import BaseLayout from '@layouts/BaseLayout.astro';
+import PageHero from '@components/PageHero.astro';
+import BookCover from '@components/BookCover.astro';
+import Button from '@components/Button.astro';
+import { SITE, PERSON_ID, PILLARS, BOOK_STORE_URL } from '@lib/site';
+
+const books = (await getCollection('books', ({ data }) => !data.draft)).sort((a, b) => b.data.order - a.data.order);
+const pillarOf = (key?: string) => PILLARS.find((p) => p.key === key);
+
+const bookSchema = books.map((book) => ({
+  '@type': 'Book',
+  name: book.data.title,
+  ...(book.data.subtitle ? { alternativeHeadline: book.data.subtitle } : {}),
+  description: book.data.description,
+  author: { '@id': PERSON_ID },
+  ...(book.data.year ? { datePublished: book.data.year } : {}),
+  ...(book.data.language ? { inLanguage: book.data.language } : {}),
+  url: new URL(`/books/#${book.id}`, SITE.url).toString(),
+}));
+---
+
+<BaseLayout
+  title="Books"
+  description="Books by Milad Ebrahimi: Self-Coaching Blueprint, Time Engineering and The Balance Book. A decade of coaching on time, self-leadership and balance."
+  structuredData={bookSchema}
+>
+  <PageHero
+    kicker="Books"
+    title="Three books, *one system.*"
+    subtitle="Time Engineering came first, then The Balance Book, then Self-Coaching Blueprint. Each one is a pillar of the same practice, and every daily Short comes from them."
+  />
+
+  {books.map((book, i) => {
+    const pillar = pillarOf(book.data.pillar);
+    const lead = i === 0;
+    return (
+      <section id={book.id} class:list={['scroll-mt-20', lead ? 'bg-ink text-paper' : i % 2 === 1 ? 'on-paper bg-paper text-ink' : 'bg-ink text-paper']}>
+        <div class="mx-auto grid max-w-(--container-content) items-center gap-10 px-5 py-16 sm:px-8 md:grid-cols-12 lg:gap-16 lg:py-24">
+          <div class:list={['md:col-span-5 lg:col-span-4', i % 2 === 1 ? 'md:order-2 md:col-start-8 lg:col-start-9' : '']}>
+            <BookCover title={book.data.title} subtitle={book.data.subtitle} src={book.data.coverImage} meta={book.data.year} class="max-w-xs" />
+          </div>
+          <div class:list={['md:col-span-7', i % 2 === 1 ? 'md:order-1 md:col-start-1' : 'lg:col-start-6']}>
+            <p class:list={['label', i % 2 === 1 ? 'text-accent-ink' : 'text-accent']}>
+              {pillar ? `Pillar · ${pillar.title}` : 'Book'}{book.data.language ? ` · ${book.data.language}` : ''}{book.data.year ? ` · ${book.data.year}` : ''}
+            </p>
+            <h2 class="mt-5 font-display text-4xl leading-[1.02] font-extrabold tracking-[-0.045em] sm:text-5xl">{book.data.title}</h2>
+            {book.data.subtitle && <p class:list={['mt-4 font-display text-xl font-bold tracking-[-0.02em]', i % 2 === 1 ? 'text-body' : 'text-on-dark-muted']}>{book.data.subtitle}</p>}
+            <p class:list={['mt-6 max-w-xl text-lg leading-relaxed', i % 2 === 1 ? 'text-body' : 'text-on-dark-muted']}>{book.data.description}</p>
+            {lead && (
+              <div class="mt-9 flex flex-wrap gap-3">
+                {BOOK_STORE_URL && <Button href={BOOK_STORE_URL} external arrow data-cta="books-buy">Get the book</Button>}
+                <Button href="/start/" variant={BOOK_STORE_URL ? 'secondary' : 'primary'} arrow data-cta="books-worksheet">Try the Balance Wheel from the book, free</Button>
+              </div>
+            )}
+            {!lead && book.data.language === 'Persian' && (
+              <p class:list={['mt-6 text-sm', i % 2 === 1 ? 'text-meta' : 'text-on-dark-muted']}>Published in Persian. Its ideas appear in English in the daily Shorts and the articles.</p>
+            )}
+          </div>
+        </div>
+      </section>
+    );
+  })}
+</BaseLayout>

@@ -8,4 +8,5 @@ coverImage: "/images/books/self-coaching-blueprint.jpg"
 draft: false
 placeholder: false
 order: 3
+pillar: "self-coaching"
 ---

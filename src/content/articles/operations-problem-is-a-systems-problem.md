@@ -2,7 +2,7 @@
 title: "Why Most Organizations Don't Have an Operations Problem — They Have a Systems Problem"
 description: "When processes depend on people, organizations eventually become difficult to scale. The real challenge is designing a system that makes execution visible, repeatable, and accountable."
 publishDate: 2026-09-09T09:00:00
-category: "Operations"
+category: "Business"
 tags: ["Structure", "Process", "Systems"]
 featured: true
 quote: "People execute systems. People should not have to become the system."

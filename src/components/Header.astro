@@ -1,0 +1,119 @@
+---
+/**
+ * Site header: wordmark, six sections, one call to action (the free
+ * worksheet, the same first link as the YouTube profile). On small screens
+ * the links fold into a full-width panel behind a Menu button.
+ * `minimal` hides the links, for a focused landing page.
+ */
+import Wordmark from '@components/Wordmark.astro';
+import Monogram from '@components/Monogram.astro';
+import Button from '@components/Button.astro';
+import { NAV_ITEMS, SOCIAL_LINKS } from '@lib/site';
+
+interface Props {
+  minimal?: boolean;
+}
+
+const { minimal = false } = Astro.props;
+const path = Astro.url.pathname;
+const isActive = (href: string) => path === href || (href !== '/' && path.startsWith(href));
+---
+
+<header class="sticky top-0 z-40 border-b border-on-dark-line bg-ink/95 text-paper backdrop-blur-sm">
+  <div class="mx-auto flex h-16 max-w-(--container-wide) items-center justify-between gap-6 px-5 sm:px-8">
+    <a href="/" aria-label="Milad Ebrahimi, home" class="flex min-h-11 items-center">
+      <span class="hidden sm:inline-flex"><Wordmark /></span>
+      <span class="inline-flex sm:hidden"><Monogram size={20} /></span>
+    </a>
+
+    {!minimal && (
+      <nav aria-label="Main" class="hidden lg:block">
+        <ul class="flex items-center gap-1">
+          {NAV_ITEMS.map((item) => (
+            <li>
+              <a
+                href={item.href}
+                aria-current={isActive(item.href) ? 'page' : undefined}
+                class:list={[
+                  'label relative flex min-h-11 items-center px-3 transition-colors hover:text-paper',
+                  isActive(item.href) ? 'text-paper after:absolute after:inset-x-3 after:bottom-2 after:h-0.5 after:bg-accent' : 'text-on-dark-muted',
+                ]}
+              >
+                {item.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    )}
+
+    <div class="flex items-center gap-3">
+      {!minimal && (
+        <Button href="/start/" size="small" class="hidden sm:inline-flex" data-cta="header-worksheet">Free worksheet</Button>
+      )}
+      {!minimal && (
+        <button
+          type="button"
+          id="menu-toggle"
+          aria-expanded="false"
+          aria-controls="menu-panel"
+          class="label flex min-h-11 items-center gap-2 border-2 border-on-dark-line px-3 text-paper lg:hidden"
+        >
+          <span id="menu-label">Menu</span>
+          <span aria-hidden="true" class="flex w-4 flex-col gap-1"><span class="h-0.5 bg-current"></span><span class="h-0.5 bg-current"></span></span>
+        </button>
+      )}
+      {minimal && (
+        <a href="/" class="label flex min-h-11 items-center text-on-dark-muted hover:text-paper">Visit the site →</a>
+      )}
+    </div>
+  </div>
+
+  {!minimal && (
+    <div id="menu-panel" hidden class="fixed inset-x-0 top-16 bottom-0 overflow-y-auto border-t border-on-dark-line bg-ink lg:hidden">
+      <nav aria-label="Main" class="mx-auto max-w-(--container-wide) px-5 pt-4 pb-8 sm:px-8">
+        <ul class="flex flex-col">
+          {NAV_ITEMS.map((item) => (
+            <li class="border-b border-on-dark-line">
+              <a
+                href={item.href}
+                aria-current={isActive(item.href) ? 'page' : undefined}
+                class:list={['flex min-h-14 items-center justify-between font-display text-2xl font-extrabold tracking-[-0.03em]', isActive(item.href) ? 'text-accent' : 'text-paper']}
+              >
+                {item.label}<span aria-hidden="true" class="text-accent">→</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+        <div class="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3">
+          <Button href="/start/" data-cta="menu-worksheet">Get the free worksheet</Button>
+          {SOCIAL_LINKS.map((s) => (
+            <a href={s.href} target="_blank" rel="noopener noreferrer" class="label flex min-h-11 items-center text-on-dark-muted hover:text-paper">{s.label}</a>
+          ))}
+        </div>
+      </nav>
+    </div>
+  )}
+</header>
+
+<script>
+  const toggle = document.getElementById('menu-toggle');
+  const panel = document.getElementById('menu-panel');
+  const label = document.getElementById('menu-label');
+  if (toggle && panel) {
+    const set = (open: boolean) => {
+      panel.hidden = !open;
+      toggle.setAttribute('aria-expanded', String(open));
+      if (label) label.textContent = open ? 'Close' : 'Menu';
+      document.documentElement.style.overflow = open ? 'hidden' : '';
+    };
+    toggle.addEventListener('click', () => set(Boolean(panel.hidden)));
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !panel.hidden) {
+        set(false);
+        toggle.focus();
+      }
+    });
+    window.matchMedia('(min-width: 1024px)').addEventListener('change', (e) => e.matches && set(false));
+  }
+</script>

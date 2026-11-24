@@ -1,0 +1,59 @@
+---
+/**
+ * Privacy note in plain language. It describes what this site actually does
+ * today; update it whenever an email service or analytics is switched on.
+ */
+import BaseLayout from '@layouts/BaseLayout.astro';
+import PageHero from '@components/PageHero.astro';
+import Section from '@components/Section.astro';
+import { SITE, NEWSLETTER } from '@lib/site';
+
+const umami = Boolean(import.meta.env.PUBLIC_UMAMI_WEBSITE_ID);
+const email = NEWSLETTER.action.length > 0;
+---
+
+<BaseLayout title="Privacy" description="What miladebrahimi.me collects, why, and how to ask for your data to be removed.">
+  <PageHero kicker="Privacy" title="What this site collects, *in plain words.*" />
+
+  <Section tone="paper">
+    <div class="prose">
+      <h2>The short version</h2>
+      <p>This site has no accounts, sets no advertising cookies and does not sell or share your data.</p>
+
+      <h2>Email</h2>
+      {email ? (
+        <p>
+          If you sign up for the worksheet or the weekly email, your email address is stored by the email service that sends it.
+          It is used only to send you what you asked for. Every email has an unsubscribe link, and you can ask me to delete your address at any time.
+        </p>
+      ) : (
+        <p>The site does not collect email addresses at the moment. If you write to me, I use your message only to reply.</p>
+      )}
+
+      <h2>Visitor statistics</h2>
+      {umami ? (
+        <p>
+          The site counts visits with Umami, which uses no cookies and stores no personal data: no IP addresses, no profiles across sites.
+          It tells me which pages are read and which buttons are used, nothing about who you are.
+        </p>
+      ) : (
+        <p>The site does not run visitor analytics at the moment.</p>
+      )}
+
+      <h2>YouTube</h2>
+      <p>
+        Video thumbnails on this site are loaded from YouTube's image servers, so YouTube receives a normal web request (including your IP address) when you view those pages.
+        Videos open on YouTube itself, where YouTube's own privacy policy applies.
+      </p>
+
+      <h2>Fonts and hosting</h2>
+      <p>Fonts are served from this site, not from a third-party font service. The site is hosted by Hostinger, which keeps standard server logs.</p>
+
+      <h2>ME.Coach</h2>
+      <p>ME.Coach at <a href="/coach/">miladebrahimi.me/coach</a> is a separate app with its own account, data and terms.</p>
+
+      <h2>Questions or removal</h2>
+      <p>Write to <a href={`mailto:${SITE.contactEmail}`}>{SITE.contactEmail}</a> and I'll answer, or remove what you ask me to remove.</p>
+    </div>
+  </Section>
+</BaseLayout>

@@ -1,0 +1,87 @@
+---
+/**
+ * /about: who Milad is, in the brand's voice. Facts only from ME Studio
+ * books/bio-facts.md (✅) and the channel About text Milad approved
+ * (22 Nov 2026). The full professional record lives one level down, at
+ * /about/resume and /about/work.
+ */
+import { getCollection } from 'astro:content';
+import BaseLayout from '@layouts/BaseLayout.astro';
+import PageHero from '@components/PageHero.astro';
+import Section from '@components/Section.astro';
+import Portrait from '@components/Portrait.astro';
+import Timeline from '@components/Timeline.astro';
+import Button from '@components/Button.astro';
+import { SITE, PILLARS } from '@lib/site';
+
+const experience = (await getCollection('experience', ({ data }) => !data.draft)).sort((a, b) => b.data.startDate.valueOf() - a.data.startDate.valueOf());
+const facts = [
+  ['Work', 'Productivity coach, author and international trainer'],
+  ['Coaching', '10+ years'],
+  ['Founded', 'ME Academy (Milad Ebrahimi Academy)'],
+  ['Books', 'Time Engineering · The Balance Book · Self-Coaching Blueprint'],
+  ['Background', 'Civil engineering, then marketing and operations'],
+  ['Based in', 'Muscat, Oman'],
+];
+---
+
+<BaseLayout
+  title="About"
+  description="Milad Ebrahimi is a productivity coach with 10+ years of coaching, author of Self-Coaching Blueprint and Time Engineering, international trainer and founder of ME Academy, based in Muscat, Oman."
+>
+  <PageHero kicker="About" title="I help people engineer their time and *lead themselves.*" />
+
+  <Section tone="paper" width="wide">
+    <div class="grid gap-12 md:grid-cols-12 lg:gap-16">
+      <div class="md:col-span-4">
+        <Portrait class="max-w-80" />
+      </div>
+      <div class="md:col-span-8 lg:col-span-7">
+        <div class="max-w-(--container-prose) space-y-6 text-lg leading-relaxed text-body">
+          <p class="font-display text-2xl leading-snug font-bold tracking-[-0.02em] text-ink">
+            I'm Milad Ebrahimi: productivity coach, author and international trainer, and the founder of ME Academy.
+          </p>
+          <p>
+            For more than ten years I've coached people on the same few questions: where does my time go, what do I actually want, and why does my life feel out of balance? The answers became three books, Time Engineering, The Balance Book and Self-Coaching Blueprint.
+          </p>
+          <p>
+            I'm a civil engineer by background, and it shows in how I work: I treat a week like a structure that can be designed, measured and improved, not something you simply survive. Years in marketing and operations roles taught me the same lesson inside companies: most problems are system problems.
+          </p>
+          <p>
+            Today I share one practical idea from my books every day on YouTube, in under 30 seconds, and I build ME.Coach, the app that turns the book's tools into a daily habit. I live and work in Muscat, Oman.
+          </p>
+        </div>
+
+        <dl class="mt-12 max-w-(--container-prose) border-t-2 border-ink">
+          {facts.map(([term, value]) => (
+            <div class="grid gap-1 border-b border-line py-4 sm:grid-cols-[9rem_1fr] sm:gap-6">
+              <dt class="label pt-1 text-accent-ink">{term}</dt>
+              <dd class="text-ink">{value}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    </div>
+  </Section>
+
+  <Section tone="dark" kicker="What I teach" heading="Three pillars, one *practice.*" width="wide">
+    <div class="grid border-t border-on-dark-line md:grid-cols-3">
+      {PILLARS.map((pillar, i) => (
+        <div class:list={['py-8 md:pr-8', i > 0 ? 'border-t border-on-dark-line md:border-t-0 md:border-l md:pl-8' : '']}>
+          <p class="font-display text-sm font-extrabold text-accent">0{i + 1}</p>
+          <p class="mt-4 font-display text-2xl font-extrabold tracking-[-0.03em]">{pillar.title}</p>
+          <p class="mt-2 text-on-dark-muted">{pillar.line}</p>
+        </div>
+      ))}
+    </div>
+  </Section>
+
+  <Section tone="paper" kicker="Career" heading="From education, into marketing, into *operations.*" width="wide">
+    <Timeline items={experience} />
+    <div class="mt-10 flex flex-wrap gap-3">
+      <Button href="/about/resume/" variant="dark" arrow data-cta="about-resume">Full resume</Button>
+      <Button href="/about/work/" variant="ghost" arrow data-cta="about-work">Systems I've built</Button>
+      <Button href={SITE.cvUrl} variant="ghost" external arrow data-cta="about-cv">Download CV</Button>
+    </div>
+  </Section>
+</BaseLayout>

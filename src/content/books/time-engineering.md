@@ -7,4 +7,5 @@ coverImage: "/images/books/time-engineering.jpg"
 draft: false
 placeholder: false
 order: 1
+pillar: "time-engineering"
 ---

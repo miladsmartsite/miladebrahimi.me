@@ -1,0 +1,85 @@
+---
+/**
+ * /ideas: every published article, grouped by topic (the three pillars,
+ * then Business). Same publication rule as everywhere else
+ * (getPublishedArticles): drafts, placeholders and not-yet-due articles
+ * never appear.
+ */
+import BaseLayout from '@layouts/BaseLayout.astro';
+import PageHero from '@components/PageHero.astro';
+import IdeaRow from '@components/IdeaRow.astro';
+import Button from '@components/Button.astro';
+import SignupForm from '@components/SignupForm.astro';
+import { getPublishedArticles } from '@lib/articles';
+import { SITE, TOPICS } from '@lib/site';
+
+const articles = await getPublishedArticles();
+const groups = TOPICS.map((topic) => ({ ...topic, articles: articles.filter((a) => a.data.category === topic.title) }));
+
+const breadcrumbSchema = {
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: SITE.url },
+    { '@type': 'ListItem', position: 2, name: 'Ideas', item: new URL('/ideas/', SITE.url).toString() },
+  ],
+};
+---
+
+<BaseLayout
+  title="Ideas"
+  description="Articles by Milad Ebrahimi on time engineering, self-coaching, balance and business systems: the thinking behind the daily Shorts, written down."
+  structuredData={breadcrumbSchema}
+>
+  <PageHero
+    kicker="Ideas"
+    title="The thinking behind the Shorts, *written down.*"
+    subtitle="Longer pieces on planning your time, coaching yourself, keeping your life in balance, and making work work better."
+  >
+    <nav aria-label="Topics" class="mt-10">
+      <ul class="flex flex-wrap gap-2">
+        {groups.map((g) => (
+          <li>
+            <a href={`#${g.slug}`} class="label flex min-h-11 items-center gap-2 border border-on-dark-line px-4 text-paper transition-colors hover:border-accent hover:text-accent">
+              {g.title}<span class="text-on-dark-muted">{g.articles.length}</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  </PageHero>
+
+  <div class="on-paper bg-paper text-ink">
+    <div class="mx-auto max-w-(--container-content) px-5 py-6 sm:px-8 lg:py-10">
+      {groups.map((group) => (
+        <section id={group.slug} class="scroll-mt-24 py-10 lg:py-14">
+          <div class="flex flex-col gap-2 border-b-2 border-ink pb-5 sm:flex-row sm:items-end sm:justify-between">
+            <h2 class="font-display text-[2rem] leading-none font-extrabold tracking-[-0.04em] sm:text-4xl">{group.title}</h2>
+            <p class="text-meta">{group.line}</p>
+          </div>
+          {group.articles.length > 0 ? (
+            <div class="divide-y divide-line">
+              {group.articles.map((article) => <IdeaRow article={article} />)}
+            </div>
+          ) : (
+            <p class="py-7 text-body">
+              The first articles on {group.title.toLowerCase()} are being written. Meanwhile, the Shorts cover it one idea at a time:
+              <a href="/videos/" class="font-semibold text-accent-ink underline decoration-2 underline-offset-4">watch the videos</a>.
+            </p>
+          )}
+        </section>
+      ))}
+    </div>
+  </div>
+
+  <section class="bg-ink text-paper">
+    <div class="mx-auto grid max-w-(--container-content) items-end gap-8 px-5 py-16 sm:px-8 md:grid-cols-2">
+      <h2 class="font-display text-3xl leading-[1.05] font-extrabold tracking-[-0.04em] sm:text-4xl">New ideas, without checking back.</h2>
+      <SignupForm source="ideas" cta="Subscribe">
+        <div class="flex flex-wrap gap-3">
+          <Button href="/start/" arrow data-cta="ideas-worksheet">Get the free worksheet</Button>
+          <Button href="/rss.xml" variant="secondary" data-cta="ideas-rss">RSS feed</Button>
+        </div>
+      </SignupForm>
+    </div>
+  </section>
+</BaseLayout>

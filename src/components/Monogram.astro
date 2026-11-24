@@ -1,0 +1,24 @@
+---
+/**
+ * The "ME" monogram: Manrope 800, tight tracking, a bronze bar below.
+ * The bar is the same accent bar that underlines key words in every Short,
+ * and it is what ties the brand together (ME Studio brand/BRAND.md).
+ * Never stretched, outlined or paired with an icon.
+ */
+interface Props {
+  /** Cap height in px. */
+  size?: number;
+  /** 'ivory' on charcoal (default) or 'charcoal' on ivory. */
+  tone?: 'ivory' | 'charcoal';
+  class?: string;
+}
+
+const { size = 22, tone = 'ivory', class: className = '' } = Astro.props;
+const color = tone === 'ivory' ? 'text-paper' : 'text-ink';
+const bar = tone === 'ivory' ? 'bg-accent' : 'bg-accent-ink';
+---
+
+<span class={`inline-flex flex-col items-center ${className}`} aria-hidden="true">
+  <span class={`font-display leading-none font-extrabold ${color}`} style={`font-size:${size}px;letter-spacing:-0.07em;margin-right:0.07em`}>ME</span>
+  <span class={`block ${bar}`} style={`width:${Math.round(size * 0.82)}px;height:${Math.max(2, Math.round(size * 0.14))}px;margin-top:${Math.round(size * 0.24)}px`}></span>
+</span>

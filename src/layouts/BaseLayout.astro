@@ -2,9 +2,7 @@
 import '@styles/global.css';
 import SEO from '@components/SEO.astro';
 import Analytics from '@components/Analytics.astro';
-import Nav from '@components/Nav.astro';
-import MobileNavToggle from '@components/MobileNavToggle.astro';
-import MobileNavPanel from '@components/MobileNavPanel.astro';
+import Header from '@components/Header.astro';
 import Footer from '@components/Footer.astro';
 import { SITE, SOCIAL_LINKS, PERSON_ID } from '@lib/site';
 
@@ -14,17 +12,15 @@ interface Props {
   image?: string;
   type?: 'website' | 'article';
   noindex?: boolean;
-  /** Extra JSON-LD (Article/Book/BreadcrumbList/etc.) for pages beyond the
-   * sitewide Person + WebSite graph — one object, or several. */
+  /** Focused landing page: header without navigation (used by /start). */
+  minimal?: boolean;
+  /** Extra JSON-LD (Article/Book/BreadcrumbList/etc.), one object or several. */
   structuredData?: Record<string, unknown> | Record<string, unknown>[];
 }
 
-const { title, description, image, type, noindex, structuredData } = Astro.props;
+const { title, description, image, type, noindex, minimal = false, structuredData } = Astro.props;
 
-// Person schema — every field here is either structural (name/url) or
-// CV-verbatim/confirmed (jobTitle, description, image, sameAs). No claimed
-// employer, awards, or credentials are asserted; sameAs is populated only
-// from real profile URLs already published elsewhere on the site.
+// Person schema: every field is structural or confirmed (bio-facts ✅).
 const personSchema = {
   '@type': 'Person',
   '@id': PERSON_ID,
@@ -33,13 +29,10 @@ const personSchema = {
   jobTitle: SITE.jobTitle,
   description: SITE.positioning,
   image: new URL('/images/profile/milad-portrait.jpg', SITE.url).toString(),
-  ...(SOCIAL_LINKS.length > 0 ? { sameAs: SOCIAL_LINKS.map((link) => link.href) } : {}),
+  homeLocation: { '@type': 'Place', name: 'Muscat, Oman' },
+  sameAs: SOCIAL_LINKS.map((link) => link.href),
 };
 
-// WebSite schema — the site as a whole, kept minimal and accurate. No
-// SearchAction: the site has no internal search to describe. `author`
-// references the same Person node above (via `@id`), not a duplicate —
-// this is the one entity the whole site is written by and about.
 const websiteSchema = {
   '@type': 'WebSite',
   name: SITE.name,
@@ -47,10 +40,6 @@ const websiteSchema = {
   author: { '@id': PERSON_ID },
 };
 
-// One `@graph` per page — Person and WebSite are sitewide; a page can add
-// its own Article/Book/BreadcrumbList alongside them via `structuredData`.
-// Per-page entries pass in without their own `@context` (this wrapper
-// supplies the one shared context for everything in the graph).
 const jsonLd = {
   '@context': 'https://schema.org',
   '@graph': [
@@ -66,45 +55,37 @@ const jsonLd = {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script is:inline>document.documentElement.classList.add('js');</script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="alternate" type="application/rss+xml" title={`${SITE.name} — Ideas`} href="/rss.xml" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="theme-color" content="#141414" />
+    <link rel="alternate" type="application/rss+xml" title={`${SITE.name} · Ideas`} href="/rss.xml" />
     <meta name="generator" content={Astro.generator} />
     <SEO title={title} description={description} image={image} type={type} noindex={noindex} />
     <script type="application/ld+json" is:inline set:html={JSON.stringify(jsonLd)} />
     <Analytics />
 
-    <!-- Preload the two fonts used above the fold on every page. -->
-    <link rel="preload" as="font" type="font/woff2" href="/fonts/bricolage-grotesque/bricolage-grotesque-variable.woff2" crossorigin />
-    <link rel="preload" as="font" type="font/woff2" href="/fonts/crimson-pro/crimson-pro-variable.woff2" crossorigin />
-
-    <noscript>
-      <style>
-        [data-reveal] {
-          opacity: 1 !important;
-          transform: none !important;
-        }
-      </style>
-    </noscript>
+    <link rel="preload" as="font" type="font/woff2" href="/fonts/manrope/manrope-latin-800-normal.woff2" crossorigin />
+    <link rel="preload" as="font" type="font/woff2" href="/fonts/inter/inter-latin-400-normal.woff2" crossorigin />
   </head>
   <body class="flex min-h-screen flex-col">
     <a
       href="#main-content"
-      class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:bg-ink-0 focus:px-4 focus:py-2 focus:text-ink-950"
+      class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:bg-accent focus:px-4 focus:py-3 focus:font-semibold focus:text-ink"
     >
       Skip to content
     </a>
-    <Nav />
-    <MobileNavToggle />
-    <MobileNavPanel />
+    <Header minimal={minimal} />
     <main id="main-content" class="flex-1">
       <slot />
     </main>
     <Footer />
 
     <script>
-      // Scroll-reveal: promote [data-reveal] elements to their resting
-      // state once they enter the viewport. If IntersectionObserver is
-      // unavailable, reveal everything immediately rather than hide content.
+      // Scroll-reveal. Content is visible by default; this only adds a small
+      // settle as a section enters the viewport. No observer = no effect.
+      const items = document.querySelectorAll('[data-reveal]');
       if ('IntersectionObserver' in window) {
         const observer = new IntersectionObserver(
           (entries) => {
@@ -115,11 +96,15 @@ const jsonLd = {
               }
             }
           },
-          { threshold: 0.1, rootMargin: '0px 0px -8% 0px' },
+          { threshold: 0.08, rootMargin: '0px 0px -6% 0px' },
         );
-        document.querySelectorAll('[data-reveal]').forEach((el) => observer.observe(el));
+        items.forEach((el) => {
+          // Anything already on screen at load is shown at once.
+          if (el.getBoundingClientRect().top < window.innerHeight) el.classList.add('is-revealed');
+          else observer.observe(el);
+        });
       } else {
-        document.querySelectorAll('[data-reveal]').forEach((el) => el.classList.add('is-revealed'));
+        items.forEach((el) => el.classList.add('is-revealed'));
       }
     </script>
   </body>

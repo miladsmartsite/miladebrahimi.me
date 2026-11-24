@@ -12,15 +12,15 @@ export async function GET(context: APIContext) {
   const sorted = await getPublishedArticles();
 
   return rss({
-    title: `${SITE.name} — Ideas`,
-    description: 'Notes on operations, systems, and where AI actually helps.',
+    title: `${SITE.name} · Ideas`,
+    description: 'Ideas on time engineering, self-coaching, balance and business systems from Milad Ebrahimi.',
     site: context.site!,
     items: sorted.map((article) => ({
       title: article.data.title,
       description: article.data.description,
       pubDate: article.data.publishDate,
       ...(article.data.updatedDate ? { customData: `<updated>${article.data.updatedDate.toISOString()}</updated>` } : {}),
-      link: `/contents/articles/${article.id}/`,
+      link: `/ideas/${article.id}/`,
       categories: [article.data.category, ...article.data.tags],
       author: article.data.author,
     })),

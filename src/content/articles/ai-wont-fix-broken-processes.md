@@ -2,7 +2,7 @@
 title: "AI Won't Transform Your Organization If Your Processes Are Broken"
 description: "AI can automate tasks, accelerate decisions, and improve productivity. But it cannot fix an organization that doesn't understand how its work actually happens."
 publishDate: 2026-09-09T10:00:00
-category: "AI"
+category: "Business"
 tags: ["Applied AI", "Automation", "Leverage"]
 featured: false
 quote: "Automating a broken process doesn't fix it. It just makes the broken version happen faster."

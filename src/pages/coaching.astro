@@ -1,0 +1,99 @@
+---
+/**
+ * /coaching: three ways to go further than the free content, as a ladder:
+ * the app (lowest commitment), 1:1 coaching (limited places), workshops
+ * for teams. ME.Coach is its own app at /coach; this page only links to it.
+ */
+import BaseLayout from '@layouts/BaseLayout.astro';
+import PageHero from '@components/PageHero.astro';
+import Section from '@components/Section.astro';
+import Button from '@components/Button.astro';
+import BalanceWheel from '@components/BalanceWheel.astro';
+import { SITE, ME_COACH } from '@lib/site';
+
+const mail = (subject: string) => `mailto:${SITE.contactEmail}?subject=${encodeURIComponent(subject)}`;
+const workshopTopics = [
+  { title: 'Time engineering', line: 'Planning the day around a few important tasks; protecting focus time.' },
+  { title: 'Goals that work', line: 'Starting from what you don’t want, and setting 40-day goals instead of 12-month ones.' },
+  { title: 'Self-coaching for leaders', line: 'Leading yourself with questions before leading a team.' },
+  { title: 'The Balance Wheel', line: 'Eight areas of life, scored honestly, and one chosen for change.' },
+];
+---
+
+<BaseLayout
+  title="Coaching"
+  description="Work with Milad Ebrahimi: the ME.Coach self-coaching app with a 7-day free trial, 1:1 coaching with limited places, and time and focus workshops for teams in Muscat, the Gulf and online."
+>
+  <PageHero
+    kicker="Coaching"
+    title="Go further than one idea a day."
+    subtitle="Start with the app. When you want a person in your corner, apply for coaching. For your whole team, book a workshop."
+  >
+    <nav aria-label="On this page" class="mt-10 flex flex-wrap gap-2">
+      {[['ME.Coach app', '#app'], ['1:1 coaching', '#coaching'], ['Workshops', '#workshops']].map(([label, href]) => (
+        <a href={href} class="label flex min-h-11 items-center border border-on-dark-line px-4 text-paper transition-colors hover:border-accent hover:text-accent">{label}</a>
+      ))}
+    </nav>
+  </PageHero>
+
+  <Section id="app" tone="paper" number="01" kicker="App · 7-day free trial" heading="ME.Coach: your self-coaching app, *one minute a day.*" width="wide">
+    <div class="grid items-center gap-12 md:grid-cols-2">
+      <div>
+        <p class="max-w-xl text-lg text-body">{ME_COACH.description}</p>
+        <ul class="mt-8 space-y-3 text-body">
+          <li class="grid grid-cols-[1.5rem_1fr]"><span class="font-extrabold text-accent-ink">—</span>The Balance Wheel test and the book's other self-assessments</li>
+          <li class="grid grid-cols-[1.5rem_1fr]"><span class="font-extrabold text-accent-ink">—</span>Goals in five steps, broken into small daily actions</li>
+          <li class="grid grid-cols-[1.5rem_1fr]"><span class="font-extrabold text-accent-ink">—</span>Morning and night balance check-ins, on the 40-day cycle</li>
+        </ul>
+        <div class="mt-10 flex flex-wrap gap-3">
+          <Button href={ME_COACH.url} variant="dark" arrow data-cta="coaching-mecoach">Start the free trial</Button>
+        </div>
+      </div>
+      <div class="border border-line bg-paper-dim p-8">
+        <BalanceWheel tone="paper" scores={[6, 7, 5, 8, 6, 4, 7, 6]} class="mx-auto block w-full max-w-sm" />
+        <p class="label mt-4 text-center text-meta">Example wheel</p>
+      </div>
+    </div>
+  </Section>
+
+  <Section id="coaching" tone="dark" number="02" kicker="1:1 · Limited places" heading="Personal coaching with *Milad.*" width="wide">
+    <div class="grid gap-12 md:grid-cols-2">
+      <div class="space-y-5 text-lg text-on-dark-muted">
+        <p>Monthly coaching built on the 40-day self-coaching cycle from Self-Coaching Blueprint: choose one area, set a goal you can reach, and check in until it sticks.</p>
+        <p>I take on a small number of people at a time, so every application gets a personal reply.</p>
+      </div>
+      <div>
+        <ol class="border-t border-on-dark-line">
+          {['Send a short note: where you are, and the one area you want to change.', 'We have a short call to see if coaching is the right fit.', 'If it is, we start your first 40-day cycle.'].map((step, i) => (
+            <li class="grid grid-cols-[2.5rem_1fr] border-b border-on-dark-line py-5">
+              <span class="font-display text-xl font-extrabold text-accent">{i + 1}</span><span>{step}</span>
+            </li>
+          ))}
+        </ol>
+        <div class="mt-8">
+          <Button href={mail('Coaching application')} arrow data-cta="coaching-apply">Apply for coaching</Button>
+          <p class="mt-3 text-sm text-on-dark-muted">Or write to {SITE.contactEmail}</p>
+        </div>
+      </div>
+    </div>
+  </Section>
+
+  <Section id="workshops" tone="paper" number="03" kicker="Teams · Muscat, the Gulf, online" heading="Workshops for *teams.*" width="wide">
+    <div class="grid gap-12 md:grid-cols-12">
+      <div class="md:col-span-5">
+        <p class="text-lg text-body">Practical sessions for teams and companies, in person in Muscat and across the Gulf, or online. Each one gives people a tool they can use the next morning, not a binder they never open.</p>
+        <div class="mt-8">
+          <Button href={mail('Workshop enquiry')} variant="dark" arrow data-cta="coaching-workshop">Enquire about a workshop</Button>
+        </div>
+      </div>
+      <ul class="border-t-2 border-ink md:col-span-7">
+        {workshopTopics.map((topic) => (
+          <li class="border-b border-line py-5">
+            <p class="font-display text-xl font-extrabold tracking-[-0.025em]">{topic.title}</p>
+            <p class="mt-1 text-body">{topic.line}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </Section>
+</BaseLayout>

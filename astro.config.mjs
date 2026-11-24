@@ -9,22 +9,7 @@ import sitemap from '@astrojs/sitemap';
 
 import { findPublishDateProblem } from './src/lib/publication.ts';
 
-// The sitemap integration's `filter` only ever sees a URL string, not
-// content-collection data, so a placeholder article's own `placeholder:
-// true` flag can't be checked there directly. Reading each article's
-// frontmatter here (a plain regex line-check, not a new YAML-parsing
-// dependency) computes the same slugs the page itself excludes from RSS
-// (see src/pages/rss.xml.ts) — so once a real article ships (placeholder
-// removed from its frontmatter), it starts appearing in the sitemap with
-// no config change required (Phase 12 §12).
 const articlesDir = path.join(process.cwd(), 'src/content/articles');
-const placeholderArticleSlugs = new Set(
-  fs
-    .readdirSync(articlesDir)
-    .filter((file) => file.endsWith('.md') && file !== 'README.md')
-    .filter((file) => /^placeholder:\s*true\s*$/m.test(fs.readFileSync(path.join(articlesDir, file), 'utf-8')))
-    .map((file) => file.replace(/\.md$/, '')),
-);
 
 // Validate each article's RAW `publishDate` line before YAML parsing. YAML
 // silently normalises some unquoted dates (2026-02-31 becomes 3 March,
@@ -38,51 +23,62 @@ for (const file of fs.readdirSync(articlesDir)) {
   if (problem) throw new Error(`Invalid publishDate in src/content/articles/${file}: ${problem}`);
 }
 
+// Every URL the site has ever published keeps working after the November
+// 2026 restructure (Start here · Videos · Ideas · Books · Coaching · About).
+// Static output turns each into a small page with a canonical link and an
+// instant redirect. Never add a route named start, coach, go, dota2,
+// me.english, me.studio or Tathmeer: those are separate platforms that
+// share the host folder (/resources only links to /start).
+const redirects = {
+  '/contents': '/ideas/',
+  '/contents/articles': '/ideas/',
+  '/contents/articles/[slug]': '/ideas/[slug]',
+  '/articles': '/ideas/',
+  '/articles/[slug]': '/ideas/[slug]',
+  '/contents/books': '/books/',
+  '/contents/videos': '/videos/',
+  '/contents/podcasts': '/videos/',
+  '/contents/more': '/coaching/',
+  '/speaking': '/coaching/',
+  '/resources': '/start/',
+  '/expertise': '/about/',
+  '/resume': '/about/resume/',
+  '/cv': '/about/resume/',
+  '/work': '/about/work/',
+  '/projects': '/about/work/',
+  '/projects/[slug]': '/about/work/[slug]',
+};
+
 // https://astro.build/config
 export default defineConfig({
   // Required for SEO: canonical URLs, sitemap, and RSS all derive from this.
   site: 'https://miladebrahimi.me',
 
-  // Fully static output — no server runtime, deployable as flat files to Hostinger public_html.
+  // Fully static output, deployed as flat files to Hostinger public_html.
   output: 'static',
 
   trailingSlash: 'ignore',
 
-  // Shiki's default theme injects inline color styles on every code block,
-  // which override the hand-written Harbour code-block CSS (.prose pre/code
-  // in global.css) since inline styles always win over classes. Disabling
-  // it — rather than fighting it with a Shiki theme config — keeps code
-  // blocks fully in Harbour's own ink/paper palette with no per-token
-  // styling library to maintain (Phase 9 §17: a highlighter isn't actually
-  // necessary here).
+  redirects,
+
   markdown: {
     syntaxHighlight: false,
   },
 
   vite: {
-    plugins: [tailwindcss()]
+    plugins: [tailwindcss()],
   },
 
   integrations: [
     sitemap({
-      // Legacy routes that only exist as 301-style redirects (each already
-      // emits noindex + a canonical pointing at its real destination — see
-      // the pages themselves) — excluded so the sitemap only ever lists a
-      // page's one canonical URL, never the old address that forwards to
-      // it. `/articles/` covers both the bare listing redirect and every
-      // per-slug redirect (`/articles/<slug>/`, now that individual
-      // articles live at /contents/articles/<slug>/) — matched by prefix
-      // there, by exact pathname everywhere else, so this can't also catch
-      // the real /contents/articles/ listing.
+      // Only canonical pages: never an old address that forwards elsewhere.
       filter: (page) => {
         const { pathname } = new URL(page);
-        if (pathname.startsWith('/articles/')) return false;
-        if (['/about/', '/cv/', '/books/', '/work/'].includes(pathname)) return false;
-        for (const slug of placeholderArticleSlugs) {
-          if (pathname === `/contents/articles/${slug}/`) return false;
-        }
-        return true;
+        return !Object.keys(redirects).some((from) => {
+          const prefix = from.replace(/\[slug\]$/, '');
+          return from.endsWith('[slug]') ? pathname.startsWith(prefix) : pathname === `${from}/`;
+        });
       },
     }),
-  ]
+  ],
 });

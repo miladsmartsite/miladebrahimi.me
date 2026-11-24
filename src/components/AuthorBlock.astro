@@ -1,10 +1,6 @@
 ---
 /**
- * The article's closing "about the author" moment — reused wherever an
- * article needs one, rather than repeated inline per page. Every word
- * here is copy already approved and used elsewhere on the site (the
- * homepage positioning line, the nav tagline) — nothing new is asserted
- * about Milad specifically for this block.
+ * The closing "about the author" block on every article.
  */
 import Portrait from '@components/Portrait.astro';
 import { SITE } from '@lib/site';
@@ -12,19 +8,20 @@ import { SITE } from '@lib/site';
 
 <div class="flex flex-col gap-5 border-t border-line pt-8 sm:flex-row sm:items-start">
   <div class="w-20 shrink-0">
-    <Portrait aspect="1:1" class="border border-line" />
+    <Portrait aspect="1:1" />
   </div>
   <div>
-    <p class="font-mono text-[11px] font-bold tracking-[0.16em] text-accent-ink uppercase">About the author</p>
-    <p class="mt-2 font-display text-xl font-bold tracking-[-0.02em] text-ink">{SITE.name}</p>
-    <p class="mt-1 font-mono text-[11px] tracking-wide text-meta uppercase">Business Operations · Systems · Organizational Transformation</p>
-    <p class="mt-3 max-w-xl font-body text-base text-body">{SITE.positioning}</p>
+    <p class="label text-accent-ink">About the author</p>
+    <p class="mt-2 font-display text-xl font-extrabold tracking-[-0.025em] text-ink">{SITE.name}</p>
+    <p class="mt-2 max-w-xl text-body">
+      Productivity coach with 10+ years of coaching, author of Self-Coaching Blueprint and Time Engineering, and founder of ME Academy. Based in Muscat, Oman.
+    </p>
     <a
-      href="/resume"
-      data-cta="author-block-resume"
-      class="mt-3 inline-flex min-h-11 items-center font-mono text-[13px] font-medium text-accent-ink underline decoration-line underline-offset-4 hover:decoration-accent"
+      href="/about/"
+      data-cta="author-block-about"
+      class="mt-3 inline-flex min-h-11 items-center font-semibold text-accent-ink underline decoration-2 underline-offset-[6px]"
     >
-      Read the full profile →
+      More about Milad →
     </a>
   </div>
 </div>

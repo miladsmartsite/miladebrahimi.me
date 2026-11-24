@@ -1,0 +1,234 @@
+---
+/**
+ * Resume — the complete professional archive (Phase 3 §14 / Phase 6's
+ * "professional record" framing). The homepage deliberately stays a
+ * highlights reel; this page carries the full story, in the approved
+ * order: Profile, Core Areas, Career, Achievements, Systems & Projects,
+ * Certifications, Books, Education, Tools, Languages, Download CV. Every
+ * section carries an anchor id matching the "About Me & Resume" mega
+ * menu's deep links (see /about). Built so a new role,
+ * certification, project, or book can be added later by editing the
+ * relevant content collection/data file — no page redesign needed.
+ */
+import { getCollection } from 'astro:content';
+import BaseLayout from '@layouts/BaseLayout.astro';
+import PageHero from '@components/PageHero.astro';
+import Section from '@components/Section.astro';
+import Portrait from '@components/Portrait.astro';
+import Timeline from '@components/Timeline.astro';
+import Results from '@components/home/Results.astro';
+import StatusTag from '@components/StatusTag.astro';
+import Button from '@components/Button.astro';
+import { SITE, CV, EXPERTISE_AREAS, SYSTEM_TYPE_LABELS } from '@lib/site';
+
+const allExperience = await getCollection('experience', ({ data }) => !data.draft);
+const experience = allExperience.sort((a, b) => b.data.startDate.valueOf() - a.data.startDate.valueOf());
+
+const allProjects = await getCollection('projects', ({ data }) => !data.draft);
+const systems = allProjects.sort((a, b) => a.data.order - b.data.order);
+
+const allBooks = await getCollection('books', ({ data }) => !data.draft);
+const books = allBooks.sort((a, b) => a.data.order - b.data.order);
+
+// Real tool names already present in each system's own `tools` list — not
+// a separately-invented skills inventory.
+const tools = [...new Set(systems.flatMap((s) => s.data.tools))];
+---
+
+<BaseLayout
+  title="Resume"
+  description="Profile, areas of practice, career history, systems built, certifications, books, education, and languages — the complete professional record."
+>
+  <PageHero kicker="About · Resume" title={SITE.name} subtitle={CV.summary} />
+
+  <Section id="profile" number="01" kicker="Profile" tone="dim" reveal>
+    <div class="grid gap-10 lg:grid-cols-12 lg:gap-12">
+      <div class="lg:col-span-3">
+        <Portrait class="max-w-72" />
+      </div>
+      <div class="max-w-(--container-prose) space-y-6 font-body text-lg text-body lg:col-span-9">
+        <p>
+          The path here didn't start with operations. It started with running an independent
+          education practice for six years — the kind of work where you're responsible for
+          everything at once, because there's no one else to hand it to.
+        </p>
+        <p>
+          From there, the work moved into marketing: first as a specialist executing campaigns,
+          then managing digital marketing, then leading marketing communications end to end.
+          Three roles, three companies, each one a step up in scope — content, lead generation,
+          brand visuals, campaign strategy.
+        </p>
+        <p>
+          The shift into operations happened at Perla Engineering — starting in marketing, then
+          moving into an operations role once it became clear that the more valuable work was
+          further upstream: not just producing content or campaigns, but building the systems
+          that let an organization actually run — daily reporting, material requests, a defined
+          operating rhythm for the role itself.
+        </p>
+        <p>
+          That practice is now continuing at Tathmeer Properties, consolidating reporting across
+          a larger project portfolio. Alongside it, three books have been written over the past
+          decade — on time, on balance, and on self-coaching — a separate but related thread
+          about how people (not just organizations) actually get better at their work.
+        </p>
+      </div>
+    </div>
+  </Section>
+
+  <Section id="practice" kicker="The practice" heading="Where operations, systems, and leadership meet." tone="navy" field reveal>
+    <p class="max-w-2xl font-body text-lg text-on-dark-muted">
+      The throughline across all of it: understand how something actually works, find where it's
+      breaking, and build the smallest system that fixes it — whether that means an operational
+      process, a piece of marketing, or a place AI genuinely changes the outcome. Not a title,
+      not a pitch — just the way the work has consistently gone.
+    </p>
+  </Section>
+
+  <Section number="02" kicker="Core areas" heading="Five areas of practice." reveal>
+    <ol class="grid gap-x-8 gap-y-6 sm:grid-cols-2">
+      {EXPERTISE_AREAS.map((area) => (
+        <li class="border-t border-line pt-4">
+          <div class="flex flex-wrap items-baseline gap-2">
+            <span class="font-mono text-[11px] text-meta">{area.code}</span>
+            <p class="font-display text-lg font-bold tracking-[-0.02em] text-ink">{area.title}</p>
+            {area.standing === 'Core' && <StatusTag status="core" />}
+          </div>
+          <p class="mt-1 font-mono text-[10px] tracking-[0.1em] text-meta uppercase">{area.tags.join(' · ')}</p>
+          <p class="mt-1.5 font-body text-base text-body">{area.description}</p>
+        </li>
+      ))}
+    </ol>
+  </Section>
+
+  <Section id="career" number="03" kicker="Career" heading="Career history." reveal>
+    <Timeline items={experience} />
+  </Section>
+
+  <Results id="achievements" number="04" />
+
+  {systems.length > 0 && (
+    <Section id="systems-projects" number="05" kicker="Systems & projects" heading="Systems built to solve real operational problems." reveal>
+      {/* Desktop: a real 5-column register. */}
+      <div class="hidden lg:block">
+        <div class="grid grid-cols-12 gap-4 border-b-2 border-ink pb-3 font-mono text-[10px] font-bold tracking-[0.14em] text-meta uppercase">
+          <span class="col-span-4">System</span>
+          <span class="col-span-3">Type</span>
+          <span class="col-span-2">Role</span>
+          <span class="col-span-1">Status</span>
+          <span class="col-span-2">Outcome</span>
+        </div>
+        {systems.map((project, i) => (
+          <div class="grid grid-cols-12 items-start gap-4 border-b border-line py-5">
+            <a href={`/about/work/${project.id}`} class="col-span-4 font-body text-lg text-ink hover:text-accent-ink">
+              <span class="mr-2 font-mono text-xs text-meta">{String(i + 1).padStart(2, '0')}</span>
+              {project.data.title}
+            </a>
+            <span class="col-span-3 font-body text-sm text-body">{SYSTEM_TYPE_LABELS[project.data.previewType ?? 'dashboard']}</span>
+            <span class="col-span-2 font-body text-sm text-body">{project.data.role}</span>
+            <span class="col-span-1"><StatusTag status="built" /></span>
+            <span class="col-span-2 font-body text-sm text-body">{project.data.outcome ?? project.data.evidenceNote}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Mobile/tablet: the same five fields, stacked as labeled rows. */}
+      <ol class="divide-y divide-line border-t border-line lg:hidden">
+        {systems.map((project, i) => (
+          <li class="py-6">
+            <a href={`/about/work/${project.id}`} class="flex items-baseline gap-3 font-display text-xl font-bold tracking-[-0.02em] text-ink hover:text-accent-ink">
+              <span class="font-mono text-[11px] font-normal text-meta">{String(i + 1).padStart(2, '0')}</span>
+              {project.data.title}
+            </a>
+            <dl class="mt-3 grid grid-cols-2 gap-x-4 gap-y-2">
+              <div>
+                <dt class="font-mono text-[10px] tracking-[0.12em] text-meta uppercase">Type</dt>
+                <dd class="mt-0.5 font-body text-sm text-body">{SYSTEM_TYPE_LABELS[project.data.previewType ?? 'dashboard']}</dd>
+              </div>
+              <div>
+                <dt class="font-mono text-[10px] tracking-[0.12em] text-meta uppercase">Role</dt>
+                <dd class="mt-0.5 font-body text-sm text-body">{project.data.role}</dd>
+              </div>
+              <div>
+                <dt class="font-mono text-[10px] tracking-[0.12em] text-meta uppercase">Status</dt>
+                <dd class="mt-1"><StatusTag status="built" /></dd>
+              </div>
+              <div class="col-span-2">
+                <dt class="font-mono text-[10px] tracking-[0.12em] text-meta uppercase">Outcome</dt>
+                <dd class="mt-0.5 font-body text-sm text-body">{project.data.outcome ?? project.data.evidenceNote}</dd>
+              </div>
+            </dl>
+          </li>
+        ))}
+      </ol>
+    </Section>
+  )}
+
+  <Section id="certifications" number="06" kicker="Certifications" heading="Certifications." tone="dim" reveal>
+    <ul class="space-y-3">
+      {CV.certifications.map((cert) => (
+        <li class="border-t border-line pt-3 font-body text-base text-body">{cert}</li>
+      ))}
+    </ul>
+  </Section>
+
+  {books.length > 0 && (
+    <Section id="books" number="07" kicker="Books" heading="Published books." reveal>
+      <ul class="grid gap-6 sm:grid-cols-3">
+        {books.map((book, i) => (
+          <li class="border border-line p-5">
+            <p class="font-mono text-[11px] text-meta">{String(i + 1).padStart(2, '0')} · {book.data.year} · {book.data.language}</p>
+            <p class="mt-2 font-display text-lg font-bold tracking-[-0.02em] text-ink">{book.data.title}</p>
+          </li>
+        ))}
+      </ul>
+    </Section>
+  )}
+
+  <Section id="education" number="08" kicker="Education" heading="Education." tone="dim" reveal>
+    <ul class="space-y-4">
+      {CV.education.map((edu) => (
+        <li class="border-t border-line pt-4">
+          <p class="font-display text-lg font-bold tracking-[-0.02em] text-ink">{edu.institution}</p>
+          <p class="font-body text-base text-body">{edu.program}</p>
+          <p class="font-mono text-[11px] text-meta">{edu.location} · {edu.period}</p>
+        </li>
+      ))}
+    </ul>
+  </Section>
+
+  <Section id="tools" number="09" kicker="Tools & Technologies" heading="Tools & technologies." reveal>
+    <ul class="flex flex-wrap gap-2">
+      {tools.map((tool) => (
+        <li class="border border-line px-2.5 py-1 font-mono text-[11px] tracking-wide text-body uppercase">{tool}</li>
+      ))}
+    </ul>
+  </Section>
+
+  <Section id="languages" number="10" kicker="Languages" heading="Languages." tone="dim" reveal>
+    <ul class="flex flex-wrap gap-8">
+      {CV.languages.map((lang) => (
+        <li>
+          <p class="font-display text-lg font-bold tracking-[-0.02em] text-ink">{lang.language}</p>
+          <p class="font-mono text-[11px] text-meta">{lang.level}</p>
+        </li>
+      ))}
+    </ul>
+  </Section>
+
+  <Section tone="navy" field reveal>
+    <div class="flex flex-col items-start gap-6 sm:flex-row sm:items-center sm:justify-between">
+      <p class="max-w-md font-body text-lg text-on-dark-muted">Want the full PDF, or to talk about any of this directly?</p>
+      <div class="flex flex-wrap gap-3">
+        <Button href={SITE.cvUrl} variant="accent" external arrow data-cta="resume-download-cv">Download CV</Button>
+        <Button
+          href="/contact"
+          variant="secondary"
+          class="!border-on-dark-line !text-paper hover:!border-accent hover:!text-accent"
+          data-cta="resume-contact"
+        >
+          Get in touch
+        </Button>
+      </div>
+    </div>
+  </Section>
+</BaseLayout>

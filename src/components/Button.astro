@@ -1,61 +1,70 @@
 ---
 /**
- * Polymorphic button/link. Renders an <a> when `href` is set, otherwise a
- * <button>. `arrow` appends a small glyph that shifts on hover/focus —
- * the site's one recurring micro-interaction for calls to action.
+ * Polymorphic button/link: an <a> when `href` is set, otherwise a <button>.
+ * Square, flat, 2px bronze border: the same buttons as /start and the
+ * YouTube end screens.
+ *
+ *   primary   bronze fill, charcoal text (the one main action per view)
+ *   secondary bronze border, text in the surrounding colour
+ *   dark      charcoal fill, ivory text (for ivory sections)
+ *   ghost     underlined text link with an arrow
+ *   accent    alias of primary (older callers)
  */
 interface Props {
   href?: string;
-  variant?: 'primary' | 'accent' | 'secondary' | 'ghost';
+  variant?: 'primary' | 'accent' | 'secondary' | 'dark' | 'ghost';
+  size?: 'default' | 'small';
   type?: 'button' | 'submit' | 'reset';
   arrow?: boolean;
-  /** Opens in a new tab with rel="noopener noreferrer" — for links off-site. */
+  /** Opens in a new tab with rel="noopener noreferrer", for off-site links. */
   external?: boolean;
+  download?: boolean;
   class?: string;
-  /** Any other attribute (data-cta, aria-*, etc.) passes straight through
-   * to the rendered element — e.g. tagging a CTA for future analytics
-   * without the component needing to know what that means. */
   [key: `data-${string}`]: string | undefined;
 }
 
 const {
   href,
   variant = 'primary',
+  size = 'default',
   type = 'button',
   arrow = false,
   external = false,
+  download = false,
   class: className = '',
   ...rest
 } = Astro.props;
 
-const base = 'group/btn inline-flex items-center justify-center gap-2 transition-colors duration-(--duration-fast) focus-visible:outline-2 focus-visible:outline-offset-2';
-
-// Brass is a metal, not a highlighter — no variant fills a large surface
-// with raw --color-accent. The tint-fill ("accent") variant pairs
-// --color-accent-tint with --color-ink text; verified WCAG AA. "ghost" is
-// the Crimson Pro italic link treatment used for secondary actions.
+const base =
+  'group/btn inline-flex items-center justify-center gap-2.5 font-body font-semibold transition-colors duration-(--duration-fast) focus-visible:outline-2 focus-visible:outline-offset-3';
+const sizes: Record<string, string> = {
+  default: 'min-h-12 px-6 text-[15px]',
+  small: 'min-h-10 px-4 text-[13px] tracking-[0.04em]',
+};
 const variants: Record<string, string> = {
-  primary:
-    'px-5 py-2.5 font-mono text-[13px] font-medium tracking-wide uppercase bg-ink text-paper hover:bg-accent-tint hover:text-ink',
-  accent:
-    'px-5 py-2.5 font-mono text-[13px] font-medium tracking-wide uppercase bg-accent-tint text-ink hover:brightness-95',
-  secondary:
-    'px-5 py-2.5 font-mono text-[13px] font-medium tracking-wide uppercase border border-ink text-ink hover:border-accent hover:text-accent-ink',
-  // min-h-11 gives the invisible tap target a real 44px height without
-  // adding any visible padding/box — the link still reads as plain
-  // italic text, it's just centered inside a taller invisible hit area.
-  ghost: 'min-h-11 font-body text-[17px] italic text-ink hover:text-accent-ink',
+  primary: 'border-2 border-accent bg-accent text-ink hover:bg-paper hover:border-paper',
+  accent: 'border-2 border-accent bg-accent text-ink hover:bg-paper hover:border-paper',
+  secondary: 'border-2 border-accent text-current hover:bg-accent hover:text-ink',
+  dark: 'border-2 border-ink bg-ink text-paper hover:border-accent-ink hover:bg-accent-ink',
+  ghost: 'min-h-11 px-0 text-[15px] underline decoration-2 decoration-accent underline-offset-[6px] hover:text-accent',
 };
 
-const classes = [base, variants[variant], className].join(' ');
+const classes = [base, variant === 'ghost' ? '' : sizes[size], variants[variant], className].join(' ');
 ---
 
 {
   href ? (
-    <a href={href} class={classes} target={external ? '_blank' : undefined} rel={external ? 'noopener noreferrer' : undefined} {...rest}>
+    <a
+      href={href}
+      class={classes}
+      target={external ? '_blank' : undefined}
+      rel={external ? 'noopener noreferrer' : undefined}
+      download={download || undefined}
+      {...rest}
+    >
       <slot />
       {arrow && (
-        <span aria-hidden="true" class="transition-transform duration-(--duration-fast) group-hover/btn:translate-x-0.5">
+        <span aria-hidden="true" class="transition-transform duration-(--duration-fast) group-hover/btn:translate-x-1">
           →
         </span>
       )}
@@ -64,7 +73,7 @@ const classes = [base, variants[variant], className].join(' ');
     <button type={type} class={classes} {...rest}>
       <slot />
       {arrow && (
-        <span aria-hidden="true" class="transition-transform duration-(--duration-fast) group-hover/btn:translate-x-0.5">
+        <span aria-hidden="true" class="transition-transform duration-(--duration-fast) group-hover/btn:translate-x-1">
           →
         </span>
       )}

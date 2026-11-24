@@ -1,98 +1,195 @@
 /**
- * Single source of truth for site-wide brand, navigation, and homepage
- * editorial copy. See src/content/content-status.md for what's CONFIRMED
- * vs. SUPPORTED vs. PROVISIONAL — every provisional string below is also
- * commented as such here. Change values here rather than hunting through
- * pages/components.
+ * Single source of truth for brand, navigation and site-wide copy.
+ *
+ * Brand: "Milad Style", shared with the YouTube channel, the /start page and
+ * the free worksheet (ME Studio brand/BRAND.md). Facts: only items marked ✅
+ * in ME Studio books/bio-facts.md, plus what Milad has confirmed for this
+ * site. Anything not yet confirmed is left out, never guessed.
  */
 
 export const SITE = {
   name: 'Milad Ebrahimi',
   brandName: 'MILAD EBRAHIMI',
-  // PROVISIONAL — approved core positioning line (Phase 3).
-  positioning: 'I build the systems that move organizations forward.',
-  // The homepage's full <title> — the one page that states the complete
-  // positioning up front rather than "[Page] — Milad Ebrahimi"; every
-  // other page's title is built from its own name (see SEO.astro).
-  homeTitle: 'Milad Ebrahimi — Business Operations, Systems & Organizational Transformation',
+  // The brand tagline. It names the three books: Time Engineering,
+  // Self-Coaching (Blueprint) and The Balance.
+  tagline: 'Engineer your time. Coach yourself. Live in balance.',
+  positioning: 'Productivity coach, author and international trainer. Founder of ME Academy.',
+  homeTitle: 'Milad Ebrahimi · Engineer your time. Coach yourself. Live in balance.',
   url: 'https://miladebrahimi.me',
-  // CONFIRMED BY MILAD — the public contact address. Do not use any other
-  // email address found in the CV or project files.
+  // CONFIRMED BY MILAD: the public contact address.
   contactEmail: 'miladsmartsite@gmail.com',
-  // CONFIRMED BY MILAD — current CV destination. External (Google Drive)
-  // for now; every "Download CV" button reads from this one constant, so
-  // swapping to a local PDF later (e.g. "/cv/milad-ebrahimi-cv.pdf") never
-  // requires touching a component.
   cvUrl: 'https://drive.google.com/file/d/1Y1vseED44YG041s-mfOT-2QBprFe92nq/view?usp=drive_link',
-  // Used as the fallback SEO description when a page doesn't define its own
-  // (currently just the homepage, which has no more specific one of its own).
   defaultDescription:
-    'Milad Ebrahimi builds the systems that move organizations forward — operations at the core, with marketing, productivity, AI, and leadership as connected areas.',
-  // CV-verbatim (see master-profile.md) — used as Person.jobTitle in the
-  // sitewide JSON-LD, not just page copy.
-  jobTitle: 'Operations Manager',
-  // Brand-typography fallback social-preview image (see
-  // public/images/README.md) — used whenever a page doesn't have its own
-  // more specific one (e.g. a real article/book cover, once one exists).
+    'Milad Ebrahimi is a productivity coach and author. One practical idea a day from his books on time engineering, self-coaching and balance, plus a free Balance Wheel worksheet.',
+  jobTitle: 'Productivity coach and author',
   defaultOgImage: '/images/og/default.png',
   locale: 'en',
 } as const;
 
-/**
- * Stable JSON-LD `@id` for the sitewide Person node (BaseLayout.astro).
- * Article and Book schema reference this same id via `{ '@id': PERSON_ID }`
- * instead of re-declaring a separate anonymous Person object per page —
- * so a crawler reads "Milad Ebrahimi, author of this article" and "Milad
- * Ebrahimi, the site's Person entity" as the literal same node, not two
- * same-named-but-unconnected ones (Phase 16 §3/§4).
- */
 export const PERSON_ID = `${SITE.url}/#person`;
 
-export type NavItem = {
-  label: string;
-  href: string;
-};
+/** The three pillars. The same words as the YouTube kicker line. */
+export const PILLARS = [
+  {
+    key: 'time-engineering',
+    title: 'Time Engineering',
+    line: 'Plan the day around a few important tasks, not a long list.',
+  },
+  {
+    key: 'self-coaching',
+    title: 'Self-Coaching',
+    line: 'Lead yourself with the right questions, 40 days at a time.',
+  },
+  {
+    key: 'balance',
+    title: 'Balance',
+    line: 'Score eight areas of life and choose the one that matters now.',
+  },
+] as const;
 
-export type MegaMenuLink = { label: string; href: string; description?: string; status?: 'in-development' };
+/**
+ * Article topics: the three pillars plus Business, for the operations,
+ * marketing and AI writing that comes from Milad's work inside companies.
+ * The schema in content.config.ts reads this list, so a typo fails the build.
+ */
+export const TOPICS = [
+  { title: 'Time Engineering', slug: 'time-engineering', line: 'Plan, prioritise and protect your time.' },
+  { title: 'Self-Coaching', slug: 'self-coaching', line: 'Goals, questions and the 40-day cycle.' },
+  { title: 'Balance', slug: 'balance', line: 'The eight areas of life, and choosing one.' },
+  { title: 'Business', slug: 'business', line: 'Systems, operations, marketing and AI at work.' },
+] as const;
 
-// Phase 3 approved primary-nav structure. /about and /cv both still exist
-// as thin redirects into /resume (the new merged "About Me & Resume"
-// destination) — old links/bookmarks keep working. /books and /articles
-// still exist at their original paths too (individual article pages are
-// unchanged); their *index* pages now redirect into /contents/articles
-// and /contents/books, the new canonical listing locations, so there is
-// one source for each listing rather than two. /speaking and /resources
-// aren't in this nav structure at all — both still exist and are linked
-// from /contents/more. Phase 6: Expertise/Work/Contents/About Me & Resume
-// each open a MEGA_MENUS entry (see below) instead of a plain dropdown;
-// Contact stays a direct link.
+export type NavItem = { label: string; href: string };
+
 export const NAV_ITEMS: NavItem[] = [
-  { label: 'Expertise', href: '/expertise' },
-  { label: 'Work', href: '/projects' },
-  { label: 'Contents', href: '/contents' },
-  { label: 'About Me & Resume', href: '/resume' },
-  { label: 'Contact', href: '/contact' },
+  { label: 'Start here', href: '/start/' },
+  { label: 'Videos', href: '/videos/' },
+  { label: 'Ideas', href: '/ideas/' },
+  { label: 'Books', href: '/books/' },
+  { label: 'Coaching', href: '/coaching/' },
+  { label: 'About', href: '/about/' },
 ];
 
-export type SocialLink = {
-  label: string;
-  href: string;
-};
+export const YOUTUBE = {
+  channelId: 'UCc8az1ZBfLbzzX7tfrkf56Q',
+  handle: '@miladebrahimi_intl',
+  url: 'https://www.youtube.com/@miladebrahimi_intl',
+  subscribeUrl: 'https://www.youtube.com/@miladebrahimi_intl?sub_confirmation=1',
+  series: 'Time Engineering in 30 Seconds',
+  // Only videos from the current channel (since the November 2026 relaunch)
+  // are shown; older uploads are a different, archived direction.
+  since: '2026-11-01',
+  // Archived, unrelated uploads that may still be public. Never shown.
+  hidden: ['TWAsVXrsWb8', 'E1xJHMWGfas', 'wSBkkV9CPy4', 'p8F3NkFxdYo', 'CGOHEHOmqrQ'],
+} as const;
+
+export type SocialLink = { label: string; href: string };
 
 // CONFIRMED BY MILAD.
 export const SOCIAL_LINKS: SocialLink[] = [
+  { label: 'YouTube', href: YOUTUBE.url },
   { label: 'LinkedIn', href: 'https://www.linkedin.com/in/miladebrahimi-me' },
 ];
 
-/** Topics Milad is open to professional conversations about — used on /contact. */
+/**
+ * Email signup. Leave `action` empty until an email service is connected:
+ * the site then never shows a form that goes nowhere. /start gives the
+ * worksheet directly, and every "newsletter" call to action points there.
+ * To connect a service, paste its embedded-form POST URL into `action` and
+ * the name of its email field into `emailField` (plus any required hidden
+ * fields). Every signup form on the site reads from here.
+ */
+export const NEWSLETTER = {
+  name: 'One idea a week',
+  promise: 'One practical idea from my books every Sunday. Five minutes to read. Unsubscribe any time.',
+  action: '',
+  emailField: 'email',
+  hiddenFields: {} as Record<string, string>,
+} as const;
+
+/** The free lead magnet. /start is ME Studio's own page on the host (not built by this site); these are links to it. */
+export const WORKSHEET = {
+  title: 'The Balance Wheel',
+  hook: 'Rate your life in 8 numbers.',
+  description: 'A free 2-page worksheet from Self-Coaching Blueprint. Score eight areas of your life, draw your wheel, then pick one area for the next 40 days.',
+  a4: '/start/balance-wheel-worksheet-A4.pdf',
+  letter: '/start/balance-wheel-worksheet-Letter.pdf',
+  areas: ['Business', 'Finance', 'Lifestyle', 'Health', 'Relationships', 'Social', 'Mental', 'Spiritual'],
+} as const;
+
+/**
+ * Store link for Self-Coaching Blueprint. Empty until Milad provides it;
+ * every "buy" button is hidden while it is empty.
+ */
+export const BOOK_STORE_URL = '';
+
+/** ME.Coach lives at /coach as its own app; this site only links to it. */
+export const ME_COACH = {
+  url: '/coach/',
+  name: 'ME.Coach',
+  line: 'Your self-coaching app, one minute a day.',
+  description: 'The tests, goals and daily follow-up from Self-Coaching Blueprint, in one app. Start with a 7-day free trial.',
+} as const;
+
+/** Ways to work together, shown on /coaching and the homepage. */
+export const OFFERS = [
+  {
+    key: 'app',
+    label: 'App · 7-day free trial',
+    title: 'ME.Coach',
+    description: 'The Balance Wheel test, 40-day goals, morning and night check-ins. One minute a day.',
+    cta: 'Try ME.Coach',
+    href: '/coach/',
+  },
+  {
+    key: 'coaching',
+    label: '1:1 · Limited places',
+    title: 'Personal coaching',
+    description: 'Monthly coaching with Milad, built on the 40-day self-coaching cycle from the book.',
+    cta: 'Apply for coaching',
+    href: '/coaching/#coaching',
+  },
+  {
+    key: 'workshops',
+    label: 'Teams · Muscat, the Gulf, online',
+    title: 'Workshops',
+    description: 'Time engineering and focus workshops for teams and companies, in person or online.',
+    cta: 'Enquire about a workshop',
+    href: '/coaching/#workshops',
+  },
+] as const;
+
+/** Topics for /contact. */
 export const CONTACT_TOPICS = [
-  'Business Operations',
-  'Business Systems',
-  'Process Improvement',
-  'Marketing / Strategy',
-  'AI / Digital Transformation',
-  'Speaking / Writing / Collaboration',
+  'Personal coaching',
+  'Workshops for teams',
+  'Speaking and interviews',
+  'Books',
+  'Collaboration',
 ];
+
+/**
+ * Facts shown as the homepage proof strip. Every value is ✅ in bio-facts.md
+ * or a count of real published entries. "260+ events" stays out until Milad
+ * confirms the current number.
+ */
+export const PROOF = [
+  { value: '10+', label: 'Years of coaching' },
+  { value: '3', label: 'Books written' },
+  { value: 'ME', label: 'Academy founder' },
+  { value: 'Daily', label: 'New idea on YouTube' },
+] as const;
+
+/** Copy still used by the Results block on /about/resume. */
+export const HOME = {
+  results: {
+    kicker: 'Results',
+    heading: 'Measurable results, as stated on the CV.',
+    note: 'These figures come directly from the CV and describe marketing performance during specific roles.',
+  },
+} as const;
+
+/* ── Professional background (/about/resume, /about/work) ─────────────── */
 
 export type ExpertiseArea = {
   code: string;
@@ -165,101 +262,6 @@ export const EXPERTISE_AREAS: ExpertiseArea[] = [
 ];
 
 /**
- * Phase 6 mega-menu content — "brand orientation systems," not decorative
- * dropdowns. Keyed by the matching NAV_ITEMS label so Nav.astro can look
- * each one up directly. The Expertise group is built from EXPERTISE_AREAS
- * itself (one source of truth, no drift risk); Work's system list is
- * populated at render time from the real `projects` collection (see
- * Nav.astro), not hard-coded here, so it can't drift from what's
- * actually published.
- */
-export const MEGA_MENUS: Record<
-  string,
-  {
-    number: string;
-    label: string;
-    statement: string;
-    groups: { heading?: string; links: MegaMenuLink[] }[];
-    explore: MegaMenuLink[];
-  }
-> = {
-  Expertise: {
-    number: '01',
-    label: 'Expertise',
-    statement: 'Areas where I work across structure, systems, people and growth.',
-    groups: [
-      {
-        links: EXPERTISE_AREAS.map((area) => ({
-          label: `${area.code} — ${area.title}`,
-          href: '/expertise',
-          description: area.tags.join(' · '),
-        })),
-      },
-    ],
-    explore: [
-      { label: 'Expertise Overview', href: '/expertise' },
-      { label: 'Expertise Matrix', href: '/expertise#matrix' },
-    ],
-  },
-  Work: {
-    number: '02',
-    label: 'Work',
-    statement: 'Systems and practical work I have built.',
-    groups: [{ heading: 'Systems', links: [] }], // populated at render time from the projects collection — see Nav.astro
-    explore: [
-      { label: 'All Work', href: '/projects' },
-      { label: 'Selected Work', href: '/#selected-work' },
-    ],
-  },
-  Contents: {
-    number: '03',
-    label: 'Contents',
-    statement: 'Ideas, frameworks and knowledge.',
-    groups: [
-      {
-        links: [
-          { label: 'Articles', href: '/contents/articles', description: 'Insights and practical frameworks' },
-          { label: 'Books', href: '/contents/books', description: 'Published and developing books' },
-          { label: 'Podcasts', href: '/contents/podcasts', description: 'Conversations and audio', status: 'in-development' },
-          { label: 'Videos', href: '/contents/videos', description: 'Video content', status: 'in-development' },
-          { label: 'More', href: '/contents/more', description: 'Additional content' },
-        ],
-      },
-    ],
-    explore: [{ label: 'Explore Contents', href: '/contents' }],
-  },
-  'About Me & Resume': {
-    number: '04',
-    label: 'About',
-    statement: 'The person, the journey and the body of work.',
-    groups: [
-      {
-        heading: 'About',
-        links: [
-          { label: 'Profile', href: '/resume#profile' },
-          { label: 'Approach', href: '/resume#practice' },
-          { label: 'Background', href: '/resume#career' },
-        ],
-      },
-      {
-        heading: 'Resume',
-        links: [
-          { label: 'Career', href: '/resume#career' },
-          { label: 'Achievements', href: '/resume#achievements' },
-          { label: 'Systems & Projects', href: '/resume#systems-projects' },
-          { label: 'Certifications', href: '/resume#certifications' },
-          { label: 'Books', href: '/resume#books' },
-          { label: 'Education', href: '/resume#education' },
-          { label: 'Tools', href: '/resume#tools' },
-          { label: 'Languages', href: '/resume#languages' },
-        ],
-      },
-    ],
-    explore: [{ label: 'View Full Resume', href: '/resume' }],
-  },
-};
-
-/**
  * Human-readable label for each system's `previewType` field — a
  * presentational mapping of an existing real field, not a new one.
  */
@@ -271,26 +273,6 @@ export const SYSTEM_TYPE_LABELS: Record<string, string> = {
   marketing: 'Marketing System',
 };
 
-export type SystemMapNode = {
-  key: string;
-  label: string;
-  caption: string;
-};
-
-/**
- * The "Milad System Map" — the site's one recurring interactive brand
- * element (hero + conceptually echoed elsewhere). Labels and captions are
- * PROVISIONAL positioning language, consistent with existing copy
- * elsewhere on the site — not new factual claims.
- */
-export const SYSTEM_MAP_NODES: SystemMapNode[] = [
-  { key: 'operations', label: 'Operations', caption: 'Keeping the day-to-day running.' },
-  { key: 'systems', label: 'Systems', caption: 'Turning process into infrastructure.' },
-  { key: 'strategy', label: 'Strategy', caption: 'Deciding what’s worth building.' },
-  { key: 'ai', label: 'AI', caption: 'Applied where it changes an outcome.' },
-  { key: 'marketing', label: 'Marketing', caption: 'Connecting work to the people who need it.' },
-  { key: 'writing', label: 'Writing / Ideas', caption: 'Thinking in public, in writing.' },
-];
 
 /**
  * Short domain codes used for the "technical annotation" tick-row motif on
@@ -341,101 +323,6 @@ export const RESULTS: ResultItem[] = [
   },
 ];
 
-export type ProcessStep = {
-  step: string;
-  description: string;
-  purpose: string;
-  action: string;
-  output: string;
-};
-
-/**
- * "The Milad Method" — a personal working framework, not an academically
- * validated methodology, a certification, or proprietary technology. See
- * /expertise and the homepage for the explicit framing ("Milad's way of
- * approaching organizational improvement"). PROVISIONAL — an original
- * framing for how the work actually proceeds, written for the site rather
- * than quoted from any source. `purpose`/`action`/`output` are the same
- * framing broken into the three fields shown per stage — an elaboration
- * of the approved one-line `description`, not a new claim.
- */
-export const MILAD_METHOD: ProcessStep[] = [
-  {
-    step: 'Understand',
-    description: 'Understand the organization, people, processes, problems, and objectives.',
-    purpose: 'See how the organization actually works.',
-    action: 'Understand people, processes, problems, and objectives.',
-    output: 'A clear picture of the current state.',
-  },
-  {
-    step: 'Structure',
-    description: 'Create clarity across roles, responsibilities, workflows, and priorities.',
-    purpose: 'Remove ambiguity about who owns what.',
-    action: 'Define roles, responsibilities, workflows, and priorities.',
-    output: 'A clear structure the organization can operate on.',
-  },
-  {
-    step: 'Systemize',
-    description: 'Turn repeatable work into practical systems, processes, and standards.',
-    purpose: 'Make good work repeatable, not one-off.',
-    action: 'Turn recurring work into practical systems, processes, and standards.',
-    output: 'Working systems people actually use.',
-  },
-  {
-    step: 'Optimize',
-    description: 'Measure, identify friction, and continuously improve how work gets done.',
-    purpose: 'Keep the system honest as conditions change.',
-    action: 'Measure, identify friction, and continuously improve how work gets done.',
-    output: 'A system that keeps getting better, not just built once.',
-  },
-  {
-    step: 'Transform',
-    description: 'Connect people, processes, technology, and leadership to move the organization forward.',
-    purpose: 'Turn isolated fixes into lasting change.',
-    action: 'Connect people, processes, technology, and leadership.',
-    output: 'An organization that moves forward, not just a finished project.',
-  },
-];
-
-export type SpeakingTopic = {
-  title: string;
-  description: string;
-};
-
-// PROVISIONAL — topics Milad could speak or write about, derived from the
-// confirmed practice areas and systems work. Not a record of any past
-// engagement — no speaking history is claimed.
-export const SPEAKING_TOPICS: SpeakingTopic[] = [
-  {
-    title: 'Building practical business systems',
-    description: 'What it actually takes to turn a manual process into a system people trust.',
-  },
-  {
-    title: 'Making operations visible',
-    description: 'Why most operational problems are visibility problems first.',
-  },
-  {
-    title: 'Process improvement',
-    description: 'Finding friction before proposing a fix.',
-  },
-  {
-    title: 'Productivity as a system',
-    description: 'Treating personal and team productivity as something designed, not willed.',
-  },
-  {
-    title: 'AI in real work',
-    description: 'Where AI tools change an outcome versus where they’re just novel.',
-  },
-  {
-    title: 'Marketing systems',
-    description: 'Connecting content and lead generation to a process, not just a campaign.',
-  },
-  {
-    title: 'From fragmented work to structured operations',
-    description: 'The path from ad hoc effort to a system that scales past one person.',
-  },
-];
-
 /**
  * Structured data for /cv. CONFIRMED from the CV, with DOB, marital status,
  * nationality, and phone number permanently excluded per the project's
@@ -472,103 +359,3 @@ export const CV = {
     { language: 'Arabic', level: 'Basic' },
   ],
 } as const;
-
-/**
- * Central, editable copy block for the homepage. Every value here is
- * PROVISIONAL positioning/copy unless the field comment says otherwise —
- * see content-status.md for the full breakdown. Kept in one object so it's
- * easy to find and revise without touching component code. Restructured
- * for the Phase 3 eight-section homepage (Hero → Five Areas → Method →
- * Selected Work → Proof → Contents → Books → Final CTA) — the homepage is
- * deliberately NOT the full resume; /resume carries the complete archive.
- */
-export const HOME = {
-  hero: {
-    eyebrow: 'Business Operations · Systems · Strategy',
-    // Rendered as four explicit lines (Hero.astro splits on \n) — the
-    // approved editorial stanza break, not just a natural text wrap.
-    headline: 'I build the systems\nthat move\norganizations\nforward.',
-    subhead:
-      'From operational structure and business processes to productivity, AI, and growth, I design practical systems that help organizations work better.',
-    note: 'A working practice, documented as it happens — not an agency, not a portfolio site.',
-    // Phase 10 §05 — Contact is the sitewide primary action; Work is the
-    // secondary one. Resume drops out of the Hero's two-button row (it's
-    // already one click away in the nav on every page, and is the primary
-    // action lower down on /resume itself) rather than competing with Work
-    // for the secondary slot.
-    primaryCta: 'Work With Me',
-    secondaryCta: 'Explore My Work',
-  },
-  idea: {
-    kicker: 'The idea',
-    heading: 'Every organization is made of systems.',
-    body: 'People, processes, information, decisions, tools — that’s what an organization actually runs on. When those systems are unclear, work slows down and fragments: the same question gets asked twice, the same delay repeats, nobody quite owns the fix. The work here starts with understanding how an organization actually works, then rebuilding the specific parts that create friction.',
-  },
-  systemMap: {
-    kicker: 'The map',
-    heading: 'One practice, six disciplines.',
-    body: 'Not six separate services — six lenses on the same underlying work, applied together depending on what a given system actually needs.',
-  },
-  areas: {
-    kicker: 'Areas of practice',
-    heading: 'Five lenses I use to improve how organizations work.',
-  },
-  method: {
-    kicker: 'The Milad Method',
-    heading: 'The Milad Method',
-    intro: 'I don’t start by adding more tools. I start by understanding how the organization actually works.',
-    note: 'This is a personal working framework — how I approach organizational improvement, not an academically validated or certified methodology.',
-  },
-  selectedWork: {
-    kicker: 'Selected work',
-    heading: 'Systems built to solve real operational problems.',
-    note: 'Every system below was designed and built firsthand. Where a measurable result exists, it’s shown. Where it doesn’t yet, that’s stated directly — nothing here is invented.',
-  },
-  proof: {
-    kicker: 'Proof of work',
-    heading: 'Proof of work.',
-    note: 'Selected results reported in my professional experience. Not all figures are attributable to the systems shown above.',
-  },
-  // Still used on /resume (Career history, Selected achievements) even
-  // though the homepage no longer renders the full timeline directly.
-  career: {
-    kicker: 'Career',
-    heading: 'From education, into marketing, into operations.',
-  },
-  results: {
-    kicker: 'Results',
-    heading: 'Measurable results, as stated on the CV.',
-    note: 'These figures come directly from the CV and describe marketing performance during specific roles. They are not claimed as outcomes of the systems work above — no evidence connects the two, so they’re kept separate.',
-  },
-  contentsPreview: {
-    kicker: 'Contents',
-    heading: 'Ideas, frameworks, and things I’m building.',
-    cta: 'Explore Contents',
-  },
-  books: {
-    kicker: 'Books',
-    heading: 'Three books, across a decade, on time, balance, and self-coaching.',
-  },
-  finalCta: {
-    heading: 'Let’s build something that works better.',
-    body: 'If you’re building something, fixing something, or trying to make the work work better — let’s talk.',
-    primaryCta: 'Work With Me',
-    secondaryCta: 'View Resume',
-  },
-  speaking: {
-    kicker: 'Speaking',
-    heading: 'Topics I speak and write about.',
-    note: 'No past speaking engagements are claimed here — these are subjects open for conversation, talks, or writing.',
-  },
-} as const;
-
-/**
- * Homepage "Proof" stat trio — CONFIRMED from the CV/case-study evidence
- * (9+ years stated on the CV; 5 systems and 3 books both count real,
- * published entries in their respective content collections).
- */
-export const PROOF_STATS = [
-  { value: '9+', label: 'Years experience' },
-  { value: '5', label: 'Systems built' },
-  { value: '3', label: 'Books' },
-] as const;

@@ -1,0 +1,44 @@
+---
+/**
+ * /newsletter: what the weekly email is, and the signup. Until an email
+ * service is connected (NEWSLETTER.action), the page says plainly that the
+ * email is starting soon and offers the worksheet instead.
+ */
+import BaseLayout from '@layouts/BaseLayout.astro';
+import PageHero from '@components/PageHero.astro';
+import Section from '@components/Section.astro';
+import Button from '@components/Button.astro';
+import SignupForm from '@components/SignupForm.astro';
+import { NEWSLETTER } from '@lib/site';
+
+const connected = NEWSLETTER.action.length > 0;
+const inside = [
+  { title: 'One idea', line: 'A single tool or framework from the books, explained in a few minutes.' },
+  { title: 'One exercise', line: 'Something to try that week: a question, a plan, a small habit.' },
+  { title: 'The week’s video', line: 'The Saturday long video, for when you want to go deeper.' },
+];
+---
+
+<BaseLayout title="Newsletter" description={`${NEWSLETTER.name}: ${NEWSLETTER.promise}`}>
+  <PageHero kicker="Newsletter" title="One idea a week. *Five minutes* to read." subtitle={NEWSLETTER.promise}>
+    <div class="mt-10 max-w-xl">
+      <SignupForm source="newsletter" cta="Subscribe">
+        <p class="mb-5 text-on-dark-muted">The weekly email is starting soon. Get the free Balance Wheel worksheet now and you'll be first to hear when it does.</p>
+        <Button href="/start/" arrow data-cta="newsletter-worksheet">Get the free worksheet</Button>
+      </SignupForm>
+    </div>
+  </PageHero>
+
+  <Section tone="paper" kicker="Every Sunday" heading="What's *inside.*">
+    <ol class="grid border-t-2 border-ink md:grid-cols-3">
+      {inside.map((item, i) => (
+        <li class:list={['py-8 md:pr-8', i > 0 ? 'border-t border-line md:border-t-0 md:border-l md:pl-8' : '']}>
+          <p class="font-display text-sm font-extrabold text-accent-ink">0{i + 1}</p>
+          <p class="mt-4 font-display text-2xl font-extrabold tracking-[-0.03em]">{item.title}</p>
+          <p class="mt-2 text-body">{item.line}</p>
+        </li>
+      ))}
+    </ol>
+    {connected && <p class="mt-8 text-sm text-meta">No spam, no selling your address. Unsubscribe with one click from any email.</p>}
+  </Section>
+</BaseLayout>

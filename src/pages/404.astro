@@ -1,29 +1,21 @@
 ---
-/**
- * 404 = a brand moment, not a dead end — uses the same ghost-numeral and
- * navy-field language as the rest of the site rather than a generic error
- * page.
- */
 import BaseLayout from '@layouts/BaseLayout.astro';
 import Button from '@components/Button.astro';
 ---
 
-<BaseLayout title="System Not Found" noindex>
-  <div class="relative flex min-h-[70vh] flex-col items-start justify-center overflow-hidden bg-ink px-6 py-24 text-paper sm:px-8">
-    {/* See Hero.astro for why `field-grid` lives on its own overlay div,
-        not directly on the element that also carries `bg-ink`. */}
-    <div class="field-grid pointer-events-none absolute inset-0" aria-hidden="true"></div>
-    <p class="relative font-display text-[7rem] leading-none font-extrabold text-accent sm:text-[9rem]">404</p>
-    <h1 class="relative mt-2 font-display text-3xl font-bold tracking-[-0.03em] text-paper sm:text-4xl">System not found.</h1>
-    <p class="relative mt-4 max-w-md font-body text-lg text-on-dark-muted">
-      The page you're looking for doesn't exist or has moved — everything else is still exactly
-      where it should be.
-    </p>
-    <div class="relative mt-8 flex flex-wrap gap-4">
-      <Button href="/" variant="accent" arrow>Back home</Button>
-      <Button href="/projects" variant="secondary" class="!border-on-dark-line !text-paper hover:!border-accent hover:!text-accent">
-        Explore the work
-      </Button>
+<BaseLayout title="Page not found" noindex>
+  <section class="bg-ink text-paper">
+    <div class="mx-auto flex min-h-[60vh] max-w-(--container-content) flex-col justify-center px-5 py-24 sm:px-8">
+      <p class="label text-accent">404</p>
+      <h1 class="mt-5 max-w-3xl font-display text-[2.8rem] leading-[1.02] font-extrabold tracking-[-0.045em] sm:text-6xl">
+        This page has <span class="accent-u">moved.</span>
+      </h1>
+      <p class="mt-6 max-w-lg text-lg text-on-dark-muted">The site was reorganised, so an old link may point nowhere. Everything is still here.</p>
+      <div class="mt-9 flex flex-wrap gap-3">
+        <Button href="/" arrow>Home</Button>
+        <Button href="/ideas/" variant="secondary">Ideas</Button>
+        <Button href="/start/" variant="secondary">Free worksheet</Button>
+      </div>
     </div>
-  </div>
+  </section>
 </BaseLayout>

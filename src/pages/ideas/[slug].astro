@@ -1,0 +1,212 @@
+---
+/**
+ * Article page. Read on ivory, like the printed worksheet; the prose column
+ * is capped at --container-prose (~65 characters per line). Order: topic →
+ * title → description → byline → cover → contents → body → quote → video →
+ * tags → author → related → previous/next → free worksheet.
+ */
+import fs from 'node:fs';
+import path from 'node:path';
+import { render } from 'astro:content';
+import { getPublishedArticles } from '@lib/articles';
+import BaseLayout from '@layouts/BaseLayout.astro';
+import ArticleImage from '@components/ArticleImage.astro';
+import QuoteBlock from '@components/QuoteBlock.astro';
+import VideoFeature from '@components/VideoFeature.astro';
+import TableOfContents from '@components/TableOfContents.astro';
+import ReadingProgress from '@components/ReadingProgress.astro';
+import ShareLinks from '@components/ShareLinks.astro';
+import AuthorBlock from '@components/AuthorBlock.astro';
+import IdeaRow from '@components/IdeaRow.astro';
+import Button from '@components/Button.astro';
+import SignupForm from '@components/SignupForm.astro';
+import { readingTime } from '@lib/reading-time';
+import { SITE, PERSON_ID, TOPICS } from '@lib/site';
+
+export async function getStaticPaths() {
+  const sorted = await getPublishedArticles();
+  return sorted.map((article, i) => ({
+    params: { slug: article.id },
+    props: {
+      article,
+      newer: sorted[i - 1] ?? null,
+      older: sorted[i + 1] ?? null,
+      others: sorted.filter((_, j) => j !== i),
+    },
+  }));
+}
+
+const { article, newer, older, others } = Astro.props;
+const { Content, headings } = await render(article);
+const topic = TOPICS.find((t) => t.title === article.data.category);
+const formattedDate = article.data.publishDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+const minutesRead = readingTime(article.body ?? '');
+
+const tocHeadings = headings.filter((h) => h.depth === 2 || h.depth === 3);
+const showToc = tocHeadings.length >= 3;
+
+// Same topic first, then shared tags, then recency.
+const related = others
+  .map((r) => {
+    const shared = r.data.tags.filter((t) => article.data.tags.includes(t)).length;
+    const sameTopic = r.data.category === article.data.category;
+    return sameTopic || shared > 0 ? { entry: r, score: (sameTopic ? 100 : 0) + shared } : null;
+  })
+  .filter((x): x is { entry: (typeof others)[number]; score: number } => x !== null)
+  .sort((a, b) => b.score - a.score || b.entry.data.publishDate.valueOf() - a.entry.data.publishDate.valueOf())
+  .slice(0, 3)
+  .map((x) => x.entry);
+
+// One "reached the end" signal, only when analytics is configured.
+const analyticsEnabled = Boolean(import.meta.env.PUBLIC_UMAMI_WEBSITE_ID);
+
+const pageUrl = new URL(`/ideas/${article.id}/`, SITE.url).toString();
+const coverExists = article.data.coverImage ? fs.existsSync(path.join(process.cwd(), 'public', article.data.coverImage)) : false;
+
+const articleSchema = {
+  '@type': 'Article',
+  headline: article.data.title,
+  description: article.data.description,
+  datePublished: article.data.publishDate.toISOString(),
+  ...(article.data.updatedDate ? { dateModified: article.data.updatedDate.toISOString() } : {}),
+  author: article.data.author === SITE.name ? { '@id': PERSON_ID } : { '@type': 'Person', name: article.data.author },
+  articleSection: article.data.category,
+  mainEntityOfPage: pageUrl,
+  ...(coverExists ? { image: new URL(article.data.coverImage!, SITE.url).toString() } : {}),
+};
+
+const breadcrumbSchema = {
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: SITE.url },
+    { '@type': 'ListItem', position: 2, name: 'Ideas', item: new URL('/ideas/', SITE.url).toString() },
+    { '@type': 'ListItem', position: 3, name: article.data.title },
+  ],
+};
+---
+
+<BaseLayout
+  title={article.data.title}
+  description={article.data.description}
+  image={coverExists ? article.data.coverImage : undefined}
+  type="article"
+  structuredData={[articleSchema, breadcrumbSchema]}
+>
+  <ReadingProgress />
+
+  <article class="on-paper bg-paper text-ink">
+    <header class="border-b border-line">
+      <div class="mx-auto max-w-(--container-content) px-5 pt-10 pb-10 sm:px-8 sm:pt-14">
+        <p class="label text-meta">
+          <a href="/ideas/" class="hover:text-accent-ink">Ideas</a>
+          <span aria-hidden="true"> / </span>
+          <a href={`/ideas/#${topic?.slug ?? ''}`} class="text-accent-ink">{article.data.category}</a>
+        </p>
+        <h1 class="mt-6 max-w-4xl font-display text-[2.4rem] leading-[1.03] font-extrabold tracking-[-0.045em] sm:text-5xl lg:text-[3.6rem]">
+          {article.data.title}
+        </h1>
+        <p class="mt-6 max-w-2xl text-lg leading-relaxed text-body sm:text-xl">{article.data.description}</p>
+        <div class="mt-8 flex flex-wrap items-center justify-between gap-x-8 gap-y-4 border-t border-line pt-6">
+          <ul class="label flex flex-wrap items-center gap-x-6 gap-y-1 text-meta">
+            <li>{article.data.author}</li>
+            <li><time datetime={article.data.publishDate.toISOString()}>{formattedDate}</time></li>
+            <li>{minutesRead}</li>
+          </ul>
+          <ShareLinks url={pageUrl} title={article.data.title} />
+        </div>
+      </div>
+    </header>
+
+    <div class="mx-auto max-w-(--container-content) px-5 py-12 sm:px-8 lg:py-16">
+      {article.data.coverImage && <ArticleImage src={article.data.coverImage} title={article.data.title} class="mb-12 max-w-(--container-prose)" />}
+
+      <div class="max-w-(--container-prose)">
+        {showToc && <TableOfContents headings={headings} />}
+
+        <div class="prose">
+          <Content />
+        </div>
+
+        {article.data.quote && <QuoteBlock class="mt-12">{article.data.quote}</QuoteBlock>}
+
+        {article.data.videoUrl && (
+          <VideoFeature title={`Watch: ${article.data.title}`} category={article.data.category} url={article.data.videoUrl} class="mt-12" />
+        )}
+
+        {article.data.tags.length > 0 && (
+          <ul class="mt-12 flex flex-wrap gap-2 border-t border-line pt-8">
+            {article.data.tags.map((tag) => (
+              <li class="label border border-line px-3 py-1.5 text-[10px] text-body">{tag}</li>
+            ))}
+          </ul>
+        )}
+
+        <div id="article-engagement-marker" class="mt-12">
+          <AuthorBlock />
+        </div>
+      </div>
+
+      {related.length > 0 && (
+        <div class="mt-16 max-w-(--container-prose)">
+          <h2 class="label border-b-2 border-ink pb-3 text-accent-ink">Read next</h2>
+          <div class="divide-y divide-line">
+            {related.map((r) => <IdeaRow article={r} />)}
+          </div>
+        </div>
+      )}
+
+      <nav aria-label="More articles" class="mt-12 grid max-w-(--container-prose) gap-6 border-t border-line pt-8 sm:grid-cols-2">
+        <div>
+          {older && (
+            <a href={`/ideas/${older.id}/`} class="group/nav block">
+              <p class="label text-meta">← Older</p>
+              <p class="mt-2 font-display text-lg font-bold tracking-[-0.02em] transition-colors group-hover/nav:text-accent-ink">{older.data.title}</p>
+            </a>
+          )}
+        </div>
+        <div class="sm:text-right">
+          {newer ? (
+            <a href={`/ideas/${newer.id}/`} class="group/nav block">
+              <p class="label text-meta">Newer →</p>
+              <p class="mt-2 font-display text-lg font-bold tracking-[-0.02em] transition-colors group-hover/nav:text-accent-ink">{newer.data.title}</p>
+            </a>
+          ) : (
+            <a href="/ideas/" class="group/nav block">
+              <p class="label text-meta">All ideas →</p>
+              <p class="mt-2 font-display text-lg font-bold tracking-[-0.02em] transition-colors group-hover/nav:text-accent-ink">Browse by topic</p>
+            </a>
+          )}
+        </div>
+      </nav>
+    </div>
+  </article>
+
+  <section class="bg-ink text-paper">
+    <div class="mx-auto grid max-w-(--container-content) items-end gap-8 px-5 py-16 sm:px-8 md:grid-cols-2">
+      <div>
+        <p class="label text-accent">Free worksheet</p>
+        <h2 class="mt-4 font-display text-3xl leading-[1.05] font-extrabold tracking-[-0.04em] sm:text-4xl">Rate your life in <span class="accent-u">8 numbers.</span></h2>
+      </div>
+      <SignupForm source="article">
+        <Button href="/start/" arrow data-cta="article-worksheet">Get the Balance Wheel worksheet</Button>
+      </SignupForm>
+    </div>
+  </section>
+
+  {analyticsEnabled && (
+    <script>
+      const marker = document.getElementById('article-engagement-marker');
+      if (marker && 'IntersectionObserver' in window) {
+        const observer = new IntersectionObserver((entries) => {
+          for (const entry of entries) {
+            if (entry.isIntersecting) {
+              window.umami?.track('article_engagement', { path: location.pathname });
+              observer.disconnect();
+            }
+          }
+        }, { threshold: 0.1 });
+        observer.observe(marker);
+      }
+    </script>
+  )}
+</BaseLayout>

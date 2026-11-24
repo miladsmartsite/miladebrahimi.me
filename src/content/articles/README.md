@@ -12,7 +12,7 @@ component, a route, the navigation, the sitemap, the RSS feed, or any SEO metada
 4. Run `npm run build` (or just `git push` if deploying via CI) — that's it.
 
 The filename becomes the URL slug automatically
-(`my-new-article-slug.md` → `/contents/articles/my-new-article-slug/`).
+(`my-new-article-slug.md` → `/ideas/my-new-article-slug/`).
 
 ## Frontmatter template
 
@@ -22,7 +22,7 @@ title: "A clear, specific title"
 description: "One sentence — this becomes the meta description, the OG description, the RSS
   item description, and the archive-listing summary. Write it to stand alone."
 publishDate: 2026-09-15
-category: "Operations"
+category: "Business"
 tags: ["systems", "ai"]
 featured: false
 draft: false
@@ -64,20 +64,20 @@ article has no page, no redirect, and no entry in the homepage, archive, RSS fee
 "Published" means `draft: false`, `placeholder: false`, and the `publishDate` has been reached
 (see "Scheduling a publication" above). Every item below follows that one rule.
 
-- **Listing** — appears on `/contents/articles` (in the archive, or as the page's single
-  "Featured" entry — see the `featured` field below).
-- **Article page** — `/contents/articles/<filename-without-.md>/` is generated automatically.
+- **Listing** — appears on `/ideas/` under its topic, and on the homepage while it is one of
+  the three newest.
+- **Article page** — `/ideas/<filename-without-.md>/` is generated automatically.
 - **Reading time** — computed from the real word count of the body (`src/lib/reading-time.ts`),
   no manual estimate needed.
 - **SEO** — title, description, canonical URL, Open Graph, Twitter Card, and `Article` JSON-LD
   (headline, description, dates, author, breadcrumb) are all generated from the frontmatter —
-  see `src/pages/contents/articles/[slug].astro` and `src/components/SEO.astro`.
+  see `src/pages/ideas/[slug].astro` and `src/components/SEO.astro`.
 - **Sitemap** — `@astrojs/sitemap` picks up the new route on the next build. A draft, a
   placeholder, or an article that is not yet due never appears (its page isn't even built).
   Nothing to edit either way.
 - **RSS** — `/rss.xml` includes every published article automatically — see
   `src/pages/rss.xml.ts`. Drafts, placeholders and not-yet-due articles are left out.
-- **Related articles** — the detail page ranks other articles by same category first, then
+- **Related articles** — the detail page ranks other articles by same topic first, then
   shared tags, then recency, and shows up to three — no manual curation. If nothing matches
   closely enough, the section just doesn't render.
 - **Previous / next** — computed from publish-date order automatically.
@@ -93,20 +93,20 @@ article has no page, no redirect, and no entry in the homepage, archive, RSS fee
 | `publishDate` | Yes | Read as UTC; accepted formats are listed under "Scheduling a publication". Controls when the article goes live, sort order, RSS `pubDate`, and prev/next. |
 | `updatedDate` | No | Only if the piece is revised after publishing. Feeds `dateModified` in JSON-LD. |
 | `author` | No (defaults to `"Milad Ebrahimi"`) | Only set this for a genuine guest byline. |
-| `category` | Yes | One of `Operations`, `Marketing`, `Productivity`, `AI`, `Leadership` — the article's one primary lens. The build fails on anything else, on purpose: this is a controlled list, not free text. |
+| `category` | Yes | The article's topic, one of `Time Engineering`, `Self-Coaching`, `Balance`, `Business` (from `TOPICS` in `src/lib/site.ts`). The build fails on anything else, on purpose: this is a controlled list, not free text. |
 | `tags` | No (defaults to `[]`) | Secondary topics, shown on the article page and used (alongside `category`) for "related articles." |
-| `featured` | No (defaults to `false`) | `true` puts this piece in the archive's single "Featured" slot regardless of date. Leave every article `false` to let the most recent one hold that slot automatically. |
-| `coverImage` | No | Path under `public/`, e.g. `/images/articles/my-slug.jpg`. Renders beside the Featured entry and at the top of the article page, and becomes the page's `og:image`/`twitter:image` once the file actually exists — drop it in, no other change needed. See `public/images/README.md`. |
+| `featured` | No (defaults to `false`) | Not used by the current layout: lists are newest first. Kept so older files stay valid. |
+| `coverImage` | No | Path under `public/`, e.g. `/images/articles/my-slug.jpg`. Renders at the top of the article page and becomes its `og:image` once the file exists. |
 | `quote` | No | A short pull-quote, rendered as a large `QuoteBlock` statement partway down the article. Plain text, one or two sentences. |
 | `videoUrl` | No | A YouTube/Vimeo/LinkedIn video URL. Renders a `VideoFeature` block on the article page that links out to it — never an inline embed. |
-| `externalUrl` | No | Set this if the piece is published elsewhere (LinkedIn, Medium) instead of on this site — every listing link will point out to it instead of to a local page. |
+| `externalUrl` | No | Not used by the current layout. Kept so older files stay valid. |
 | `draft` | Yes | `true` hides the entry everywhere: no page is generated at all (no URL, so nothing to index), and it never appears in any listing, the sitemap, or RSS. Set `false` to publish — with the `publishDate` you want it to go live on (a future date schedules it). |
 | `placeholder` | Yes | `true` keeps the entry out of every public output, exactly like a draft: no page, no listing, no RSS, no sitemap. For topic-in-development stubs only. Real articles should be `false`. |
 | `order` | No | Only used as a tiebreaker; `publishDate` drives the actual sort order. |
 
 ## What this does NOT require editing
 
-- `src/pages/contents/articles/index.astro` or `[slug].astro` — these already read every
+- `src/pages/ideas/index.astro` or `[slug].astro` — these already read every
   published entry automatically via `getPublishedArticles()` (`src/lib/articles.ts`).
 - `src/pages/rss.xml.ts` — same helper, same automatic pickup.
 - `src/lib/site.ts` — nav labels and homepage teaser logic aren't per-article.

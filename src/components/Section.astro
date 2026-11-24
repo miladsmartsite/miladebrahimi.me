@@ -1,32 +1,26 @@
 ---
 /**
- * Consistent content-width wrapper + vertical rhythm for page sections —
- * now also the site's "module header" primitive: an optional `number`
- * renders as a large ghost numeral beside the kicker/heading, and an
- * optional `meta` line sits under the heading as small mono metadata
- * (e.g. "2020–2026 · OPERATIONS"). This is the one micro-design pattern
- * — SECTION NUMBER / KICKER / TITLE / META — reused across every major
- * section on the site, rather than a bespoke header per component.
- * `tone` alternates section backgrounds for visual rhythm without
- * resorting to card borders everywhere. `navy` is the immersive dark
- * surface — use it for roughly 20–30% of a page's sections, not more
- * (see design-system.md).
+ * Content-width wrapper + vertical rhythm, with an optional section header
+ * (number, kicker, heading, meta). `tone`:
+ *   dark   charcoal, the brand's default surface
+ *   paper  ivory, for reading and for rhythm between dark bands
+ *   dim    a slightly deeper ivory
+ *   navy   older name for dark
+ * Headings may contain one `*word*`: it gets the bronze accent bar, as in
+ * the Shorts.
  */
 interface Props {
   as?: 'section' | 'div' | 'header' | 'footer';
-  /** Anchor id — e.g. for mega-menu deep links like /resume#career. */
   id?: string;
-  /** Module number, e.g. "04" — renders as a large ghost numeral. */
   number?: string;
   kicker?: string;
   heading?: string;
-  /** Small mono metadata line under the heading, e.g. "2020–2026 · OPERATIONS". */
   meta?: string;
-  tone?: 'paper' | 'dim' | 'navy';
+  tone?: 'dark' | 'paper' | 'dim' | 'navy';
   width?: 'content' | 'wide';
   class?: string;
   reveal?: boolean;
-  /** Adds the subtle full-bleed grid texture — navy tone only. */
+  /** Kept for older callers; no texture in Milad Style. */
   field?: boolean;
 }
 
@@ -37,54 +31,42 @@ const {
   kicker,
   heading,
   meta,
-  tone = 'paper',
+  tone: toneProp = 'paper',
   width = 'content',
   class: className = '',
   reveal = false,
-  field = false,
 } = Astro.props;
 
+const tone = toneProp === 'navy' ? 'dark' : toneProp;
+const dark = tone === 'dark';
 const toneClasses: Record<string, string> = {
-  paper: 'bg-paper text-ink',
-  dim: 'bg-paper-dim text-ink',
-  navy: 'relative overflow-hidden bg-ink text-paper',
+  dark: 'bg-ink text-paper',
+  paper: 'on-paper bg-paper text-ink',
+  dim: 'on-paper bg-paper-dim text-ink',
 };
-
-// Both full class strings must appear literally (not interpolated) so
-// Tailwind's static scanner picks them up.
 const widthClass = width === 'wide' ? 'max-w-(--container-wide)' : 'max-w-(--container-content)';
-const kickerClass =
-  tone === 'navy'
-    ? 'mb-3 font-mono text-[11px] font-bold tracking-[0.16em] text-accent uppercase'
-    : 'mb-3 font-mono text-[11px] font-bold tracking-[0.16em] text-accent-ink uppercase';
-const numeralClass = tone === 'navy' ? 'text-on-dark-line' : 'text-line';
-const metaClass = tone === 'navy' ? 'text-on-dark-muted' : 'text-meta';
-const headerBorderClass = tone === 'navy' ? 'border-on-dark-line' : 'border-line/60';
+
+// "*word*" in a heading becomes the accent-underlined word.
+const parts: string[] = heading ? heading.split(/\*(.+?)\*/) : [];
 ---
 
 <Tag id={id} class={`${toneClasses[tone]}${id ? ' scroll-mt-24' : ''}`} {...reveal ? { 'data-reveal': '' } : {}}>
-  {field && tone === 'navy' && (
-    <div class="field-grid pointer-events-none absolute inset-0" aria-hidden="true"></div>
-  )}
-  <div class={`relative mx-auto ${widthClass} px-6 py-20 sm:px-8 lg:py-28 ${className}`}>
+  <div class={`relative mx-auto ${widthClass} px-5 py-16 sm:px-8 lg:py-24 ${className}`}>
     {(kicker || heading || number) && (
-      <div class={`mb-10 flex items-start gap-5 border-b pb-8 lg:mb-14 lg:gap-8 ${headerBorderClass}`}>
+      <div class={`mb-10 flex items-start gap-5 lg:mb-14 lg:gap-8`}>
         {number && (
-          <span
-            class={`shrink-0 font-display text-4xl leading-none font-extrabold tracking-[-0.02em] sm:text-5xl ${numeralClass}`}
-            aria-hidden="true"
-          >
+          <span class={`shrink-0 pt-1 font-display text-sm leading-none font-extrabold ${dark ? 'text-accent' : 'text-accent-ink'}`}>
             {number}
           </span>
         )}
         <div class="min-w-0 flex-1">
-          {kicker && <p class={kickerClass}>{kicker}</p>}
+          {kicker && <p class={`label mb-4 ${dark ? 'text-accent' : 'text-accent-ink'}`}>{kicker}</p>}
           {heading && (
-            <h2 class="max-w-(--container-prose) font-display text-3xl leading-[1.06] font-bold tracking-[-0.03em] text-balance sm:text-4xl lg:text-[2.75rem]">
-              {heading}
+            <h2 class="max-w-3xl font-display text-[2rem] leading-[1.06] font-extrabold tracking-[-0.035em] sm:text-[2.6rem]">
+              {parts.map((part, i) => (i % 2 === 1 ? <span class="accent-u">{part}</span> : part))}
             </h2>
           )}
-          {meta && <p class={`mt-3 font-mono text-[11px] tracking-[0.1em] uppercase ${metaClass}`}>{meta}</p>}
+          {meta && <p class={`label mt-4 ${dark ? 'text-on-dark-muted' : 'text-meta'}`}>{meta}</p>}
         </div>
       </div>
     )}

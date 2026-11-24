@@ -1,0 +1,38 @@
+---
+/**
+ * One article in a list: topic, title, one-line description, date and
+ * reading time. Used on /ideas, the homepage and related-reading lists.
+ */
+import type { CollectionEntry } from 'astro:content';
+import { readingTime } from '@lib/reading-time';
+
+interface Props {
+  article: CollectionEntry<'articles'>;
+  tone?: 'dark' | 'paper';
+  /** Larger title, for a featured entry. */
+  large?: boolean;
+}
+
+const { article, tone = 'paper', large = false } = Astro.props;
+const dark = tone === 'dark';
+const date = article.data.publishDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+---
+
+<a href={`/ideas/${article.id}/`} class="group/idea grid gap-3 py-7 sm:grid-cols-[11rem_1fr] sm:gap-8">
+  <p class:list={['label pt-1.5', dark ? 'text-accent' : 'text-accent-ink']}>{article.data.category}</p>
+  <div class="min-w-0">
+    <h3
+      class:list={[
+        'font-display leading-[1.12] font-extrabold tracking-[-0.03em] transition-colors',
+        large ? 'text-3xl sm:text-4xl' : 'text-xl sm:text-2xl',
+        dark ? 'text-paper group-hover/idea:text-accent' : 'text-ink group-hover/idea:text-accent-ink',
+      ]}
+    >
+      {article.data.title}
+    </h3>
+    <p class:list={['mt-2 max-w-2xl', large ? 'text-lg' : '', dark ? 'text-on-dark-muted' : 'text-body']}>{article.data.description}</p>
+    <p class:list={['label mt-3 text-[11px]', dark ? 'text-on-dark-muted' : 'text-meta']}>
+      <time datetime={article.data.publishDate.toISOString()}>{date}</time> · {readingTime(article.body ?? '')}
+    </p>
+  </div>
+</a>

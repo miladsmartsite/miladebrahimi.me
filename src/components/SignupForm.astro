@@ -1,0 +1,56 @@
+---
+/**
+ * The one email signup form on the site. It renders only when an email
+ * service is connected (NEWSLETTER.action in site.ts). Until then it shows
+ * the fallback slot, or a link to /start, so no form ever goes nowhere.
+ */
+import Button from '@components/Button.astro';
+import { NEWSLETTER } from '@lib/site';
+
+interface Props {
+  /** Button text. */
+  cta?: string;
+  /** Identifies the form in analytics (data-cta). */
+  source: string;
+  tone?: 'dark' | 'paper';
+  class?: string;
+}
+
+const { cta = 'Send me the worksheet', source, tone = 'dark', class: className = '' } = Astro.props;
+const connected = NEWSLETTER.action.length > 0;
+const dark = tone === 'dark';
+const inputId = `email-${source}`;
+---
+
+{connected ? (
+  <form action={NEWSLETTER.action} method="post" class={className} data-cta={`signup-${source}`}>
+    <label for={inputId} class:list={['label mb-3 block', dark ? 'text-on-dark-muted' : 'text-meta']}>Your email</label>
+    <div class:list={['flex flex-col gap-0 border-2 sm:flex-row', dark ? 'border-accent' : 'border-ink']}>
+      <input
+        id={inputId}
+        name={NEWSLETTER.emailField}
+        type="email"
+        required
+        autocomplete="email"
+        placeholder="you@example.com"
+        class:list={['min-h-13 min-w-0 flex-1 px-4 text-base outline-none placeholder:opacity-60', dark ? 'bg-ink text-paper' : 'bg-paper text-ink']}
+      />
+      {Object.entries(NEWSLETTER.hiddenFields).map(([name, value]) => <input type="hidden" name={name} value={value} />)}
+      <button
+        type="submit"
+        class:list={['min-h-13 px-6 font-semibold transition-colors', dark ? 'bg-accent text-ink hover:bg-paper' : 'bg-ink text-paper hover:bg-accent-ink']}
+      >
+        {cta}
+      </button>
+    </div>
+    <p class:list={['mt-3 text-sm', dark ? 'text-on-dark-muted' : 'text-meta']}>
+      {NEWSLETTER.promise} See the <a href="/privacy/" class="underline underline-offset-2">privacy note</a>.
+    </p>
+  </form>
+) : (
+  <div class={className}>
+    <slot>
+      <Button href="/start/" variant={dark ? 'primary' : 'dark'} arrow data-cta={`worksheet-${source}`}>Get the free worksheet</Button>
+    </slot>
+  </div>
+)}

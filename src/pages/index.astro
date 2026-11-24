@@ -1,77 +1,190 @@
 ---
 /**
- * Homepage — Phase 3 restructure. Eight sections, in this fixed order:
- * Hero → Five Areas → The Milad Method → Selected Work → Proof of Work →
- * Contents → Books → Final CTA. Deliberately NOT the full resume — no
- * career timeline, no skills/education dump; that's all on /resume.
+ * Homepage, in the order a visitor from YouTube needs it:
+ * who and what (hero + free worksheet) → why trust (proof) → the three
+ * pillars → the daily videos → the writing → the weekly email → the books
+ * → ways to go further → a short introduction.
  */
 import { getCollection } from 'astro:content';
 import BaseLayout from '@layouts/BaseLayout.astro';
-import Hero from '@components/Hero.astro';
+import Section from '@components/Section.astro';
 import Button from '@components/Button.astro';
-import ExpertiseAreas from '@components/home/ExpertiseAreas.astro';
-import MiladMethod from '@components/home/MiladMethod.astro';
-import SystemsArchive from '@components/home/SystemsArchive.astro';
-import ProofOfWork from '@components/home/ProofOfWork.astro';
-import ContentsPreview from '@components/home/ContentsPreview.astro';
-import BooksShowcase from '@components/home/BooksShowcase.astro';
-import FinalCta from '@components/home/FinalCta.astro';
-import { SITE, HOME, EXPERTISE_AREAS } from '@lib/site';
+import BalanceWheel from '@components/BalanceWheel.astro';
+import VideoCard from '@components/VideoCard.astro';
+import IdeaRow from '@components/IdeaRow.astro';
+import BookCover from '@components/BookCover.astro';
+import Portrait from '@components/Portrait.astro';
+import SignupForm from '@components/SignupForm.astro';
+import { getPublishedArticles } from '@lib/articles';
+import { getVideos } from '@lib/youtube';
+import { SITE, PILLARS, PROOF, OFFERS, WORKSHEET, YOUTUBE, NEWSLETTER } from '@lib/site';
 
-const allProjects = await getCollection('projects', ({ data }) => !data.draft);
-const systems = allProjects.sort((a, b) => a.data.order - b.data.order);
-
-const heroStats = [
-  { label: 'Focus', value: 'Operations' },
-  { label: 'Approach', value: 'Systems' },
-  { label: 'Areas', value: String(EXPERTISE_AREAS.length).padStart(2, '0') },
-  { label: 'Systems built', value: String(systems.length).padStart(2, '0') },
-];
-
-const allBooks = await getCollection('books', ({ data }) => !data.draft);
-const books = allBooks.sort((a, b) => a.data.order - b.data.order);
+const articles = (await getPublishedArticles()).slice(0, 3);
+const videos = await getVideos();
+const latestShorts = videos.filter((v) => v.short).slice(0, 4);
+const latestLong = videos.find((v) => !v.short);
+const books = (await getCollection('books', ({ data }) => !data.draft)).sort((a, b) => b.data.order - a.data.order);
+const exampleScores = [7, 5, 6, 8, 4, 6, 7, 5];
 ---
 
 <BaseLayout title={SITE.homeTitle} description={SITE.defaultDescription}>
-  {/* 01 — Hero */}
-  <Hero
-    masthead={SITE.brandName}
-    eyebrow={HOME.hero.eyebrow}
-    title={HOME.hero.headline}
-    subtitle={HOME.hero.subhead}
-    note={HOME.hero.note}
-    stats={heroStats}
-  >
-    <Button href="/contact" variant="accent" arrow data-cta="hero-primary-contact">{HOME.hero.primaryCta}</Button>
-    <Button
-      href="/projects"
-      variant="secondary"
-      class="!border-on-dark-line !text-paper hover:!border-accent hover:!text-accent"
-      arrow
-      data-cta="hero-secondary-work"
-    >
-      {HOME.hero.secondaryCta}
-    </Button>
-  </Hero>
+  <!-- Hero -->
+  <section class="bg-ink text-paper">
+    <div class="mx-auto grid max-w-(--container-wide) items-center gap-12 px-5 pt-14 pb-16 sm:px-8 lg:grid-cols-12 lg:gap-10 lg:pt-24 lg:pb-24">
+      <div class="lg:col-span-7">
+        <p class="label text-accent">Time Engineering · Self-Coaching · Balance</p>
+        <h1 class="mt-6 font-display text-[2.9rem] leading-[0.98] font-extrabold tracking-[-0.05em] sm:text-7xl xl:text-[5.4rem]">
+          Engineer your time. Coach yourself. Live in <span class="accent-u">balance.</span>
+        </h1>
+        <p class="mt-8 max-w-xl text-lg leading-relaxed text-on-dark-muted sm:text-xl">
+          I'm Milad Ebrahimi, productivity coach and author. Every day I share one practical idea from my books that you can use the same day.
+        </p>
+        <div class="mt-9 flex flex-wrap gap-3">
+          <Button href="/start/" arrow data-cta="home-hero-worksheet">Get the free Balance Wheel</Button>
+          <Button href="/videos/" variant="secondary" data-cta="home-hero-videos">Watch one idea a day</Button>
+        </div>
+      </div>
 
-  {/* 02 — Five Areas */}
-  <ExpertiseAreas number="02" showCta />
+      <a href="/start/" data-cta="home-hero-wheel" class="group/wheel block border border-on-dark-line p-6 transition-colors hover:border-accent sm:p-8 lg:col-span-5">
+        <div class="flex items-center justify-between">
+          <p class="label text-accent">Free worksheet</p>
+          <p class="label text-on-dark-muted">PDF · 2 pages</p>
+        </div>
+        <BalanceWheel scores={exampleScores} class="mx-auto my-6 block w-full max-w-sm" />
+        <p class="font-display text-2xl font-extrabold tracking-[-0.03em]">{WORKSHEET.hook}</p>
+        <p class="mt-2 text-on-dark-muted">Score eight areas of your life, see where it isn't turning smoothly, and pick one to work on for 40 days.</p>
+        <p class="mt-5 font-semibold text-accent">Download it free <span aria-hidden="true" class="inline-block transition-transform group-hover/wheel:translate-x-1">→</span></p>
+      </a>
+    </div>
 
-  {/* 03 — The Milad Method */}
-  <MiladMethod number="03" />
+    <div class="border-y border-on-dark-line">
+      <dl class="mx-auto grid max-w-(--container-wide) grid-cols-2 px-5 sm:px-8 lg:grid-cols-4">
+        {PROOF.map((item, i) => (
+          <div class:list={['flex flex-col py-6 sm:py-8',i % 2 === 1 ? 'border-l border-on-dark-line pl-5 sm:pl-8' : '', i >= 2 ? 'border-t border-on-dark-line lg:border-t-0' : '', i === 2 ? 'lg:border-l lg:pl-8' : '']}>
+            <dt class="label order-2 mt-2 text-on-dark-muted">{item.label}</dt>
+            <dd class="order-1 font-display text-3xl font-extrabold tracking-[-0.04em] sm:text-4xl">{item.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  </section>
 
-  {/* 04 — Selected Work */}
-  <SystemsArchive systems={systems} number="04" id="selected-work" />
+  <!-- Pillars -->
+  <Section tone="paper" kicker="Three pillars" heading="One system for your time, your goals and your *life.*" width="wide" reveal>
+    <div class="grid border-t-2 border-ink md:grid-cols-3">
+      {PILLARS.map((pillar, i) => (
+        <a href={`/ideas/#${pillar.key}`} class:list={['group/pillar block py-8 md:pr-8', i > 0 ? 'border-t border-line md:border-t-0 md:border-l md:pl-8' : '']}>
+          <p class="font-display text-sm font-extrabold text-accent-ink">0{i + 1}</p>
+          <h3 class="mt-4 font-display text-3xl font-extrabold tracking-[-0.035em]">{pillar.title}</h3>
+          <p class="mt-3 max-w-xs text-body">{pillar.line}</p>
+          <p class="label mt-6 inline-block border-b-2 border-accent-ink pb-1 text-ink transition-colors group-hover/pillar:text-accent-ink">Explore</p>
+        </a>
+      ))}
+    </div>
+  </Section>
 
-  {/* 05 — Proof of Work */}
-  <ProofOfWork number="05" />
+  <!-- Videos -->
+  <Section tone="dark" kicker={YOUTUBE.series} heading="One idea a day, in *30 seconds.*" width="wide" reveal>
+    {latestShorts.length > 0 ? (
+      <div class="grid grid-cols-2 gap-x-4 gap-y-10 sm:gap-x-6 lg:grid-cols-4">
+        {latestShorts.map((video) => <VideoCard video={video} source="home" />)}
+      </div>
+    ) : (
+      <p class="max-w-xl text-lg text-on-dark-muted">New Shorts go live every day on YouTube. Subscribe so you don't miss the next one.</p>
+    )}
+    {latestLong && (
+      <a href={latestLong.url} target="_blank" rel="noopener noreferrer" data-cta="home-long-video" class="group/long mt-12 grid items-center gap-6 border-t border-on-dark-line pt-10 md:grid-cols-2 md:gap-10">
+        <img src={latestLong.thumbnail} alt="" loading="lazy" width="480" height="360" class="aspect-video w-full object-cover" />
+        <div>
+          <p class="label text-accent">This week's long video</p>
+          <p class="mt-3 font-display text-3xl font-extrabold tracking-[-0.035em] transition-colors group-hover/long:text-accent">{latestLong.title}</p>
+          <p class="mt-3 text-on-dark-muted">{latestLong.description}</p>
+        </div>
+      </a>
+    )}
+    <div class="mt-12 flex flex-wrap gap-3">
+      <Button href={YOUTUBE.subscribeUrl} external arrow data-cta="home-subscribe">Subscribe on YouTube</Button>
+      <Button href="/videos/" variant="secondary" data-cta="home-all-videos">All videos</Button>
+    </div>
+  </Section>
 
-  {/* 06 — Contents */}
-  <ContentsPreview number="06" />
+  <!-- Ideas -->
+  {articles.length > 0 && (
+    <Section tone="paper" kicker="Ideas" heading="The thinking behind the Shorts, *written down.*" width="wide" reveal>
+      <div class="divide-y divide-line border-t-2 border-ink">
+        {articles.map((article, i) => <IdeaRow article={article} large={i === 0} />)}
+      </div>
+      <div class="mt-10">
+        <Button href="/ideas/" variant="dark" arrow data-cta="home-all-ideas">All ideas</Button>
+      </div>
+    </Section>
+  )}
 
-  {/* 07 — Books */}
-  {books.length > 0 && <BooksShowcase books={books} showCta number="07" />}
+  <!-- Newsletter / worksheet -->
+  <section class="bg-accent text-ink">
+    <div class="mx-auto grid max-w-(--container-wide) items-end gap-10 px-5 py-16 sm:px-8 lg:grid-cols-2 lg:py-20">
+      <div>
+        <p class="label">{NEWSLETTER.name}</p>
+        <h2 class="mt-4 font-display text-[2.2rem] leading-[1.04] font-extrabold tracking-[-0.04em] sm:text-5xl">
+          Start with the wheel. Then one idea a week.
+        </h2>
+      </div>
+      <div>
+        <p class="mb-6 max-w-lg text-lg">
+          Get the free Balance Wheel worksheet now. When the weekly email starts, you'll get one practical idea from the books every Sunday.
+        </p>
+        <SignupForm source="home-band" tone="paper">
+          <Button href="/start/" variant="dark" arrow data-cta="home-band-worksheet">Get the free worksheet</Button>
+        </SignupForm>
+      </div>
+    </div>
+  </section>
 
-  {/* 08 — Final CTA */}
-  <FinalCta number="08" />
+  <!-- Books -->
+  <Section tone="dark" kicker="Books" heading="Three books, one *system.*" width="wide" reveal>
+    <div class="grid grid-cols-2 gap-x-5 gap-y-10 sm:gap-x-8 lg:grid-cols-4">
+      {books.map((book) => (
+        <a href={`/books/#${book.id}`} class="group/book block min-w-0">
+          <BookCover title={book.data.title} src={book.data.coverImage} meta={book.data.year} class="transition-colors group-hover/book:border-accent" />
+          <p class="mt-4 font-display text-lg font-extrabold tracking-[-0.02em] transition-colors group-hover/book:text-accent">{book.data.title}</p>
+          <p class="label mt-1 text-[11px] text-on-dark-muted">{book.data.language} · {book.data.year}</p>
+        </a>
+      ))}
+      <div class="col-span-2 flex flex-col justify-end border-t border-on-dark-line pt-6 lg:col-span-1 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-8">
+        <p class="text-on-dark-muted">Time Engineering, Self-Coaching Blueprint and The Balance Book: a decade of coaching, written down.</p>
+        <div class="mt-6"><Button href="/books/" variant="secondary" arrow data-cta="home-books">About the books</Button></div>
+      </div>
+    </div>
+  </Section>
+
+  <!-- Work with Milad -->
+  <Section tone="paper" kicker="Work with Milad" heading="Three ways to go *further.*" width="wide" reveal>
+    <div class="grid border-t-2 border-ink md:grid-cols-3">
+      {OFFERS.map((offer, i) => (
+        <div class:list={['flex flex-col py-8 md:pr-8', i > 0 ? 'border-t border-line md:border-t-0 md:border-l md:pl-8' : '']}>
+          <p class="label text-accent-ink">{offer.label}</p>
+          <h3 class="mt-4 font-display text-3xl font-extrabold tracking-[-0.035em]">{offer.title}</h3>
+          <p class="mt-3 mb-8 text-body">{offer.description}</p>
+          <div class="mt-auto"><Button href={offer.href} variant={i === 0 ? 'dark' : 'ghost'} arrow={i !== 0} data-cta={`home-offer-${offer.key}`}>{offer.cta}</Button></div>
+        </div>
+      ))}
+    </div>
+  </Section>
+
+  <!-- About -->
+  <Section tone="dark" width="wide" reveal>
+    <div class="grid items-center gap-10 md:grid-cols-12">
+      <div class="md:col-span-4 lg:col-span-3">
+        <Portrait class="max-w-64" />
+      </div>
+      <div class="md:col-span-8 lg:col-span-7 lg:col-start-5">
+        <p class="label text-accent">About</p>
+        <p class="mt-5 font-display text-2xl leading-snug font-bold tracking-[-0.025em] sm:text-3xl">
+          Civil engineer by background, coach by calling. For more than ten years I've helped people plan their time, set goals that last and keep their lives in balance.
+        </p>
+        <p class="mt-5 text-on-dark-muted">Author of Self-Coaching Blueprint and Time Engineering. Founder of ME Academy. Based in Muscat, Oman.</p>
+        <div class="mt-8"><Button href="/about/" variant="ghost" arrow data-cta="home-about">More about me</Button></div>
+      </div>
+    </div>
+  </Section>
 </BaseLayout>

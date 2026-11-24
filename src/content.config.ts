@@ -1,14 +1,13 @@
 import { defineCollection, z } from 'astro:content';
 import { glob } from 'astro/loaders';
 import { normalizePublishDate } from './lib/publication';
+import { TOPICS } from './lib/site';
 
 /**
  * Shared fields every collection uses to control publication state.
- * `draft: true` keeps an entry out of production listings entirely.
- * `placeholder: true` is different: the entry IS shown (so sections don't
- * look empty before real content exists), but templates render a visible
- * "Placeholder" tag on it — an honest, in-UI mark rather than something
- * only visible in the source file.
+ * `draft: true` keeps an entry out of production entirely. For articles,
+ * `placeholder: true` does the same (see src/lib/publication.ts); other
+ * collections may still show a placeholder entry with a visible tag.
  */
 const publishState = {
   draft: z.boolean().default(false),
@@ -16,24 +15,22 @@ const publishState = {
   order: z.number().default(0),
 };
 
-// Excludes README.md — a per-collection workflow doc (see
-// src/content/articles/README.md), not real content, so it must never be
-// scanned as an entry or it'd fail schema validation at build time.
+// Excludes README.md, a per-collection workflow doc, not real content.
 const contentPattern = ['**/*.md', '!README.md'];
 
-// The five approved lenses (see src/lib/site.ts EXPERTISE_AREAS) doubling
-// as the article taxonomy — a controlled vocabulary so a typo'd category
-// fails the build instead of silently becoming its own orphan category.
-export const ARTICLE_CATEGORIES = ['Operations', 'Marketing', 'Productivity', 'AI', 'Leadership'] as const;
+// Article topics come from site.ts TOPICS: the three pillars plus Business.
+// A controlled vocabulary, so a typo'd topic fails the build instead of
+// silently becoming its own orphan section on /ideas.
+export const ARTICLE_CATEGORIES = TOPICS.map((t) => t.title) as [
+  (typeof TOPICS)[number]['title'],
+  ...(typeof TOPICS)[number]['title'][],
+];
 
 const projects = defineCollection({
   loader: glob({ pattern: contentPattern, base: './src/content/projects' }),
   schema: z.object({
     title: z.string(),
     summary: z.string(),
-    // Free-form tags rather than a fixed enum — positioning across the
-    // practice areas (Business Operations, Systems, Marketing, AI, etc.)
-    // is not finalized yet, so this must stay easy to relabel.
     tags: z.array(z.string()).default([]),
     role: z.string().optional(),
     client: z.string().optional(),
@@ -41,15 +38,11 @@ const projects = defineCollection({
     coverImage: z.string().optional(),
     externalUrl: z.string().url().optional(),
     featured: z.boolean().default(false),
-    // Which conceptual SystemPreview visualization represents this system —
-    // always a recreated/abstract diagram, never a real screenshot (several
-    // real systems involve confidential company data).
+    // Which conceptual SystemPreview visualization represents this system:
+    // always a recreated/abstract diagram, never a real screenshot.
     previewType: z.enum(['dashboard', 'workflow', 'reporting', 'operations', 'marketing']).optional(),
-    // Structured case-study fields for the project detail page — mirrors the
-    // ten-part case-study structure (context/problem/role/approach/system/
-    // how it works/tools/implementation/outcome/lessons). All optional: a
-    // real system can be published with only the fields that are actually
-    // evidenced, rather than waiting for every field to be filled in.
+    // Case-study fields for the project detail page. All optional, so a
+    // system can be published with only the fields that are evidenced.
     context: z.string().optional(),
     problem: z.string().optional(),
     challenge: z.string().optional(),
@@ -59,14 +52,8 @@ const projects = defineCollection({
     tools: z.array(z.string()).default([]),
     implementation: z.string().optional(),
     outcome: z.string().optional(),
-    // Short, explicit note on what evidence exists for the outcome — lets a
-    // case study say "here's what's confirmed so far" without implying a
-    // metric that isn't backed by evidence.
     evidenceNote: z.string().optional(),
     lessons: z.string().optional(),
-    // True when the public write-up deliberately uses a recreated/redacted
-    // description or diagram instead of the real internal document, because
-    // the source material contains confidential or third-party information.
     redacted: z.boolean().default(false),
     ...publishState,
   }),
@@ -81,27 +68,16 @@ const articles = defineCollection({
     // instead of coercing to 1970 (see src/lib/publication.ts).
     publishDate: z.preprocess(normalizePublishDate, z.coerce.date()),
     updatedDate: z.coerce.date().optional(),
-    // Every piece is written by Milad today; kept as an explicit (not
-    // hard-coded) field so a real guest byline is a frontmatter value away,
-    // not a schema change, and so it can feed Article JSON-LD directly.
     author: z.string().default('Milad Ebrahimi'),
-    // The article's one primary lens — a controlled vocabulary (see
-    // ARTICLE_CATEGORIES above), not a free-text field, so the archive's
-    // category grouping can never fragment into near-duplicate labels.
+    // The article's one topic (see ARTICLE_CATEGORIES above).
     category: z.enum(ARTICLE_CATEGORIES),
     tags: z.array(z.string()).default([]),
     coverImage: z.string().optional(),
-    // Surfaces the piece on the homepage/archive above ones that don't —
-    // an explicit editorial choice, not inferred from recency alone.
     featured: z.boolean().default(false),
-    // A short pull-quote rendered as a large editorial statement partway
-    // through the piece — optional, purely presentational, never required.
+    // A short pull-quote rendered as a large statement after the body.
     quote: z.string().optional(),
-    // An embeddable video URL (YouTube/Vimeo/LinkedIn) shown via
-    // VideoFeature.astro instead of/alongside the written piece.
+    // A YouTube video this article is the written version of.
     videoUrl: z.string().url().optional(),
-    // Set when the piece lives on an external platform (LinkedIn, Medium)
-    // rather than being authored as a page on this site.
     externalUrl: z.string().url().optional(),
     ...publishState,
   }),
@@ -118,6 +94,8 @@ const books = defineCollection({
     link: z.string().url().optional(),
     year: z.string().optional(),
     language: z.string().optional(),
+    // Which pillar the book belongs to (see site.ts PILLARS).
+    pillar: z.enum(['time-engineering', 'self-coaching', 'balance']).optional(),
     ...publishState,
   }),
 });

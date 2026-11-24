@@ -1,33 +1,27 @@
 ---
 /**
- * Page-level intro block — smaller than the homepage cinematic Hero, but
- * bigger and more deliberate than a mid-page Section kicker+heading. Used
- * at the top of every non-homepage page so each has a consistent "arrival"
- * moment while still allowing tone/copy to differ per page identity (see
- * design-system.md §16, "one brand system, different page experiences").
+ * The arrival block at the top of every inner page. Charcoal by default,
+ * like the channel; `*word*` in the title gets the bronze accent bar.
  */
 interface Props {
   kicker: string;
   title: string;
   subtitle?: string;
-  tone?: 'paper' | 'navy';
+  tone?: 'dark' | 'paper' | 'navy';
 }
 
-const { kicker, title, subtitle, tone = 'paper' } = Astro.props;
-const isNavy = tone === 'navy';
+const { kicker, title, subtitle, tone: toneProp = 'dark' } = Astro.props;
+const dark = toneProp !== 'paper';
+const parts = title.split(/\*(.+?)\*/);
 ---
 
-<div class:list={['relative overflow-hidden', isNavy ? 'bg-ink text-paper' : 'bg-paper text-ink']}>
-  {isNavy && <div class="field-grid pointer-events-none absolute inset-0" aria-hidden="true"></div>}
-  <div class="relative mx-auto max-w-(--container-wide) px-6 pt-14 pb-14 sm:px-8 sm:pt-16 lg:pt-20">
-    <p class:list={['mb-4 font-mono text-[11px] font-bold tracking-[0.16em] uppercase', isNavy ? 'text-accent' : 'text-accent-ink']}>
-      {kicker}
-    </p>
-    <h1 class="max-w-3xl font-display text-4xl leading-[1.05] font-bold tracking-[-0.03em] text-balance sm:text-5xl lg:text-[3.5rem]">
-      {title}
+<div class:list={[dark ? 'bg-ink text-paper' : 'on-paper bg-paper text-ink', 'border-b', dark ? 'border-on-dark-line' : 'border-line']}>
+  <div class="mx-auto max-w-(--container-content) px-5 pt-14 pb-14 sm:px-8 sm:pt-20 sm:pb-18">
+    <p class:list={['label mb-5', dark ? 'text-accent' : 'text-accent-ink']}>{kicker}</p>
+    <h1 class="max-w-4xl font-display text-[2.6rem] leading-[1.02] font-extrabold tracking-[-0.045em] sm:text-6xl lg:text-[4.25rem]">
+      {parts.map((part, i) => (i % 2 === 1 ? <span class="accent-u">{part}</span> : part))}
     </h1>
-    {subtitle && (
-      <p class:list={['mt-5 max-w-xl font-body text-lg', isNavy ? 'text-on-dark-muted' : 'text-body']}>{subtitle}</p>
-    )}
+    {subtitle && <p class:list={['mt-6 max-w-2xl text-lg leading-relaxed sm:text-xl', dark ? 'text-on-dark-muted' : 'text-body']}>{subtitle}</p>}
+    <slot />
   </div>
 </div>

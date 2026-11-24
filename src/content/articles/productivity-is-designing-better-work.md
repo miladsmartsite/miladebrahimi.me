@@ -2,7 +2,7 @@
 title: "Productivity Is Not About Doing More — It's About Designing Better Work"
 description: "Better productivity starts when work becomes visible, priorities become clear, and the system around execution gets simpler."
 publishDate: 2026-09-09T11:00:00
-category: "Productivity"
+category: "Time Engineering"
 tags: ["Execution", "Focus", "Efficiency"]
 featured: false
 quote: "A productive person inside a broken system is still constrained by that system."
