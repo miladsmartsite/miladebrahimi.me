@@ -15,6 +15,7 @@ import IdeaRow from '@components/IdeaRow.astro';
 import BookCover from '@components/BookCover.astro';
 import Portrait from '@components/Portrait.astro';
 import SignupForm from '@components/SignupForm.astro';
+import MeCoachLaunch from '@components/MeCoachLaunch.astro';
 import { getPublishedArticles } from '@lib/articles';
 import { getVideos } from '@lib/youtube';
 import { SITE, PILLARS, PROOF, OFFERS, WORKSHEET, YOUTUBE, NEWSLETTER } from '@lib/site';
@@ -45,15 +46,15 @@ const exampleScores = [7, 5, 6, 8, 4, 6, 7, 5];
         </div>
       </div>
 
-      <a href="/start/" data-cta="home-hero-wheel" class="group/wheel block border border-on-dark-line p-6 transition-colors hover:border-accent sm:p-8 lg:col-span-5">
+      <a href="/balance-wheel/" data-cta="home-hero-wheel" class="group/wheel block border border-on-dark-line p-6 transition-colors hover:border-accent sm:p-8 lg:col-span-5">
         <div class="flex items-center justify-between">
-          <p class="label text-accent">Free worksheet</p>
-          <p class="label text-on-dark-muted">PDF · 2 pages</p>
+          <p class="label text-accent">Free · Try it now</p>
+          <p class="label text-on-dark-muted">Online · 2 minutes</p>
         </div>
         <BalanceWheel scores={exampleScores} class="mx-auto my-6 block w-full max-w-sm" />
         <p class="font-display text-2xl font-extrabold tracking-[-0.03em]">{WORKSHEET.hook}</p>
         <p class="mt-2 text-on-dark-muted">Score eight areas of your life, see where it isn't turning smoothly, and pick one to work on for 40 days.</p>
-        <p class="mt-5 font-semibold text-accent">Download it free <span aria-hidden="true" class="inline-block transition-transform group-hover/wheel:translate-x-1">→</span></p>
+        <p class="mt-5 font-semibold text-accent">Rate your wheel online <span aria-hidden="true" class="inline-block transition-transform group-hover/wheel:translate-x-1">→</span></p>
       </a>
     </div>
 
@@ -68,6 +69,8 @@ const exampleScores = [7, 5, 6, 8, 4, 6, 7, 5];
       </dl>
     </div>
   </section>
+
+  <MeCoachLaunch source="home" />
 
   <!-- Pillars -->
   <Section tone="paper" kicker="Three pillars" heading="One system for your time, your goals and your *life.*" width="wide" reveal>

@@ -1,0 +1,212 @@
+---
+/**
+ * /balance-wheel: the quick Balance Wheel from Self-Coaching Blueprint,
+ * online. Same eight areas and the same wording as the free worksheet
+ * (book pp. 49–59, 67, 94). Scores never leave the visitor's browser: they
+ * are kept in localStorage only so the wheel is still there on a return
+ * visit. Without JavaScript the page still explains the method and links to
+ * the printable worksheet.
+ */
+import BaseLayout from '@layouts/BaseLayout.astro';
+import PageHero from '@components/PageHero.astro';
+import Button from '@components/Button.astro';
+import { WORKSHEET, ME_COACH, YOUTUBE } from '@lib/site';
+
+const patterns = [
+  { name: 'Balance', question: 'Which field has the lowest score, and do you feel the most motivated to improve it?' },
+  { name: 'Intention', question: 'In the next 40 days, which area would you like to dedicate your time and effort to?' },
+  { name: 'Aggression', question: 'Among all the fields, which one is most crucial for you to improve right now?' },
+];
+const hints: Record<string, string> = { Business: 'job, career' };
+---
+
+<BaseLayout
+  title="The Balance Wheel · rate your life online"
+  description="Rate eight areas of your life from 1 to 10 and see your Balance Wheel instantly. The quick version of the Balance Wheel Test from Self-Coaching Blueprint by Milad Ebrahimi. Free, private, nothing is sent anywhere."
+>
+  <PageHero
+    kicker="The Balance Wheel · quick version"
+    title={`Rate your life in *8 numbers.*`}
+    subtitle="For each area of your life, choose a score from 1 to 10. There are no wrong answers and no negative scores. The only requirement is honesty with yourself. Your scores stay on this device; nothing is sent anywhere."
+  />
+
+  <section class="on-paper bg-paper text-ink">
+    <div class="mx-auto grid max-w-(--container-wide) gap-12 px-5 py-14 sm:px-8 lg:grid-cols-12 lg:gap-14 lg:py-20">
+      <form id="wheel-form" class="lg:col-span-6" aria-describedby="wheel-help">
+        <p id="wheel-help" class="label text-accent-ink">Step 1 · Score each area</p>
+        <ul class="mt-5 border-t-2 border-ink">
+          {WORKSHEET.areas.map((area, i) => (
+            <li class="border-b border-line py-4">
+              <div class="flex items-baseline justify-between gap-4">
+                <label for={`area-${i}`} class="font-display text-lg font-extrabold tracking-[-0.02em]">
+                  {area}{hints[area] && <span class="ml-2 text-sm font-normal text-meta">{hints[area]}</span>}
+                </label>
+                <output id={`out-${i}`} for={`area-${i}`} class="font-display text-2xl font-extrabold text-accent-ink tabular-nums">5</output>
+              </div>
+              <input id={`area-${i}`} name={area} type="range" min="1" max="10" step="1" value="5" class="wheel-range mt-3 w-full" />
+            </li>
+          ))}
+        </ul>
+        <div class="mt-6 flex flex-wrap gap-3">
+          <button type="button" id="wheel-reset" class="label min-h-11 border-2 border-ink px-4 text-ink hover:border-accent-ink hover:text-accent-ink">Reset to 5</button>
+        </div>
+      </form>
+
+      <div class="lg:col-span-6">
+        <div class="lg:sticky lg:top-24">
+          <p class="label text-accent-ink">Step 2 · Your wheel</p>
+          <div class="mt-5 border border-line bg-paper-dim p-5 sm:p-8">
+            <svg id="wheel-svg" viewBox="-84 -60 168 120" class="mx-auto block w-full max-w-md" role="img" aria-labelledby="wheel-summary">
+              <g id="wheel-grid"></g>
+              <polygon id="wheel-shape" fill="rgba(154,107,42,.14)" stroke="#9A6B2A" stroke-width="1.1" stroke-linejoin="round"></polygon>
+              <g id="wheel-dots"></g>
+            </svg>
+            <p id="wheel-summary" class="mt-5 text-center text-body" aria-live="polite">
+              Move the sliders to draw your wheel.
+            </p>
+          </div>
+          <p class="mt-4 text-sm text-meta">
+            If there are significant deviations or flat spots, you'll better understand why your life may not be turning as smoothly as you'd like.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="bg-ink text-paper">
+    <div class="mx-auto max-w-(--container-wide) px-5 py-16 sm:px-8 lg:py-20">
+      <p class="label text-accent">Step 3 · Choose your area</p>
+      <h2 class="mt-4 font-display text-[2.2rem] leading-[1.04] font-extrabold tracking-[-0.04em] sm:text-5xl">Don't fix everything. <span class="accent-u">Pick one.</span></h2>
+      <p class="mt-4 max-w-2xl text-lg text-on-dark-muted">Three patterns to determine the area of change for yourself:</p>
+      <ol class="mt-10 grid border-t border-on-dark-line md:grid-cols-3">
+        {patterns.map((p, i) => (
+          <li class:list={['py-7 md:pr-8', i > 0 ? 'border-t border-on-dark-line md:border-t-0 md:border-l md:pl-8' : '']}>
+            <p class="label text-accent">Pattern {i + 1} · {p.name}</p>
+            <p class="mt-3 font-display text-xl leading-snug font-bold tracking-[-0.015em]">{p.question}</p>
+          </li>
+        ))}
+      </ol>
+
+      <div class="mt-14 grid gap-10 border-t border-on-dark-line pt-12 md:grid-cols-2">
+        <div>
+          <p class="label text-accent">Then · Seven nights</p>
+          <p class="mt-3 font-display text-2xl font-extrabold tracking-[-0.025em]">Two questions before bed.</p>
+          <ol class="mt-4 space-y-2 text-on-dark-muted">
+            <li>1. What score would I give myself today on a scale of 1 to 10?</li>
+            <li>2. How can I get a better score tomorrow?</li>
+          </ol>
+          <p class="mt-4 text-sm text-on-dark-muted">The printable worksheet has a 7-night tracker for this.</p>
+        </div>
+        <div class="flex flex-col items-start gap-3 md:items-end md:justify-end">
+          <Button href={WORKSHEET.a4} download arrow data-cta="wheel-download">Download the printable worksheet</Button>
+          <Button href={ME_COACH.url} variant="secondary" data-cta="wheel-mecoach">Take the full test in ME.Coach</Button>
+          <Button href={YOUTUBE.subscribeUrl} external variant="ghost" arrow data-cta="wheel-subscribe">One idea a day on YouTube</Button>
+        </div>
+      </div>
+      <p class="mt-12 text-sm text-on-dark-muted">
+        Quick version of the Balance Wheel Test. The full test (80 questions) is in <em>Self-Coaching Blueprint</em>, pp. 49–59.
+      </p>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .wheel-range {
+    accent-color: var(--color-accent-ink);
+    height: 2.75rem;
+    cursor: pointer;
+  }
+</style>
+
+<script>
+  const AREAS = ['Business', 'Finance', 'Lifestyle', 'Health', 'Relationships', 'Social', 'Mental', 'Spiritual'];
+  const KEY = 'balance-wheel-v1';
+  const R = 45;
+  const NS = 'http://www.w3.org/2000/svg';
+  const angle = (i: number) => -Math.PI / 2 + (i * Math.PI) / 4;
+  const pt = (i: number, r: number) => [r * Math.cos(angle(i)), r * Math.sin(angle(i))];
+
+  const inputs = AREAS.map((_, i) => document.getElementById(`area-${i}`) as HTMLInputElement);
+  const outputs = AREAS.map((_, i) => document.getElementById(`out-${i}`) as HTMLOutputElement);
+  const shape = document.getElementById('wheel-shape')!;
+  const dots = document.getElementById('wheel-dots')!;
+  const summary = document.getElementById('wheel-summary')!;
+
+  // Static grid: rings 2..10, spokes, labels (same geometry as BalanceWheel.astro).
+  const grid = document.getElementById('wheel-grid')!;
+  const el = (tag: string, attrs: Record<string, string | number>, text?: string) => {
+    const e = document.createElementNS(NS, tag);
+    for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, String(v));
+    if (text) e.textContent = text;
+    return e;
+  };
+  for (const k of [2, 4, 6, 8, 10]) grid.append(el('circle', { r: (R * k) / 10, fill: 'none', stroke: 'rgba(20,20,20,.12)', 'stroke-width': 0.4 }));
+  AREAS.forEach((area, i) => {
+    const [x, y] = pt(i, R);
+    grid.append(el('line', { x2: x.toFixed(2), y2: y.toFixed(2), stroke: 'rgba(20,20,20,.35)', 'stroke-width': 0.4 }));
+    const c = Math.cos(angle(i));
+    const s = Math.sin(angle(i));
+    const r = R + 5;
+    grid.append(
+      el(
+        'text',
+        {
+          x: (r * c).toFixed(2),
+          y: (r * s + (s > 0.5 ? 3.5 : s < -0.5 ? -0.5 : 1.5)).toFixed(2),
+          'text-anchor': c > 0.3 ? 'start' : c < -0.3 ? 'end' : 'middle',
+          'font-family': 'Inter, sans-serif',
+          'font-weight': 600,
+          'font-size': 4.3,
+          'letter-spacing': 0.5,
+          fill: '#6b665e',
+        },
+        area.toUpperCase(),
+      ),
+    );
+  });
+  grid.append(el('circle', { r: 1.2, fill: '#9A6B2A' }));
+
+  function load(): number[] | null {
+    try {
+      const v = JSON.parse(localStorage.getItem(KEY) ?? 'null');
+      return Array.isArray(v) && v.length === 8 && v.every((n) => Number.isInteger(n) && n >= 1 && n <= 10) ? v : null;
+    } catch {
+      return null;
+    }
+  }
+  function save(scores: number[]) {
+    try {
+      localStorage.setItem(KEY, JSON.stringify(scores));
+    } catch {
+      /* private mode or storage blocked: the wheel still works */
+    }
+  }
+
+  function draw() {
+    const scores = inputs.map((i) => Number(i.value));
+    scores.forEach((s, i) => (outputs[i].textContent = String(s)));
+    shape.setAttribute('points', scores.map((s, i) => pt(i, (R * s) / 10).map((n) => n.toFixed(2)).join(',')).join(' '));
+    dots.replaceChildren(...scores.map((s, i) => {
+      const [x, y] = pt(i, (R * s) / 10);
+      return el('circle', { cx: x.toFixed(2), cy: y.toFixed(2), r: 1.5, fill: '#9A6B2A' });
+    }));
+    const min = Math.min(...scores);
+    const max = Math.max(...scores);
+    const lowest = AREAS.filter((_, i) => scores[i] === min);
+    const avg = (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1);
+    summary.textContent =
+      min === max
+        ? `All eight areas at ${min}/10. Average ${avg}. Be honest: is every area really the same?`
+        : `Average ${avg}/10. Lowest: ${lowest.join(', ')} (${min}/10). Spread: ${max - min} points.`;
+    save(scores);
+  }
+
+  const saved = load();
+  if (saved) saved.forEach((s, i) => (inputs[i].value = String(s)));
+  inputs.forEach((i) => i.addEventListener('input', draw));
+  document.getElementById('wheel-reset')!.addEventListener('click', () => {
+    inputs.forEach((i) => (i.value = '5'));
+    draw();
+  });
+  draw();
+</script>

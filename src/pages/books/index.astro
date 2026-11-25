@@ -9,7 +9,7 @@ import BaseLayout from '@layouts/BaseLayout.astro';
 import PageHero from '@components/PageHero.astro';
 import BookCover from '@components/BookCover.astro';
 import Button from '@components/Button.astro';
-import { SITE, PERSON_ID, PILLARS, BOOK_STORE_URL } from '@lib/site';
+import { SITE, PERSON_ID, PILLARS, BOOK_STORE_URL, PLANNER } from '@lib/site';
 
 const books = (await getCollection('books', ({ data }) => !data.draft)).sort((a, b) => b.data.order - a.data.order);
 const pillarOf = (key?: string) => PILLARS.find((p) => p.key === key);
@@ -56,7 +56,7 @@ const bookSchema = books.map((book) => ({
             {lead && (
               <div class="mt-9 flex flex-wrap gap-3">
                 {BOOK_STORE_URL && <Button href={BOOK_STORE_URL} external arrow data-cta="books-buy">Get the book</Button>}
-                <Button href="/start/" variant={BOOK_STORE_URL ? 'secondary' : 'primary'} arrow data-cta="books-worksheet">Try the Balance Wheel from the book, free</Button>
+                <Button href="/balance-wheel/" variant={BOOK_STORE_URL ? 'secondary' : 'primary'} arrow data-cta="books-wheel">Try the Balance Wheel from the book, free</Button>
               </div>
             )}
             {!lead && book.data.language === 'Persian' && (
@@ -67,4 +67,20 @@ const bookSchema = books.map((book) => ({
       </section>
     );
   })}
+
+  {PLANNER.url && (
+    <section id="planner" class="on-paper scroll-mt-20 border-t border-line bg-paper-dim text-ink">
+      <div class="mx-auto grid max-w-(--container-content) items-center gap-10 px-5 py-16 sm:px-8 md:grid-cols-12 lg:py-20">
+        <div class="md:col-span-4">
+          <BookCover title={PLANNER.title} meta="Amazon" class="max-w-60" />
+        </div>
+        <div class="md:col-span-8">
+          <p class="label text-accent-ink">Companion · Print</p>
+          <h2 class="mt-5 font-display text-4xl leading-[1.02] font-extrabold tracking-[-0.045em]">{PLANNER.title}</h2>
+          <p class="mt-6 max-w-xl text-lg leading-relaxed text-body">{PLANNER.description}</p>
+          <div class="mt-8"><Button href={PLANNER.url} external variant="dark" arrow data-cta="books-planner">Get it on Amazon</Button></div>
+        </div>
+      </div>
+    </section>
+  )}
 </BaseLayout>

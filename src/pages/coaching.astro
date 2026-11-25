@@ -9,6 +9,7 @@ import PageHero from '@components/PageHero.astro';
 import Section from '@components/Section.astro';
 import Button from '@components/Button.astro';
 import BalanceWheel from '@components/BalanceWheel.astro';
+import MeCoachLaunch from '@components/MeCoachLaunch.astro';
 import { SITE, ME_COACH } from '@lib/site';
 
 const mail = (subject: string) => `mailto:${SITE.contactEmail}?subject=${encodeURIComponent(subject)}`;
@@ -35,6 +36,8 @@ const workshopTopics = [
       ))}
     </nav>
   </PageHero>
+
+  <MeCoachLaunch source="coaching" />
 
   <Section id="app" tone="paper" number="01" kicker="App · 7-day free trial" heading="ME.Coach: your self-coaching app, *one minute a day.*" width="wide">
     <div class="grid items-center gap-12 md:grid-cols-2">

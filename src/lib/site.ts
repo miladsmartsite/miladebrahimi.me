@@ -123,6 +123,17 @@ export const WORKSHEET = {
  */
 export const BOOK_STORE_URL = '';
 
+/**
+ * The 40-Day Self-Coaching Planner (Amazon KDP, built in ME Studio). Empty
+ * `url` = not on sale yet, and the site doesn't mention it at all. Paste the
+ * Amazon product link here and it appears on /books and the homepage.
+ */
+export const PLANNER = {
+  title: 'The 40-Day Self-Coaching Planner',
+  description: 'A printed planner built from the tools in Self-Coaching Blueprint: your Balance Wheel, one chosen area, 40 days of morning plans and night questions.',
+  url: '',
+} as const;
+
 /** ME.Coach lives at /coach as its own app; this site only links to it. */
 export const ME_COACH = {
   url: '/coach/',
@@ -130,6 +141,24 @@ export const ME_COACH = {
   line: 'Your self-coaching app, one minute a day.',
   description: 'The tests, goals and daily follow-up from Self-Coaching Blueprint, in one app. Start with a 7-day free trial.',
 } as const;
+
+/**
+ * ME.Coach launch moment (ME Family Brief: shared as a gift in the YouTube
+ * video on 1 January 2027). The launch section shows on the homepage and
+ * /coaching from the first build at or after `date` (the hourly build makes
+ * that within the hour). `giftUrl`: the ME.Coach gift link with the code
+ * Milad sets in ME.Coach Settings, e.g. '/coach/?gift=YOUTUBE'. Empty = the
+ * section links to the normal 7-day trial instead.
+ */
+export const ME_COACH_LAUNCH = {
+  date: '2027-01-01T00:00:00+04:00',
+  giftUrl: '',
+} as const;
+
+/** True from the moment `ME_COACH_LAUNCH.date` is reached (build time). */
+export function isMeCoachLaunched(now: Date = new Date()): boolean {
+  return now.getTime() >= new Date(ME_COACH_LAUNCH.date).getTime();
+}
 
 /** Ways to work together, shown on /coaching and the homepage. */
 export const OFFERS = [

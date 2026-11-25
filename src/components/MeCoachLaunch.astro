@@ -1,0 +1,39 @@
+---
+/**
+ * The ME.Coach launch section. Renders nothing before ME_COACH_LAUNCH.date
+ * (evaluated at build time; the hourly scheduled build switches it on), then
+ * shows on the homepage and /coaching. With a gift link it speaks to the
+ * YouTube audience; without one it offers the normal 7-day trial.
+ */
+import Button from '@components/Button.astro';
+import { ME_COACH, ME_COACH_LAUNCH, isMeCoachLaunched } from '@lib/site';
+
+interface Props {
+  source: string;
+}
+
+const { source } = Astro.props;
+const launched = isMeCoachLaunched();
+const gift = ME_COACH_LAUNCH.giftUrl.length > 0;
+const href = gift ? ME_COACH_LAUNCH.giftUrl : ME_COACH.url;
+---
+
+{launched && (
+  <section class="border-y border-accent bg-ink text-paper" aria-labelledby={`mecoach-launch-${source}`}>
+    <div class="mx-auto grid max-w-(--container-wide) items-center gap-8 px-5 py-12 sm:px-8 md:grid-cols-12 lg:py-16">
+      <div class="md:col-span-8">
+        <p class="label text-accent">{gift ? 'New · A gift for my YouTube viewers' : 'New · Now open'}</p>
+        <h2 id={`mecoach-launch-${source}`} class="mt-4 font-display text-[2.1rem] leading-[1.04] font-extrabold tracking-[-0.04em] sm:text-5xl">
+          ME.Coach is <span class="accent-u">live.</span>
+        </h2>
+        <p class="mt-4 max-w-2xl text-lg text-on-dark-muted">
+          {ME_COACH.line} The Balance Wheel test, 40-day goals and the morning and night questions from the book, in one app.
+          {gift ? ' Open it through this link to get your gift.' : ' Start with a 7-day free trial.'}
+        </p>
+      </div>
+      <div class="md:col-span-4 md:justify-self-end">
+        <Button href={href} arrow data-cta={`mecoach-launch-${source}`}>{gift ? 'Claim your gift' : 'Start free for 7 days'}</Button>
+      </div>
+    </div>
+  </section>
+)}
